@@ -1,1 +1,1 @@
-# Jackpot-Hijack
+# HIJACKPOT: Jack the Rules
