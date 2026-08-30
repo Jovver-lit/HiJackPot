@@ -8,6 +8,9 @@
 .utmp/
 .DS_Store
 **/.DS_Store
+
+# 노션으로 관리하는 기획 문서 (git으로 버전관리 안 함)
+/Docs/
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
