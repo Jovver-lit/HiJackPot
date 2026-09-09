@@ -46,6 +46,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7351298556461201560}
+  - component: {fileID: 8095802685039221518}
+  - component: {fileID: 6834594106910953170}
   m_Layer: 0
   m_Name: DynamicSegments
   m_TagString: Untagged
@@ -72,6 +74,51 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &8095802685039221518
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2041455682724318271}
+  m_CullTransparentMesh: 1
+--- !u!114 &6834594106910953170
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2041455682724318271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 906a9a2723b654847bdca135b1cc4802, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::RouletteLike.Roulette.RoulettePixelWheelRenderer
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Texture: {fileID: 0}
+  m_UVRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  textureResolution: 210
+  dividerThickness: 1
+  outerBorderThickness: 2
+  borderColor: {r: 0.1764706, g: 0.13725491, b: 0.25490198, a: 1}
+  outerBorderColor: {r: 0.11764706, g: 0.09019608, b: 0.1764706, a: 1}
+  useTypePatterns: 1
+  patternStrength: 0.16
+  edgeShadeStrength: 0.16
+  highlightColor: {r: 1, g: 0.9372549, b: 0.36078432, a: 1}
+  highlightBlend: 0.55
 --- !u!1 &2435991130410399815
 GameObject:
   m_ObjectHideFlags: 0
@@ -129,6 +176,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RouletteLike.Roulette.RouletteController
   wheel: {fileID: 9020805507917267255}
   dynamicSegmentRoot: {fileID: 7351298556461201560}
+  pixelWheelRenderer: {fileID: 6834594106910953170}
   segments: []
   minimumSegmentCount: 2
   maximumSegmentCount: 20
@@ -140,7 +188,7 @@ MonoBehaviour:
   borderThickness: 2
   borderColor: {r: 0.1764706, g: 0.13725491, b: 0.25490198, a: 1}
   highlightColor: {r: 1, g: 0.9372549, b: 0.36078432, a: 1}
-  labelFont: {fileID: 0}
+  labelFont: {fileID: 12800000, guid: 719e9fad9d1a4415889686b2787153ac, type: 3}
   labelFontSize: 16
   iconRadiusRatio: 0.56
   labelRadiusRatio: 0.79
@@ -409,7 +457,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 719e9fad9d1a4415889686b2787153ac, type: 3}
     m_FontSize: 22
     m_FontStyle: 0
     m_BestFit: 0

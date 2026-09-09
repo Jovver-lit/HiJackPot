@@ -4,8 +4,8 @@ using UnityEngine.UI;
 namespace RouletteLike.Roulette
 {
     /// <summary>
-    /// Unity UI의 VertexHelper로 단일 부채꼴을 생성합니다.
-    /// 텍스처 한 장에 결과를 굽지 않으므로 각도와 개수가 런타임에 바뀔 수 있습니다.
+    /// 단일 칸의 아이콘과 텍스트 배치를 담당합니다.
+    /// 픽셀 렌더러가 없을 때는 기존 VertexHelper 부채꼴을 폴백으로 생성합니다.
     /// </summary>
     [DisallowMultipleComponent]
     public class RouletteSegmentGraphic : Graphic
@@ -22,6 +22,7 @@ namespace RouletteLike.Roulette
         private Color _borderColor;
         private Color _highlightColor;
         private bool _isHighlighted;
+        private bool _renderGeometry = true;
         private bool _snapVerticesToPixels;
         private int _labelFontSize;
         private float _iconRadiusRatio;
@@ -37,6 +38,7 @@ namespace RouletteLike.Roulette
         public float EndAngle => _endAngle;
         public float CenterAngle => (_startAngle + _endAngle) * 0.5f;
         public float AngleSize => _endAngle - _startAngle;
+        public bool RendersGeometry => _renderGeometry;
 
         /// <summary>
         /// Controller가 계산한 각도와 표시 옵션을 이 Graphic에 적용합니다.
@@ -57,7 +59,8 @@ namespace RouletteLike.Roulette
             float iconRadiusRatio,
             float labelRadiusRatio,
             Vector2 iconSize,
-            Vector2 labelSize)
+            Vector2 labelSize,
+            bool renderGeometry = true)
         {
             _data = data;
             _startAngle = startAngle;
@@ -74,6 +77,7 @@ namespace RouletteLike.Roulette
             _labelRadiusRatio = labelRadiusRatio;
             _iconSize = iconSize;
             _labelSize = labelSize;
+            _renderGeometry = renderGeometry;
 
             raycastTarget = false;
             color = Color.white;
@@ -126,12 +130,24 @@ namespace RouletteLike.Roulette
             }
 
             _isHighlighted = highlighted;
+            if (_labelText != null)
+            {
+                _labelText.color = highlighted ? _highlightColor : Color.white;
+            }
+
             SetVerticesDirty();
         }
 
         protected override void OnPopulateMesh(VertexHelper vertexHelper)
         {
             vertexHelper.Clear();
+
+            // 픽셀 방식에서는 배경과 경계선을 RoulettePixelWheelRenderer가 한 장에 그립니다.
+            // 이 Graphic은 자식 Icon/Label의 위치 컨테이너로만 남습니다.
+            if (!_renderGeometry)
+            {
+                return;
+            }
 
             float span = _endAngle - _startAngle;
             if (_radius <= 0f || span <= MinimumSpan)

@@ -19,6 +19,7 @@ namespace RouletteLike.Roulette
         [Header("Hierarchy References")]
         [SerializeField] private RectTransform wheel;
         [SerializeField] private RectTransform dynamicSegmentRoot;
+        [SerializeField] private RoulettePixelWheelRenderer pixelWheelRenderer;
 
         [Header("Runtime Segment Data")]
         [SerializeField] private List<RouletteSegmentData> segments = new List<RouletteSegmentData>();
@@ -55,6 +56,8 @@ namespace RouletteLike.Roulette
 
         public IReadOnlyList<RouletteSegmentData> Segments => segments;
         public RectTransform Wheel => wheel;
+        public RoulettePixelWheelRenderer PixelWheelRenderer => pixelWheelRenderer;
+        public Font LabelFont => labelFont;
         public int Count => segments.Count;
         public bool HasValidWheel => wheel != null && dynamicSegmentRoot != null && segments.Count >= minimumSegmentCount;
 
@@ -145,6 +148,11 @@ namespace RouletteLike.Roulette
 
             if (segments.Count == 0)
             {
+                if (pixelWheelRenderer != null)
+                {
+                    pixelWheelRenderer.ClearWheel();
+                }
+
                 _isRebuilding = false;
                 WheelRebuilt?.Invoke();
                 return;
@@ -177,8 +185,30 @@ namespace RouletteLike.Roulette
 
                 _startAngles.Add(startAngle);
                 _endAngles.Add(endAngle);
-                CreateSegmentGraphic(i, data, startAngle, endAngle, radius);
                 currentAngle = endAngle;
+            }
+
+            bool usePixelRenderer = pixelWheelRenderer != null && pixelWheelRenderer.enabled;
+            if (usePixelRenderer)
+            {
+                pixelWheelRenderer.Rebuild(
+                    segments,
+                    _startAngles,
+                    _endAngles,
+                    GetPixelRadiusRatio(radius));
+            }
+
+            // 픽셀 렌더러 사용 시에도 칸별 Graphic은 아이콘/텍스트 배치 컨테이너로 유지합니다.
+            // 렌더러가 없는 기존 Prefab은 자동으로 메시 부채꼴 폴백을 사용합니다.
+            for (int i = 0; i < segments.Count; i++)
+            {
+                CreateSegmentGraphic(
+                    i,
+                    segments[i],
+                    _startAngles[i],
+                    _endAngles[i],
+                    radius,
+                    !usePixelRenderer);
             }
 
             _isRebuilding = false;
@@ -516,6 +546,11 @@ namespace RouletteLike.Roulette
 
         public void ClearHighlights()
         {
+            if (pixelWheelRenderer != null)
+            {
+                pixelWheelRenderer.ClearHighlight();
+            }
+
             for (int i = 0; i < _graphics.Count; i++)
             {
                 if (_graphics[i] != null)
@@ -542,7 +577,7 @@ namespace RouletteLike.Roulette
             float elapsed = 0f;
             const float blinkInterval = 0.11f;
             bool highlighted = true;
-            graphic.SetHighlighted(true);
+            SetSegmentHighlighted(id, graphic, true);
 
             while (elapsed < duration && graphic != null)
             {
@@ -552,13 +587,13 @@ namespace RouletteLike.Roulette
 
                 if (graphic != null)
                 {
-                    graphic.SetHighlighted(highlighted);
+                    SetSegmentHighlighted(id, graphic, highlighted);
                 }
             }
 
             if (graphic != null)
             {
-                graphic.SetHighlighted(false);
+                SetSegmentHighlighted(id, graphic, false);
             }
 
             _highlightRoutine = null;
@@ -576,6 +611,11 @@ namespace RouletteLike.Roulette
             {
                 Transform segmentTransform = wheel.Find("DynamicSegments");
                 dynamicSegmentRoot = segmentTransform as RectTransform;
+            }
+
+            if (pixelWheelRenderer == null && dynamicSegmentRoot != null)
+            {
+                pixelWheelRenderer = dynamicSegmentRoot.GetComponent<RoulettePixelWheelRenderer>();
             }
         }
 
@@ -660,12 +700,25 @@ namespace RouletteLike.Roulette
             return Mathf.Max(1f, shortSide * 0.5f - radiusPadding);
         }
 
+        private float GetPixelRadiusRatio(float radius)
+        {
+            Rect rect = dynamicSegmentRoot.rect;
+            float shortSide = Mathf.Min(Mathf.Abs(rect.width), Mathf.Abs(rect.height));
+            if (shortSide <= Mathf.Epsilon)
+            {
+                return 1f;
+            }
+
+            return Mathf.Clamp01(radius / (shortSide * 0.5f));
+        }
+
         private void CreateSegmentGraphic(
             int index,
             RouletteSegmentData data,
             float startAngle,
             float endAngle,
-            float radius)
+            float radius,
+            bool renderGeometry)
         {
             string objectName = $"Segment_{index:00}_{data.type}";
             GameObject segmentObject = new GameObject(
@@ -700,10 +753,27 @@ namespace RouletteLike.Roulette
                 iconRadiusRatio,
                 labelRadiusRatio,
                 iconSize,
-                labelSize);
+                labelSize,
+                renderGeometry);
 
             _graphics.Add(graphic);
             _graphicById[data.id] = graphic;
+        }
+
+        private void SetSegmentHighlighted(
+            string id,
+            RouletteSegmentGraphic graphic,
+            bool highlighted)
+        {
+            if (graphic != null)
+            {
+                graphic.SetHighlighted(highlighted);
+            }
+
+            if (pixelWheelRenderer != null)
+            {
+                pixelWheelRenderer.SetHighlightedSegment(id, highlighted);
+            }
         }
 
         private void ClearGeneratedGraphics()
