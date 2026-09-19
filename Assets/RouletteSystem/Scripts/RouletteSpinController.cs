@@ -37,6 +37,14 @@ namespace RouletteLike.Roulette
         [SerializeField, Min(1)] private int minimumFullRotations = 3;
         [SerializeField] private bool useUnscaledTime = true;
 
+        [Header("Power Throw")]
+        [Tooltip("강도 회전은 한 칸을 저격하지 못하도록 마지막 착지 각도에 이 범위의 오차를 더합니다.")]
+        [SerializeField, Min(0f)] private float minimumLandingUncertainty = 42f;
+        [SerializeField, Min(0f)] private float maximumLandingUncertainty = 60f;
+        [Tooltip("강도 0~1이 가리키는 추가 이동 각도입니다. 한 바퀴 전체보다 조금 좁게 잡아 양 끝이 같은 지점이 되지 않게 합니다.")]
+        [SerializeField] private Vector2 powerTravelArc = new Vector2(20f, 340f);
+        [SerializeField, Min(0)] private int additionalFullRotationsAtMaxPower = 3;
+
         [Header("Replayable Random")]
         [Tooltip("전투 시드를 다시 주입하면 같은 순서의 정지 결과를 재현할 수 있습니다.")]
         [SerializeField] private bool useDeterministicRandom = true;
@@ -124,6 +132,9 @@ namespace RouletteLike.Roulette
             startSpeed = Mathf.Max(1f, startSpeed);
             deceleration = Mathf.Max(1f, deceleration);
             minimumFullRotations = Mathf.Max(1, minimumFullRotations);
+            minimumLandingUncertainty = Mathf.Max(0f, minimumLandingUncertainty);
+            maximumLandingUncertainty = Mathf.Max(minimumLandingUncertainty, maximumLandingUncertainty);
+            additionalFullRotationsAtMaxPower = Mathf.Max(0, additionalFullRotationsAtMaxPower);
         }
 
         /// <summary>
@@ -145,7 +156,53 @@ namespace RouletteLike.Roulette
                 return;
             }
 
-            _spinRoutine = StartCoroutine(SpinRoutine());
+            _spinRoutine = StartCoroutine(SpinRoutine(null, null));
+        }
+
+        /// <summary>
+        /// 플레이어가 정한 회전 강도로 룰렛을 던집니다. 강도는 대략적인 이동 구역만 정하며,
+        /// 마지막 2~3칸은 시드 기반 오차로 결정되어 한 칸 타이밍 저격을 방지합니다.
+        /// </summary>
+        public void Spin(float normalizedPower)
+        {
+            if (_isSpinning)
+            {
+                return;
+            }
+
+            ResolveReferences();
+            CaptureFixedCenterCapRotation();
+            if (rouletteController == null || wheel == null || rouletteController.Count < 2)
+            {
+                Debug.LogWarning("Roulette cannot spin until Controller, Wheel, and at least two segments exist.", this);
+                return;
+            }
+
+            _spinRoutine = StartCoroutine(SpinRoutine(Mathf.Clamp01(normalizedPower), null));
+        }
+
+        /// <summary>
+        /// 공개된 적 패턴처럼 결과가 이미 정해진 룰렛을 실제 회전시켜 해당 칸에 멈춥니다.
+        /// </summary>
+        public void SpinToSegment(int segmentIndex)
+        {
+            if (_isSpinning)
+            {
+                return;
+            }
+
+            ResolveReferences();
+            CaptureFixedCenterCapRotation();
+            if (rouletteController == null
+                || wheel == null
+                || segmentIndex < 0
+                || segmentIndex >= rouletteController.Count)
+            {
+                Debug.LogWarning("Roulette cannot target the requested segment.", this);
+                return;
+            }
+
+            _spinRoutine = StartCoroutine(SpinRoutine(null, segmentIndex));
         }
 
         /// <summary>
@@ -157,7 +214,7 @@ namespace RouletteLike.Roulette
             _deterministicRandom = new System.Random(seed);
         }
 
-        private IEnumerator SpinRoutine()
+        private IEnumerator SpinRoutine(float? normalizedPower, int? targetSegmentIndex)
         {
             _isSpinning = true;
             if (spinButton != null)
@@ -165,7 +222,9 @@ namespace RouletteLike.Roulette
                 spinButton.interactable = false;
             }
 
-            float duration = NextRandomRange(minSpinDuration, maxSpinDuration);
+            float duration = normalizedPower.HasValue
+                ? Mathf.Lerp(minSpinDuration, maxSpinDuration, normalizedPower.Value)
+                : NextRandomRange(minSpinDuration, maxSpinDuration);
             duration = Mathf.Max(0.1f, duration);
 
             // 설정한 감속도가 클수록 감속 구간이 짧아집니다.
@@ -181,10 +240,40 @@ namespace RouletteLike.Roulette
             float decelerationDistance = startSpeed * decelerationTime * 0.5f;
             float profileDistance = Mathf.Max(1f, holdDistance + decelerationDistance);
 
-            float minimumDistance = minimumFullRotations * 360f;
-            float totalDistance = Mathf.Max(minimumDistance, profileDistance)
-                                  + NextRandomRange(0f, randomExtraRotation);
             float startAngle = wheel.localEulerAngles.z;
+            float totalDistance;
+            if (targetSegmentIndex.HasValue
+                && rouletteController.TryGetSegmentAngles(
+                    targetSegmentIndex.Value,
+                    out _,
+                    out _,
+                    out float targetCenterAngle,
+                    out _))
+            {
+                float targetWheelAngle = targetCenterAngle - pointerAngle;
+                float clockwiseDistance = Mathf.Repeat(startAngle - targetWheelAngle, 360f);
+                totalDistance = minimumFullRotations * 360f + clockwiseDistance;
+            }
+            else if (normalizedPower.HasValue)
+            {
+                float power = normalizedPower.Value;
+                int fullRotations = minimumFullRotations
+                                    + Mathf.RoundToInt(additionalFullRotationsAtMaxPower * power);
+                float landingUncertainty = Mathf.Lerp(
+                    minimumLandingUncertainty,
+                    maximumLandingUncertainty,
+                    power);
+                float intendedTravel = Mathf.Lerp(powerTravelArc.x, powerTravelArc.y, power);
+                totalDistance = fullRotations * 360f
+                                + intendedTravel
+                                + NextRandomRange(-landingUncertainty, landingUncertainty);
+            }
+            else
+            {
+                float minimumDistance = minimumFullRotations * 360f;
+                totalDistance = Mathf.Max(minimumDistance, profileDistance)
+                                + NextRandomRange(0f, randomExtraRotation);
+            }
             float elapsed = 0f;
 
             while (elapsed < duration)
