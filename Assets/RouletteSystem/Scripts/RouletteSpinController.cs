@@ -37,6 +37,13 @@ namespace RouletteLike.Roulette
         [SerializeField, Min(1)] private int minimumFullRotations = 3;
         [SerializeField] private bool useUnscaledTime = true;
 
+        [Header("Spin Sound")]
+        [SerializeField] private AudioSource spinAudioSource;
+        [Tooltip("회전 시간에 맞춰 재생 속도를 조절해 감속과 효과음의 끝을 맞춥니다.")]
+        [SerializeField] private bool syncSpinSoundToDuration = true;
+        [SerializeField, Range(0.5f, 2f)] private float minimumSpinSoundPitch = 0.75f;
+        [SerializeField, Range(0.5f, 2f)] private float maximumSpinSoundPitch = 1.5f;
+
         [Header("Power Throw")]
         [Tooltip("강도 회전은 한 칸을 저격하지 못하도록 마지막 착지 각도에 이 범위의 오차를 더합니다.")]
         [SerializeField, Min(0f)] private float minimumLandingUncertainty = 42f;
@@ -135,6 +142,8 @@ namespace RouletteLike.Roulette
             minimumLandingUncertainty = Mathf.Max(0f, minimumLandingUncertainty);
             maximumLandingUncertainty = Mathf.Max(minimumLandingUncertainty, maximumLandingUncertainty);
             additionalFullRotationsAtMaxPower = Mathf.Max(0, additionalFullRotationsAtMaxPower);
+            minimumSpinSoundPitch = Mathf.Clamp(minimumSpinSoundPitch, 0.5f, 2f);
+            maximumSpinSoundPitch = Mathf.Clamp(maximumSpinSoundPitch, minimumSpinSoundPitch, 2f);
         }
 
         /// <summary>
@@ -226,6 +235,7 @@ namespace RouletteLike.Roulette
                 ? Mathf.Lerp(minSpinDuration, maxSpinDuration, normalizedPower.Value)
                 : NextRandomRange(minSpinDuration, maxSpinDuration);
             duration = Mathf.Max(0.1f, duration);
+            PlaySpinSound(duration);
 
             // 설정한 감속도가 클수록 감속 구간이 짧아집니다.
             // 전체 시간의 25~80% 범위로 제한해 빠른 유지/감속 두 구간을 항상 확보합니다.
@@ -327,6 +337,23 @@ namespace RouletteLike.Roulette
             {
                 Debug.LogWarning("Roulette stopped, but no segment result could be resolved.", this);
             }
+        }
+
+        private void PlaySpinSound(float spinDuration)
+        {
+            if (spinAudioSource == null || spinAudioSource.clip == null)
+            {
+                return;
+            }
+
+            spinAudioSource.Stop();
+            spinAudioSource.pitch = syncSpinSoundToDuration
+                ? Mathf.Clamp(
+                    spinAudioSource.clip.length / Mathf.Max(0.1f, spinDuration),
+                    minimumSpinSoundPitch,
+                    maximumSpinSoundPitch)
+                : 1f;
+            spinAudioSource.Play();
         }
 
         private void SetWheelAngle(float zAngle)

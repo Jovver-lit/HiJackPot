@@ -16,7 +16,6 @@ namespace RouletteLike.Roulette
         {
             AwaitingThrow,
             Spinning,
-            ChoosingNudge,
             Resolving,
             ChoosingHijack,
             Ended
@@ -48,12 +47,18 @@ namespace RouletteLike.Roulette
         [Header("House Rule")]
         [SerializeField] private TMP_Text houseRuleProgressText;
         [SerializeField] private UnityEngine.UI.Image houseRuleProgressFill;
+        [SerializeField] private GameObject houseRuleInfoPanel;
+        [SerializeField] private UnityEngine.UI.Button houseRuleInfoButton;
+        [SerializeField] private UnityEngine.UI.Button houseRuleInfoCloseButton;
+        [SerializeField] private TMP_Text houseRuleDetailProgressText;
 
-        [Header("Nudge")]
-        [SerializeField] private GameObject nudgePanel;
-        [SerializeField] private UnityEngine.UI.Button nudgeLeftButton;
-        [SerializeField] private UnityEngine.UI.Button nudgeKeepButton;
-        [SerializeField] private UnityEngine.UI.Button nudgeRightButton;
+        [Header("Opening Speech")]
+        [SerializeField] private GameObject openingSpeechBubble;
+        [SerializeField, Min(0.5f)] private float openingSpeechDuration = 4.5f;
+
+        [Header("Presentation")]
+        [SerializeField] private BattlePresentationUI presentationUi;
+        [SerializeField] private HijackTransferPresenter hijackTransferPresenter;
 
         [Header("Enemy Roulette")]
         [SerializeField] private RouletteController enemyRoulette;
@@ -93,7 +98,7 @@ namespace RouletteLike.Roulette
         private int _rabbitIntentIndex;
         private bool _enemySpinFinished;
         private bool _hijackReady;
-        private int _pendingResultIndex = -1;
+        private bool _hijackTransferInProgress;
         private int _selectedHijackSourceIndex = -1;
 
         public bool CanChooseSpinPower => _state == BattleState.AwaitingThrow;
@@ -101,9 +106,8 @@ namespace RouletteLike.Roulette
 
         private void Awake()
         {
-            nudgeLeftButton?.onClick.AddListener(() => ConfirmNudge(-1));
-            nudgeKeepButton?.onClick.AddListener(() => ConfirmNudge(0));
-            nudgeRightButton?.onClick.AddListener(() => ConfirmNudge(1));
+            houseRuleInfoButton?.onClick.AddListener(OpenHouseRuleInfo);
+            houseRuleInfoCloseButton?.onClick.AddListener(CloseHouseRuleInfo);
 
             for (int i = 0; i < hijackSourceButtons.Length; i++)
             {
@@ -153,6 +157,8 @@ namespace RouletteLike.Roulette
 
         private void OnDestroy()
         {
+            houseRuleInfoButton?.onClick.RemoveListener(OpenHouseRuleInfo);
+            houseRuleInfoCloseButton?.onClick.RemoveListener(CloseHouseRuleInfo);
             retryButton?.onClick.RemoveListener(RestartBattle);
         }
 
@@ -175,11 +181,11 @@ namespace RouletteLike.Roulette
             }
 
             _state = BattleState.Spinning;
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Spin);
             instructionText.text = "손을 떠났습니다. 이제 룰렛이 결정합니다.";
             dealerLineText.text = "\"좋습니다, 손님. 힘은 정하셨고 운은 저희가 보관하겠습니다.\"";
             resultText.text = "회전 중...";
             calculationText.text = "착지 결과를 기다리는 중";
-            nudgePanel?.SetActive(false);
             AddLog($"강도 {Mathf.RoundToInt(power * 100f)}%로 SPIN");
             _enemySpinFinished = enemySpinController == null;
             StartCoroutine(StartRabbitSpinAfterDelay(_rabbitIntentIndex % 4));
@@ -190,9 +196,7 @@ namespace RouletteLike.Roulette
         {
             yield return new WaitForSecondsRealtime(rabbitSpinDelay);
 
-            if (_state != BattleState.Spinning
-                && _state != BattleState.ChoosingNudge
-                && _state != BattleState.Resolving)
+            if (_state != BattleState.Spinning && _state != BattleState.Resolving)
             {
                 yield break;
             }
@@ -219,12 +223,13 @@ namespace RouletteLike.Roulette
             _rabbitIntentIndex = 0;
             _enemySpinFinished = true;
             _hijackReady = false;
-            _pendingResultIndex = -1;
+            _hijackTransferInProgress = false;
             _selectedHijackSourceIndex = -1;
             _combatLog.Clear();
 
-            nudgePanel?.SetActive(false);
             hijackPanel?.SetActive(false);
+            houseRuleInfoPanel?.SetActive(false);
+            openingSpeechBubble?.SetActive(true);
             endPanel?.SetActive(false);
             spinController?.SetRandomSeed(battleSeed);
             enemySpinController?.SetRandomSeed(battleSeed + 1);
@@ -232,7 +237,9 @@ namespace RouletteLike.Roulette
             enemyRoulette?.SetSegments(CreateRabbitWheel(), false);
 
             _state = BattleState.AwaitingThrow;
-            dealerLineText.text = "\"무료 행운 1회입니다. 결과에 대한 책임은 손님께 있습니다.\"";
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
+            presentationUi?.SetHouseRuleHighlighted(false);
+            dealerLineText.text = "하우스 룰이 공개되었습니다.";
             instructionText.text = "버튼을 누르고 힘을 정한 뒤 놓으세요. 정확한 칸은 멈출 수 없습니다.";
             powerPreviewText.text = "강도는 착지 구역만 바꿉니다  |  마지막 2~3칸은 운";
             resultText.text = "첫 SPIN을 준비하세요";
@@ -240,6 +247,24 @@ namespace RouletteLike.Roulette
             AddLog("계약 체결: 토끼 딜러 전투 시작");
             spinInput?.ResetInput();
             RefreshAllUi();
+            StartCoroutine(HideOpeningSpeechBubbleAfterDelay());
+        }
+
+        private IEnumerator HideOpeningSpeechBubbleAfterDelay()
+        {
+            yield return new WaitForSecondsRealtime(openingSpeechDuration);
+            openingSpeechBubble?.SetActive(false);
+        }
+
+        private void OpenHouseRuleInfo()
+        {
+            houseRuleInfoPanel?.SetActive(true);
+            RefreshHouseRuleUi();
+        }
+
+        private void CloseHouseRuleInfo()
+        {
+            houseRuleInfoPanel?.SetActive(false);
         }
 
         private void HandleSpinFinished(RouletteSegmentData result)
@@ -249,16 +274,19 @@ namespace RouletteLike.Roulette
                 return;
             }
 
-            _pendingResultIndex = FindSegmentIndex(roulette, result);
-            if (_pendingResultIndex < 0)
+            int resultIndex = FindSegmentIndex(roulette, result);
+            if (resultIndex < 0)
             {
                 return;
             }
 
-            _state = BattleState.ChoosingNudge;
-            nudgePanel?.SetActive(true);
-            instructionText.text = "착지했습니다. 이번 턴의 NUDGE를 사용하거나 결과를 유지하세요.";
-            PreviewPendingResult("착지");
+            _state = BattleState.Resolving;
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
+            ResolvedEffect effect = EvaluateEffect(resultIndex);
+            resultText.text = $"착지  {effect.DisplayName} {effect.FinalValue}";
+            calculationText.text = effect.Formula;
+            instructionText.text = "착지 결과가 확정되었습니다. 연쇄 효과를 계산합니다.";
+            StartCoroutine(ResolveRound(resultIndex));
         }
 
         private void HandleEnemySpinFinished(RouletteSegmentData result)
@@ -280,6 +308,7 @@ namespace RouletteLike.Roulette
                 yield break;
             }
 
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Dealer);
             ResolveRabbitIntent();
             RefreshAllUi();
             yield return new WaitForSecondsRealtime(0.75f);
@@ -297,32 +326,6 @@ namespace RouletteLike.Roulette
             }
 
             BeginNextRound();
-        }
-
-        private void ConfirmNudge(int offset)
-        {
-            if (_state != BattleState.ChoosingNudge || roulette == null || roulette.Count == 0)
-            {
-                return;
-            }
-
-            _pendingResultIndex = (_pendingResultIndex + offset + roulette.Count) % roulette.Count;
-            RouletteSegmentData chosen = roulette.GetSegment(_pendingResultIndex);
-            roulette.HighlightSegment(chosen, 0.8f);
-            nudgePanel?.SetActive(false);
-            _state = BattleState.Resolving;
-
-            string choice = offset < 0 ? "왼쪽" : offset > 0 ? "오른쪽" : "유지";
-            AddLog($"NUDGE {choice}: {chosen.displayText}");
-            PreviewPendingResult(choice);
-            StartCoroutine(ResolveRound(_pendingResultIndex));
-        }
-
-        private void PreviewPendingResult(string prefix)
-        {
-            ResolvedEffect effect = EvaluateEffect(_pendingResultIndex);
-            resultText.text = $"{prefix}  {effect.DisplayName} {effect.FinalValue}";
-            calculationText.text = effect.Formula;
         }
 
         private void ResolvePlayerResult(int resultIndex)
@@ -399,6 +402,7 @@ namespace RouletteLike.Roulette
             if (damage > 0 && absorbed == damage)
             {
                 _hijackReady = true;
+                presentationUi?.SetHouseRuleHighlighted(true);
                 AddLog("HOUSE RULE 달성: HIJACK 권한 획득");
                 dealerLineText.text = "\"완전 방어라니요. 규정상 칸 하나를 양도하겠습니다.\"";
             }
@@ -411,6 +415,7 @@ namespace RouletteLike.Roulette
         private void OpenHijackSelection()
         {
             _state = BattleState.ChoosingHijack;
+            presentationUi?.SetHouseRuleHighlighted(true);
             _selectedHijackSourceIndex = -1;
             hijackPanel?.SetActive(true);
             hijackInstructionText.text = "1. 토끼의 칸 하나를 선택하세요";
@@ -456,6 +461,7 @@ namespace RouletteLike.Roulette
         private void PlaceHijackedSegment(int destinationIndex)
         {
             if (_state != BattleState.ChoosingHijack
+                || _hijackTransferInProgress
                 || _selectedHijackSourceIndex < 0
                 || _selectedHijackSourceIndex >= enemyRoulette.Count
                 || destinationIndex < 0
@@ -464,7 +470,23 @@ namespace RouletteLike.Roulette
                 return;
             }
 
-            RouletteSegmentData stolen = enemyRoulette.GetSegment(_selectedHijackSourceIndex).Clone();
+            StartCoroutine(PlaceHijackedSegmentRoutine(_selectedHijackSourceIndex, destinationIndex));
+        }
+
+        private IEnumerator PlaceHijackedSegmentRoutine(int sourceIndex, int destinationIndex)
+        {
+            _hijackTransferInProgress = true;
+            for (int i = 0; i < hijackSourceButtons.Length; i++)
+            {
+                hijackSourceButtons[i].interactable = false;
+            }
+
+            for (int i = 0; i < hijackDestinationButtons.Length; i++)
+            {
+                hijackDestinationButtons[i].interactable = false;
+            }
+
+            RouletteSegmentData stolen = enemyRoulette.GetSegment(sourceIndex).Clone();
             stolen.id = $"hijacked_{_round}_{stolen.id}";
             stolen.displayText = "H " + stolen.displayText;
             stolen.color = Color.Lerp(stolen.color, new Color32(224, 168, 52, 255), 0.35f);
@@ -472,23 +494,53 @@ namespace RouletteLike.Roulette
 
             List<RouletteSegmentData> playerWheel = CloneWheel(roulette);
             playerWheel[destinationIndex] = stolen;
-            roulette.SetSegments(playerWheel, false);
 
             List<RouletteSegmentData> rabbitWheel = CloneWheel(enemyRoulette);
-            rabbitWheel[_selectedHijackSourceIndex] = CreateSegment(
-                $"rabbit_stolen_{_round}_{_selectedHijackSourceIndex}",
+            rabbitWheel[sourceIndex] = CreateSegment(
+                $"rabbit_stolen_{_round}_{sourceIndex}",
                 RouletteSegmentType.Custom,
                 0,
                 1f,
                 new Color32(54, 48, 65, 255),
                 "봉인",
                 true);
-            enemyRoulette.SetSegments(rabbitWheel, false);
+
+            bool applied = false;
+            void ApplyTransfer()
+            {
+                if (applied)
+                {
+                    return;
+                }
+
+                applied = true;
+                roulette.SetSegments(playerWheel, false);
+                enemyRoulette.SetSegments(rabbitWheel, false);
+            }
+
+            hijackPanel?.SetActive(false);
+            if (hijackTransferPresenter != null)
+            {
+                yield return hijackTransferPresenter.PlayHijack(
+                    enemyRoulette,
+                    sourceIndex,
+                    roulette,
+                    destinationIndex,
+                    stolen,
+                    ApplyTransfer);
+            }
+            else
+            {
+                ApplyTransfer();
+            }
+
+            ApplyTransfer();
 
             _hijackReady = false;
-            hijackPanel?.SetActive(false);
+            _hijackTransferInProgress = false;
+            presentationUi?.SetHouseRuleHighlighted(false);
             resultText.text = $"HIJACK  {stolen.displayText}";
-            calculationText.text = $"토끼 { _selectedHijackSourceIndex + 1 }번 칸 → 내 {destinationIndex + 1}번 칸";
+            calculationText.text = $"토끼 {sourceIndex + 1}번 칸 → 내 {destinationIndex + 1}번 칸";
             AddLog($"HIJACK: {stolen.displayText}을 내 {destinationIndex + 1}번 칸에 배치");
             dealerLineText.text = "\"양도 처리가 완료됐습니다. 반환은 불가능합니다.\"";
             BeginNextRound();
@@ -498,8 +550,7 @@ namespace RouletteLike.Roulette
         {
             _round++;
             _state = BattleState.AwaitingThrow;
-            _pendingResultIndex = -1;
-            nudgePanel?.SetActive(false);
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
             instructionText.text = "바뀐 룰렛을 보고 다시 힘을 정하세요.";
             powerPreviewText.text = "강도는 착지 구역만 바꿉니다  |  마지막 2~3칸은 운";
             spinInput?.ResetInput();
@@ -521,17 +572,27 @@ namespace RouletteLike.Roulette
 
         private void RefreshAllUi()
         {
-            playerHpText.text = $"손님  {_playerHp} / {playerMaxHp}";
-            rabbitHpText.text = $"토끼 딜러  {_rabbitHp} / {rabbitMaxHp}";
+            playerHpText.text = $"{_playerHp} / {playerMaxHp}";
+            rabbitHpText.text = $"{_rabbitHp} / {rabbitMaxHp}";
             guardText.text = $"방어 {_guard}";
             shardText.text = $"규칙 조각 {_ruleShards}";
             playerHpFill.fillAmount = (float)_playerHp / playerMaxHp;
             rabbitHpFill.fillAmount = (float)_rabbitHp / rabbitMaxHp;
-            houseRuleProgressFill.fillAmount = _hijackReady ? 1f : 0f;
-            houseRuleProgressText.text = _hijackReady ? "1 / 1  ·  HIJACK 가능" : "0 / 1  ·  공개 공격 완전 방어";
+            RefreshHouseRuleUi();
             roundText.text = $"TUTORIAL TABLE   ·   ROUND {_round}";
             RefreshChainPreview();
             RefreshEnemyIntentUi();
+        }
+
+        private void RefreshHouseRuleUi()
+        {
+            string progress = _hijackReady ? "1 / 1  ·  HIJACK 가능" : "0 / 1  ·  공개 공격 완전 방어";
+            houseRuleProgressFill.fillAmount = _hijackReady ? 1f : 0f;
+            houseRuleProgressText.text = progress;
+            if (houseRuleDetailProgressText != null)
+            {
+                houseRuleDetailProgressText.text = "현재 진행도  " + progress;
+            }
         }
 
         private void RefreshEnemyIntentUi()
@@ -547,9 +608,9 @@ namespace RouletteLike.Roulette
             RouletteSegmentData intent = enemyRoulette.GetSegment(activeIndex);
             enemyNextIntentText.text = intent.type switch
             {
-                RouletteSegmentType.Damage => $"NEXT  공격 {intent.value}",
-                RouletteSegmentType.Heal => $"NEXT  회복 {intent.value}",
-                _ => "NEXT  봉인 · 행동 없음"
+                RouletteSegmentType.Damage => $"공격 {intent.value}",
+                RouletteSegmentType.Heal => $"회복 {intent.value}",
+                _ => "봉인 · 행동 없음"
             };
 
             if (enemyRoulette != null && activeIndex < enemyRoulette.Count)
