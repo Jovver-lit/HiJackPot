@@ -4,11 +4,11 @@ using NUnit.Framework;
 
 namespace RouletteLike.Battle.Tests
 {
-    /// <summary>바깥 링(이중 룰렛)·잭팟 라인·보호막과 보스 매니저, 런의 바깥 링 해금 EditMode 테스트.</summary>
+    /// <summary>바깥 링(이중 룰렛)·잭팟 라인·바깥 하우스 몫·보호막과 보스 매니저, 런의 바깥 링 해금 EditMode 테스트.</summary>
     public sealed class OuterRingTests
     {
-        // 바깥 링 인덱스: 0 레이즈 +3, 1 배율 ×2, 2 보험 +2, 3 보호막
-        private const int OuterRaise = 0, OuterMultiplier = 1, OuterInsurance = 2, OuterShield = 3;
+        // 바깥 링 인덱스: 0 레이즈 +3, 1 배율 ×2, 2 보험 +2, 3 바깥 하우스 몫
+        private const int OuterRaise = 0, OuterMultiplier = 1, OuterInsurance = 2, OuterHouseCut = 3;
 
         private static PotBattle BossBattle(int seed = 4)
         {
@@ -76,28 +76,46 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void OuterShield_BlocksHouseCutThisTurn()
+        public void OuterHouseCut_EvaporatesPotAfterInnerEffect()
         {
             PotBattle battle = BossBattle();
             AdvanceToPlayer(battle);
             battle.PlaceAnte(3);
-            battle.Land(0, OuterShield);
+
+            LandingResult result = battle.Land(0, OuterHouseCut);
+
+            Assert.IsTrue(result.HouseCutHit);
+            Assert.IsTrue(result.EndedTurn);
+            Assert.AreEqual(0, battle.Player.Pot);
+        }
+
+        [Test]
+        public void StolenVipShield_BlocksOuterHouseCutThisTurn()
+        {
+            List<Slot> wheel = BattlePresets.CreateStarterWheel();
+            wheel[7] = new Slot("vip", SlotKind.CutShield, 1, "VIP 보호막", isJackpot: true, isStolen: true);
+            PotBattle battle = new PotBattle(wheel, 20, BattlePresets.CreateStageBoss(), 4);
+            AdvanceToPlayer(battle);
+            battle.PlaceAnte(3);
+            battle.Land(7, OuterRaise); // 보호막 1회 + 바깥 레이즈
             int pot = battle.Player.Pot;
 
-            LandingResult result = battle.Land(5, OuterInsurance); // 하우스 몫
+            LandingResult result = battle.Land(4, OuterHouseCut);
 
             Assert.IsTrue(result.CutShielded);
             Assert.IsFalse(result.EndedTurn);
-            Assert.AreEqual(pot, battle.Player.Pot);
+            Assert.AreEqual(pot + 3, battle.Player.Pot); // 안쪽 레이즈 +3은 들어오고 판돈은 지켜진다
         }
 
         [Test]
         public void ShieldsExpireAtNextAnte()
         {
-            PotBattle battle = BossBattle();
+            List<Slot> wheel = BattlePresets.CreateStarterWheel();
+            wheel[7] = new Slot("vip", SlotKind.CutShield, 1, "VIP 보호막", isJackpot: true, isStolen: true);
+            PotBattle battle = new PotBattle(wheel, 20, BattlePresets.CreateStageBoss(), 4);
             AdvanceToPlayer(battle);
             battle.PlaceAnte(1);
-            battle.Land(0, OuterShield);
+            battle.Land(7, OuterRaise);
             battle.CashOut();
             AdvanceToPlayer(battle);
 

@@ -48,6 +48,9 @@ namespace RouletteLike.Battle
 
         /// <summary>하우스 몫에 걸렸지만 보호막이 막았다.</summary>
         public bool CutShielded;
+
+        /// <summary>안쪽 또는 바깥 하우스 몫으로 판돈이 증발했다.</summary>
+        public bool HouseCutHit;
     }
 
     public sealed class CashOutResult
@@ -184,6 +187,7 @@ namespace RouletteLike.Battle
         /// 현재 차례인 쪽의 룰렛이 index 칸에 착지했다. 이어진 같은 종류 칸이 한 묶음(연쇄)으로 발동한다.
         /// 바깥 링이 있으면 outerIndex 칸도 함께 멈춘다: 보호막은 착지보다 먼저, 레이즈·보험은 착지 뒤에 더하고,
         /// 배율 링은 안쪽 효과를 한 번 더 발동한다. 안쪽과 바깥이 같은 종류면 잭팟 라인으로 안쪽 효과가 또 한 번 발동한다.
+        /// 바깥 하우스 몫은 안쪽 효과가 끝난 뒤 판돈을 증발시킨다(보호막이 있으면 막는다).
         /// </summary>
         public LandingResult Land(int index, int outerIndex = -1)
         {
@@ -245,16 +249,7 @@ namespace RouletteLike.Battle
                     return FinishLanding(result, seat, parts);
                 }
 
-                result.Amount = seat.Pot;
-                parts.Add($"하우스 몫 → 판돈 {seat.Pot} 증발");
-                seat.Pot = 0;
-                seat.Ante = 0;
-                result.EndedTurn = true;
-                if (Active == Side.Player && Profile.CounterHijacks)
-                {
-                    CounterHijackPending = true;
-                }
-
+                ApplyHouseCut(seat, result, parts, "하우스 몫");
                 return FinishLanding(result, seat, parts);
             }
 
@@ -275,7 +270,35 @@ namespace RouletteLike.Battle
             }
 
             ApplyOuterBonus(seat, outer, parts);
+            if (outer != null && outer.Kind == SlotKind.HouseCut)
+            {
+                if (seat.CutShields > 0)
+                {
+                    seat.CutShields--;
+                    result.CutShielded = true;
+                    parts.Add("바깥 하우스 몫 → 보호막이 막았다");
+                }
+                else
+                {
+                    ApplyHouseCut(seat, result, parts, "바깥 하우스 몫");
+                }
+            }
+
             return FinishLanding(result, seat, parts);
+        }
+
+        private void ApplyHouseCut(Seat seat, LandingResult result, List<string> parts, string label)
+        {
+            result.Amount = seat.Pot;
+            result.HouseCutHit = true;
+            parts.Add($"{label} → 판돈 {seat.Pot} 증발");
+            seat.Pot = 0;
+            seat.Ante = 0;
+            result.EndedTurn = true;
+            if (Active == Side.Player && Profile.CounterHijacks)
+            {
+                CounterHijackPending = true;
+            }
         }
 
         /// <summary>안쪽 칸 묶음의 효과를 한 번 적용하고 계산식을 돌려준다(배율 링·잭팟 라인이면 여러 번 불린다).</summary>

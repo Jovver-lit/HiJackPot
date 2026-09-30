@@ -379,7 +379,13 @@ namespace RouletteLike.Roulette.Editor
         /// <summary>딜러 칸(최대 14칸, 7칸씩 2줄)과 내 칸 8개를 고르는 HIJACK 패널. JACKPOT 칸 배치에도 재사용한다.</summary>
         private static RectTransform BuildHijackPanel(Transform parent, TMP_FontAsset font, out TMP_Text instruction, out TMP_Text sourceTitle, out UnityEngine.UI.Button[] sourceButtons, out TMP_Text[] sourceLabels, out UnityEngine.UI.Button[] destinationButtons, out TMP_Text[] destinationLabels)
         {
-            RectTransform panel = AddFramedPanel("HijackPanel", parent, new Vector2(0f, -60f), new Vector2(1180f, 600f), new Color32(30, 25, 39, 252), Gold, out _, out _);
+            RectTransform panel = AddFramedPanel("HijackPanel", parent, new Vector2(0f, -60f), new Vector2(1180f, 600f), new Color32(30, 25, 39, 255), Gold, out _, out _);
+            // 뒤의 전투 화면을 어둡게 덮고 클릭을 막는다(문 선택 패널과 같은 방식).
+            UnityEngine.UI.Image dim = AddImage("Dim", panel, new Color32(10, 8, 14, 225));
+            dim.rectTransform.anchoredPosition = new Vector2(0f, 60f);
+            dim.rectTransform.sizeDelta = new Vector2(1920f, 1080f);
+            dim.raycastTarget = true;
+            dim.transform.SetAsFirstSibling();
             AddText("Title", panel, "HOUSE RULE CLEAR · HIJACK", font, 32, Gold, TextAlignmentOptions.Center, new Vector2(0f, 255f), new Vector2(1080f, 48f));
             instruction = AddText("Instruction", panel, "1. 빼앗을 딜러의 칸을 고르세요", font, 20, Ink, TextAlignmentOptions.Center, new Vector2(0f, 212f), new Vector2(1100f, 38f));
             sourceTitle = AddText("EnemySlotsTitle", panel, "딜러 룰렛 · 빼앗을 칸", font, 17, Gold, TextAlignmentOptions.Left, new Vector2(-390f, 175f), new Vector2(360f, 30f));
@@ -399,7 +405,7 @@ namespace RouletteLike.Roulette.Editor
                 float x = -437.5f + i * 125f;
                 destinationButtons[i] = AddButton($"PlayerSlot{i + 1}", panel, new Vector2(x, -80f), new Vector2(112f, 86f), new Color32(38, 91, 96, 255), font, $"{i + 1}\n-", 15, out destinationLabels[i]);
             }
-            AddText("Note", panel, "빼앗은 딜러 칸은 봉인되고, 가져온 칸은 내 룰렛에 영구히 남습니다. ★ = JACKPOT 칸", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(0f, -170f), new Vector2(1060f, 36f));
+            AddText("Note", panel, "빼앗은 딜러 칸은 봉인되고, 가져온 칸은 내 룰렛에 영구히 남습니다. [JP] = JACKPOT 칸", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(0f, -170f), new Vector2(1060f, 36f));
             AddRect("AnimationRoot", panel, Vector2.zero, new Vector2(1180f, 600f));
             return panel;
         }

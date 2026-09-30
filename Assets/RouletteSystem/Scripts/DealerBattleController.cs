@@ -610,10 +610,10 @@ namespace RouletteLike.Roulette
                 _lastDealerOuter = _battle.RollOuterIndex(Side.Dealer);
                 LandingResult landing = _battle.Land(_dealerLandingIndex, _lastDealerOuter);
                 FlushCoreLog();
-                resultText.text = landing.Kind == SlotKind.HouseCut
+                resultText.text = landing.HouseCutHit
                     ? $"{DealerShortName}의 하우스 몫! 판돈 증발"
                     : DealerShortName + " " + DescribeLanding(landing, enemyRoulette.GetSegment(_dealerLandingIndex).displayText);
-                if (landing.Kind == SlotKind.HouseCut)
+                if (landing.HouseCutHit)
                 {
                     dealerLineText.text = "\"...하우스는 원래 저희 편인데요.\"";
                     break;
@@ -656,7 +656,7 @@ namespace RouletteLike.Roulette
             presentationUi?.SetHouseRuleHighlighted(true);
             _selectedHijackSourceIndex = -1;
             hijackPanel?.SetActive(true);
-            hijackInstructionText.text = $"1. 빼앗을 {DealerShortName}의 칸을 고르세요 (★ JACKPOT, 하우스 몫 불가)";
+            hijackInstructionText.text = $"1. 빼앗을 {DealerShortName}의 칸을 고르세요 ([JP] = JACKPOT, 하우스 몫 불가)";
             if (hijackSourceTitleText != null) hijackSourceTitleText.text = $"{_battle.Profile.Name} 룰렛 · 빼앗을 칸";
 
             for (int i = 0; i < hijackSourceButtons.Length; i++)
@@ -666,7 +666,7 @@ namespace RouletteLike.Roulette
                 hijackSourceButtons[i].gameObject.SetActive(exists);
                 hijackSourceButtons[i].interactable = exists && slot.Kind != SlotKind.Sealed && slot.Kind != SlotKind.HouseCut;
                 hijackSourceLabels[i].text = exists
-                    ? $"{i + 1}\n{slot.Label}{(slot.IsJackpot ? " ★" : "")}"
+                    ? $"{i + 1}\n{slot.Label}{(slot.IsJackpot ? " [JP]" : "")}"
                     : "-";
             }
 
@@ -916,7 +916,7 @@ namespace RouletteLike.Roulette
         private static string DescribeLanding(LandingResult landing, string innerLabel)
         {
             if (landing.CutShielded) return "보호막! 하우스 몫을 막았다";
-            if (landing.Kind == SlotKind.HouseCut) return "하우스 몫!";
+            if (landing.HouseCutHit) return landing.Kind == SlotKind.HouseCut ? "하우스 몫!" : "바깥 하우스 몫!";
             return landing.JackpotLine ? $"잭팟 라인!  {innerLabel}" : $"착지  {innerLabel}";
         }
 

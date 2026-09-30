@@ -60,7 +60,8 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 바깥 링 4칸: 레이즈 +3 / 배율 ×2(안쪽 효과 한 번 더) / 보험 +2 / 보호막(이번 턴 하우스 몫 1회 무효).
+        /// 바깥 링 4칸: 레이즈 +3 / 배율 ×2(안쪽 효과 한 번 더) / 보험 +2 / 바깥 하우스 몫(판돈 증발).
+        /// 바깥 링도 보상과 위험을 함께 가진다(ADR 0005). 보호막은 보스 JACKPOT 「VIP 보호막」에만 있다.
         /// 보스 매니저의 테이블 규칙이자, 보스를 이긴 뒤 다음 런부터 플레이어가 갖는 바깥 링이다.
         /// </summary>
         public static List<Slot> CreateOuterRing()
@@ -70,7 +71,7 @@ namespace RouletteLike.Battle
                 new Slot("o_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
                 new Slot("o_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
                 new Slot("o_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
-                new Slot("o_shield", SlotKind.CutShield, 1, "보호막")
+                new Slot("o_house_cut", SlotKind.HouseCut, 0, "하우스 몫")
             };
         }
 
