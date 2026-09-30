@@ -81,6 +81,14 @@ namespace RouletteLike.Battle
         public BattlePhase Phase { get; private set; } = BattlePhase.RoundOver;
         public BattleOutcome Outcome { get; private set; } = BattleOutcome.None;
         public int HijackChances { get; private set; }
+
+        /// <summary>하우스 룰 진행도(예: 여우의 작은 CASH OUT 횟수). 목표에 닿으면 HIJACK 기회가 되고 0으로 돌아간다.</summary>
+        public int HouseRuleProgress { get; private set; }
+
+        /// <summary>하우스 룰 한 번 달성에 필요한 진행도.</summary>
+        public int HouseRuleGoal => Profile.HouseRule == HouseRule.SmallCashOuts ? 2 : 1;
+
+        private bool _playerMultipliedThisTurn;
         public bool HijackUsedThisRound { get; private set; }
 
         /// <summary>플레이어가 방금 하우스 몫에 걸려 딜러가 역탈취할 수 있는 상태.</summary>
@@ -113,6 +121,20 @@ namespace RouletteLike.Battle
             ApplyRoundStartSlots(Player);
             ApplyRoundStartSlots(Dealer);
 
+            bool playerPrepaid = HasActiveSlot(Player, SlotKind.Initiative);
+            bool dealerPrepaid = HasActiveSlot(Dealer, SlotKind.Initiative);
+            if (playerPrepaid != dealerPrepaid)
+            {
+                // 선불: 동전을 두 번 던져 한 번이라도 이기면 선공(75%).
+                Side holder = playerPrepaid ? Side.Player : Side.Dealer;
+                bool holderWins = _rng.Next(2) == 0 || _rng.Next(2) == 0;
+                FirstThisRound = holderWins ? holder : (holder == Side.Player ? Side.Dealer : Side.Player);
+                Active = FirstThisRound;
+                Phase = BattlePhase.AwaitingAnte;
+                Write($"라운드 {Round}: 코인플립(선불로 두 번) → {Name(Active)} 선공");
+                return Active;
+            }
+
             FirstThisRound = _rng.Next(2) == 0 ? Side.Player : Side.Dealer;
             Active = FirstThisRound;
             Phase = BattlePhase.AwaitingAnte;
@@ -134,7 +156,8 @@ namespace RouletteLike.Battle
             RequirePhase(BattlePhase.AwaitingAnte);
             Seat seat = ActiveSeat;
             int ante = Math.Max(1, Math.Min(amount, MaxAnte(Active)));
-            seat.Insurance = 0;
+            seat.Insurance = Active == Side.Dealer ? Profile.BaseInsurance : 0;
+            if (Active == Side.Player) _playerMultipliedThisTurn = false;
             seat.Chips -= ante;
             seat.Ante = ante;
             seat.Pot = ante;
@@ -168,7 +191,9 @@ namespace RouletteLike.Battle
             {
                 result.Group = new[] { index };
                 result.PotAfter = seat.Pot;
-                result.Formula = slot.Kind == SlotKind.Sealed ? "봉인 칸 · 효과 없음" : $"{slot.Label} · [라운드 시작] 칸이라 착지 효과 없음";
+                result.Formula = slot.Kind == SlotKind.Sealed
+                    ? "봉인 칸 · 효과 없음"
+                    : $"{slot.Label} · [{(slot.Trigger == SlotTrigger.CashOut ? "CASH OUT" : "라운드 시작")}] 칸이라 착지 효과 없음";
                 Write($"{Name(Active)} 착지: {result.Formula}");
                 return result;
             }
@@ -202,6 +227,7 @@ namespace RouletteLike.Battle
 
                     seat.Pot *= product;
                     result.Amount = product;
+                    if (Active == Side.Player && product > 1) _playerMultipliedThisTurn = true;
                     result.Formula = $"배율 {JoinValues(seat.Wheel, group, " × ")} → 판돈 {result.PotBefore} × {product} = {seat.Pot}";
                     break;
                 }
@@ -252,7 +278,19 @@ namespace RouletteLike.Battle
         {
             Seat seat = SeatOf(side);
             Seat opponent = Opponent(side);
-            return Math.Min(opponent.Chips, Math.Max(0, seat.Pot - opponent.Insurance));
+            int damage = Math.Max(0, seat.Pot - opponent.Insurance);
+            if (seat.Pot > 0)
+            {
+                foreach (Slot slot in seat.Wheel)
+                {
+                    if (slot.Kind == SlotKind.MinimumPayout && slot.Trigger == SlotTrigger.CashOut)
+                    {
+                        damage = Math.Max(damage, slot.Value);
+                    }
+                }
+            }
+
+            return Math.Min(opponent.Chips, damage);
         }
 
         /// <summary>
@@ -284,8 +322,23 @@ namespace RouletteLike.Battle
                 && damage == 0)
             {
                 result.FullCoverage = true;
-                HijackChances++;
-                Write("하우스 룰 달성: 전액 보장 → HIJACK 기회 +1");
+                AdvanceHouseRule("전액 보장");
+            }
+
+            if (Active == Side.Player)
+            {
+                switch (Profile.HouseRule)
+                {
+                    case HouseRule.SmallCashOuts when seat.Pot <= 4:
+                        AdvanceHouseRule($"판돈 {seat.Pot}로 작게 CASH OUT");
+                        break;
+                    case HouseRule.MultipliedCashOut when _playerMultipliedThisTurn:
+                        AdvanceHouseRule("배율로 불린 판돈 CASH OUT");
+                        break;
+                    case HouseRule.FirstStrike when FirstThisRound == Side.Player && damage >= 5:
+                        AdvanceHouseRule($"선공 CASH OUT 피해 {damage}");
+                        break;
+                }
             }
 
             seat.Pot = 0;
@@ -554,6 +607,30 @@ namespace RouletteLike.Battle
                 BattleOutcome.PlayerWinsByCleanSweep => "완전 강탈 · 승리",
                 _ => "파산 · 계약 되감기"
             });
+        }
+
+        private void AdvanceHouseRule(string reason)
+        {
+            HouseRuleProgress++;
+            if (HouseRuleProgress < HouseRuleGoal)
+            {
+                Write($"하우스 룰 진행: {reason} ({HouseRuleProgress}/{HouseRuleGoal})");
+                return;
+            }
+
+            HouseRuleProgress = 0;
+            HijackChances++;
+            Write($"하우스 룰 달성: {reason} → HIJACK 기회 +1");
+        }
+
+        private static bool HasActiveSlot(Seat seat, SlotKind kind)
+        {
+            foreach (Slot slot in seat.Wheel)
+            {
+                if (slot.Kind == kind) return true;
+            }
+
+            return false;
         }
 
         private void ApplyRoundStartSlots(Seat seat)

@@ -58,5 +58,88 @@ namespace RouletteLike.Battle
                 wheel: wheel,
                 scriptedInstantCashOutRounds: new[] { 3 });
         }
+
+        /// <summary>2~4층 문 뒤에 설 수 있는 일반 딜러들.</summary>
+        public static IReadOnlyList<System.Func<DealerProfile>> CreateDealerPool()
+        {
+            return new System.Func<DealerProfile>[] { CreateFoxDealer, CreateCatDealer, CreateCrowDealer };
+        }
+
+        /// <summary>
+        /// 여우 딜러: 보험 3 고정이라 작은 판돈이 안 통한다 → 이기려면 크게 키워야 한다.
+        /// 하우스 룰은 반대로 "판돈 4 이하로 CASH OUT 2번" → 털려면 작게 가야 한다.
+        /// JACKPOT 「허풍」: [CASH OUT] 상대 보험과 관계없이 피해 최소 3.
+        /// </summary>
+        public static DealerProfile CreateFoxDealer()
+        {
+            List<Slot> wheel = new List<Slot>
+            {
+                new Slot("f_raise_2_a", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("f_raise_2_b", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("f_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
+                new Slot("f_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
+                new Slot("f_raise_1", SlotKind.Raise, 1, "레이즈 +1"),
+                new Slot("f_bluff", SlotKind.MinimumPayout, 3, "허풍", SlotTrigger.CashOut, isJackpot: true),
+                new Slot("f_raise_2_c", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("f_insurance_2", SlotKind.Insurance, 2, "보험 +2")
+            };
+
+            return new DealerProfile(
+                name: "여우 딜러", startingChips: 20, tableLimit: 4, dealerAnte: 1, cashOutAt: 7,
+                houseRule: HouseRule.SmallCashOuts, telegraphs: false, counterHijacks: true,
+                wheel: wheel, baseInsurance: 3);
+        }
+
+        /// <summary>
+        /// 고양이 딜러: 느긋해서 판돈 12까지 키운다 → 한 방이 크다.
+        /// 하우스 룰 "배율 칸으로 판돈을 불린 뒤 CASH OUT" → 연쇄 빌드를 시험한다.
+        /// JACKPOT 「더블 다운」: 배율 ×3.
+        /// </summary>
+        public static DealerProfile CreateCatDealer()
+        {
+            List<Slot> wheel = new List<Slot>
+            {
+                new Slot("c_raise_2_a", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("c_raise_2_b", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("c_double_down", SlotKind.Multiplier, 3, "더블 다운 ×3", isJackpot: true),
+                new Slot("c_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
+                new Slot("c_insurance_3", SlotKind.Insurance, 3, "보험 +3"),
+                new Slot("c_raise_1", SlotKind.Raise, 1, "레이즈 +1")
+            };
+
+            return new DealerProfile(
+                name: "고양이 딜러", startingChips: 18, tableLimit: 4, dealerAnte: 1, cashOutAt: 12,
+                houseRule: HouseRule.MultipliedCashOut, telegraphs: false, counterHijacks: true,
+                wheel: wheel);
+        }
+
+        /// <summary>
+        /// 까마귀 딜러: 수금원. 칸이 12개로 잘게 나뉘어 한 번에 작게 자주 뜯는다.
+        /// 하우스 룰 "내가 선공인 라운드에 CASH OUT 피해 5 이상" → 코인플립 운을 살린다.
+        /// JACKPOT 「선불」: [라운드 시작] 선공 코인플립 두 번(선공 75%). 까마귀도 가끔은 후공이라 하우스 룰이 열린다.
+        /// </summary>
+        public static DealerProfile CreateCrowDealer()
+        {
+            List<Slot> wheel = new List<Slot>
+            {
+                new Slot("k_raise_1_a", SlotKind.Raise, 1, "레이즈 +1"),
+                new Slot("k_raise_1_b", SlotKind.Raise, 1, "레이즈 +1"),
+                new Slot("k_insurance_1_a", SlotKind.Insurance, 1, "보험 +1"),
+                new Slot("k_raise_2_a", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("k_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
+                new Slot("k_raise_1_c", SlotKind.Raise, 1, "레이즈 +1"),
+                new Slot("k_prepaid", SlotKind.Initiative, 0, "선불", SlotTrigger.RoundStart, isJackpot: true),
+                new Slot("k_raise_2_b", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("k_raise_1_d", SlotKind.Raise, 1, "레이즈 +1"),
+                new Slot("k_insurance_1_b", SlotKind.Insurance, 1, "보험 +1"),
+                new Slot("k_raise_1_e", SlotKind.Raise, 1, "레이즈 +1"),
+                new Slot("k_dividend_1", SlotKind.Dividend, 1, "배당 +1")
+            };
+
+            return new DealerProfile(
+                name: "까마귀 딜러", startingChips: 22, tableLimit: 3, dealerAnte: 1, cashOutAt: 5,
+                houseRule: HouseRule.FirstStrike, telegraphs: false, counterHijacks: true,
+                wheel: wheel);
+        }
     }
 }

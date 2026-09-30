@@ -21,16 +21,23 @@ namespace RouletteLike.Battle
         HouseCut,
 
         /// <summary>HIJACK당해 비어 버린 딜러 칸. 걸려도 아무 일도 없다.</summary>
-        Sealed
+        Sealed,
+
+        /// <summary>[CASH OUT] 상대 보험과 관계없이 피해가 최소 N이 된다(여우 JACKPOT 「허풍」).</summary>
+        MinimumPayout,
+
+        /// <summary>[라운드 시작] 선공 코인플립을 두 번 던져 한 번이라도 이기면 선공(75%, 까마귀 JACKPOT 「선불」). 양쪽 다 있으면 보통 코인플립.</summary>
+        Initiative
     }
 
     /// <summary>
-    /// 칸이 언제 발동하는지(키워드). MVP 코어는 [착지]와 [라운드 시작]만 처리한다.
+    /// 칸이 언제 발동하는지(키워드). MVP 코어는 [착지]·[라운드 시작]·[CASH OUT]을 처리한다.
     /// </summary>
     public enum SlotTrigger
     {
         Land,
-        RoundStart
+        RoundStart,
+        CashOut
     }
 
     /// <summary>

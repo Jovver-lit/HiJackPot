@@ -8,7 +8,16 @@ namespace RouletteLike.Battle
     public enum HouseRule
     {
         /// <summary>토끼 딜러: 딜러의 CASH OUT을 보험으로 전액 보장하면 HIJACK 기회.</summary>
-        FullCoverage
+        FullCoverage,
+
+        /// <summary>여우 딜러: 판돈 4 이하로 CASH OUT을 두 번 하면 HIJACK 기회(보험 3 앞에서 작게 가야 한다).</summary>
+        SmallCashOuts,
+
+        /// <summary>고양이 딜러: 그 턴에 배율 칸으로 판돈을 불린 뒤 CASH OUT하면 HIJACK 기회.</summary>
+        MultipliedCashOut,
+
+        /// <summary>까마귀 딜러: 내가 선공인 라운드에 CASH OUT 피해 5 이상이면 HIJACK 기회.</summary>
+        FirstStrike
     }
 
     /// <summary>
@@ -28,6 +37,9 @@ namespace RouletteLike.Battle
         public int CashOutAt { get; }
 
         public HouseRule HouseRule { get; }
+
+        /// <summary>딜러가 앤티를 걸 때마다 보험이 이 값으로 시작한다(여우 3, 토끼 0).</summary>
+        public int BaseInsurance { get; }
 
         /// <summary>다음 행동을 미리 보여주는지. 튜토리얼 딜러만 true.</summary>
         public bool Telegraphs { get; }
@@ -53,7 +65,8 @@ namespace RouletteLike.Battle
             bool telegraphs,
             bool counterHijacks,
             IReadOnlyList<Slot> wheel,
-            IReadOnlyCollection<int> scriptedInstantCashOutRounds = null)
+            IReadOnlyCollection<int> scriptedInstantCashOutRounds = null,
+            int baseInsurance = 0)
         {
             Name = name;
             StartingChips = startingChips;
@@ -65,6 +78,7 @@ namespace RouletteLike.Battle
             CounterHijacks = counterHijacks;
             Wheel = wheel;
             ScriptedInstantCashOutRounds = scriptedInstantCashOutRounds ?? System.Array.Empty<int>();
+            BaseInsurance = baseInsurance;
         }
     }
 }
