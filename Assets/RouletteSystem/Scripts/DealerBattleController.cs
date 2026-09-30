@@ -113,6 +113,14 @@ namespace RouletteLike.Roulette
         [SerializeField] private UnityEngine.UI.Button endContinueButton;
         [SerializeField] private TMP_Text endContinueLabel;
 
+        [Header("Outer Ring (그레이박스 띠)")]
+        [SerializeField] private GameObject playerOuterRoot;
+        [SerializeField] private UnityEngine.UI.Image[] playerOuterBoxes = new UnityEngine.UI.Image[0];
+        [SerializeField] private TMP_Text[] playerOuterLabels = new TMP_Text[0];
+        [SerializeField] private GameObject dealerOuterRoot;
+        [SerializeField] private UnityEngine.UI.Image[] dealerOuterBoxes = new UnityEngine.UI.Image[0];
+        [SerializeField] private TMP_Text[] dealerOuterLabels = new TMP_Text[0];
+
         [Header("Run · Doors")]
         [SerializeField] private GameObject doorPanel;
         [SerializeField] private TMP_Text doorFloorText;
@@ -127,6 +135,11 @@ namespace RouletteLike.Roulette
         private Run _run;
         private int _runCount;
         private bool _placingJackpot;
+        private int _lastPlayerOuter = -1;
+        private int _lastDealerOuter = -1;
+
+        /// <summary>보스를 이겨 해금한 바깥 링을 다음 런으로 넘기는 저장 키(메타 진행).</summary>
+        private const string OuterRingUnlockedKey = "hijackpot.meta.outerRingUnlocked";
         private PotBattle _battle;
         private ViewState _state;
         private int _chosenAnte = 1;
@@ -207,7 +220,8 @@ namespace RouletteLike.Roulette
                 BattlePresets.CreateStarterWheel(),
                 BattlePresets.CreateRabbitDealer,
                 BattlePresets.CreateDealerPool(),
-                BattlePresets.CreateStageBoss);
+                BattlePresets.CreateStageBoss,
+                outerRing: PlayerPrefs.GetInt(OuterRingUnlockedKey, 0) == 1 ? BattlePresets.CreateOuterRing() : null);
             _placingJackpot = false;
             endPanel?.SetActive(false);
             ShowDoorsOrEnter();
@@ -286,6 +300,12 @@ namespace RouletteLike.Roulette
             endPanel?.SetActive(true);
             endTitleText.text = "탈출 성공";
             endBodyText.text = $"남은 칩 {_run.Chips}.\n빼앗은 규칙을 들고 카지노 문을 나섰습니다.";
+            if (_run.UnlockedOuterRingThisRun)
+            {
+                PlayerPrefs.SetInt(OuterRingUnlockedKey, 1);
+                PlayerPrefs.Save();
+                endBodyText.text += "\n\n룰렛 형식 해금: 다음 런부터 내 룰렛에 바깥 링이 붙습니다.";
+            }
             if (endContinueLabel != null) endContinueLabel.text = "새 계약";
             dealerLineText.text = "\"다음에 또 오세요. 당첨 확률은 공개하지 않습니다.\"";
         }
@@ -331,6 +351,8 @@ namespace RouletteLike.Roulette
         private void BeginBattle()
         {
             StopAllCoroutines();
+            _lastPlayerOuter = -1;
+            _lastDealerOuter = -1;
             _combatLog.Clear();
             _loggedLines = 0;
             _chosenAnte = 1;
@@ -497,10 +519,11 @@ namespace RouletteLike.Roulette
                 return;
             }
 
-            LandingResult landing = _battle.Land(index);
+            _lastPlayerOuter = _battle.RollOuterIndex(Side.Player);
+            LandingResult landing = _battle.Land(index, _lastPlayerOuter);
             FlushCoreLog();
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
-            resultText.text = landing.Kind == SlotKind.HouseCut ? "하우스 몫!" : $"착지  {roulette.GetSegment(index).displayText}";
+            resultText.text = DescribeLanding(landing, roulette.GetSegment(index).displayText);
             calculationText.text = landing.Formula;
 
             if (landing.EndedTurn)
@@ -584,11 +607,12 @@ namespace RouletteLike.Roulette
 
                 spins++;
                 yield return SpinDealerWheel();
-                LandingResult landing = _battle.Land(_dealerLandingIndex);
+                _lastDealerOuter = _battle.RollOuterIndex(Side.Dealer);
+                LandingResult landing = _battle.Land(_dealerLandingIndex, _lastDealerOuter);
                 FlushCoreLog();
                 resultText.text = landing.Kind == SlotKind.HouseCut
                     ? $"{DealerShortName}의 하우스 몫! 판돈 증발"
-                    : $"{DealerShortName} 착지  {enemyRoulette.GetSegment(_dealerLandingIndex).displayText}";
+                    : DealerShortName + " " + DescribeLanding(landing, enemyRoulette.GetSegment(_dealerLandingIndex).displayText);
                 if (landing.Kind == SlotKind.HouseCut)
                 {
                     dealerLineText.text = "\"...하우스는 원래 저희 편인데요.\"";
@@ -789,6 +813,8 @@ namespace RouletteLike.Roulette
             RefreshChainPreview();
             RefreshDealerTelegraph();
             RefreshOddsBoard();
+            RefreshOuterRing(_battle.Player, playerOuterRoot, playerOuterBoxes, playerOuterLabels, _lastPlayerOuter);
+            RefreshOuterRing(_battle.Dealer, dealerOuterRoot, dealerOuterBoxes, dealerOuterLabels, _lastDealerOuter);
         }
 
         private void RefreshBetControls()
@@ -887,6 +913,34 @@ namespace RouletteLike.Roulette
                 : $"판돈 {threshold}+에서 CASH OUT · 전액 보장 가능성";
         }
 
+        private static string DescribeLanding(LandingResult landing, string innerLabel)
+        {
+            if (landing.CutShielded) return "보호막! 하우스 몫을 막았다";
+            if (landing.Kind == SlotKind.HouseCut) return "하우스 몫!";
+            return landing.JackpotLine ? $"잭팟 라인!  {innerLabel}" : $"착지  {innerLabel}";
+        }
+
+        /// <summary>바깥 링 띠(그레이박스): 칸 이름을 보여주고 방금 멈춘 칸을 금색으로 강조한다.</summary>
+        private static void RefreshOuterRing(Seat seat, GameObject root, UnityEngine.UI.Image[] boxes, TMP_Text[] labels, int highlighted)
+        {
+            if (root == null) return;
+            root.SetActive(seat.HasOuterRing);
+            if (!seat.HasOuterRing) return;
+            int count = Mathf.Min(seat.OuterRing.Count, boxes.Length);
+            for (int i = 0; i < boxes.Length; i++)
+            {
+                bool exists = i < count;
+                boxes[i].gameObject.SetActive(exists);
+                if (!exists) continue;
+                float step = boxes[i].rectTransform.sizeDelta.x + 6f;
+                boxes[i].rectTransform.anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * step, 0f);
+                labels[i].text = seat.OuterRing[i].Label;
+                boxes[i].color = i == highlighted
+                    ? new Color32(224, 168, 52, 255)
+                    : new Color32(61, 53, 79, 255);
+            }
+        }
+
         // ───────────── 딜러 소개 ─────────────
 
         /// <summary>딜러 이름·하우스 룰을 화면 곳곳(상단, 룰렛 제목, 하우스 룰 카드)에 반영한다.</summary>
@@ -918,6 +972,7 @@ namespace RouletteLike.Roulette
                 HouseRule.SmallCashOuts => "소액 손님",
                 HouseRule.MultipliedCashOut => "배율 정산",
                 HouseRule.FirstStrike => "선제 정산",
+                HouseRule.JackpotLines => "잭팟 라인",
                 _ => rule.ToString()
             };
         }
@@ -930,6 +985,7 @@ namespace RouletteLike.Roulette
                 HouseRule.SmallCashOuts => "판돈 4 이하로 CASH OUT 2번",
                 HouseRule.MultipliedCashOut => "배율 칸으로 불린 판돈을 CASH OUT",
                 HouseRule.FirstStrike => "내가 선공인 라운드에 CASH OUT 피해 5 이상",
+                HouseRule.JackpotLines => "안쪽과 바깥 링이 같은 종류로 멈추기 2번",
                 _ => dealer.HouseRule.ToString()
             };
         }
@@ -948,7 +1004,8 @@ namespace RouletteLike.Roulette
             return $"칩 {dealer.StartingChips} · 한도 {dealer.TableLimit} · 룰렛 {dealer.Wheel.Count}칸{(hasHouseCut ? "" : " (하우스 몫 없음)")}\n"
                    + $"성향: 판돈 {dealer.CashOutAt}+에서 CASH OUT · 보험 {dealer.BaseInsurance}\n"
                    + $"하우스 룰: {HouseRuleDescription(dealer)}\n"
-                   + $"JACKPOT: 「{jackpot}」";
+                   + $"JACKPOT: 「{jackpot}」"
+                   + (dealer.TableOuterRing.Count > 0 ? "\n테이블 규칙: 양쪽 룰렛에 바깥 링이 붙는다" : "");
         }
 
         private void RefreshChainPreview()

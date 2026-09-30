@@ -26,6 +26,11 @@ namespace RouletteLike.Battle
         /// <summary>[CASH OUT] 상대 보험과 관계없이 피해가 최소 N이 된다(여우 JACKPOT 「허풍」).</summary>
         MinimumPayout,
 
+        /// <summary>
+        /// 보호막: 이번 턴에 하우스 몫 1회를 무효로 만든다. 바깥 링에 있으면 그 SPIN의 착지보다 먼저 발동한다.
+        /// </summary>
+        CutShield,
+
         /// <summary>[라운드 시작] 선공 코인플립을 두 번 던져 한 번이라도 이기면 선공(75%, 까마귀 JACKPOT 「선불」). 양쪽 다 있으면 보통 코인플립.</summary>
         Initiative
     }

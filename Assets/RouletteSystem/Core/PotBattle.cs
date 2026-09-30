@@ -38,6 +38,16 @@ namespace RouletteLike.Battle
         public int PotAfter;
         public bool EndedTurn;
         public string Formula = "";
+
+        /// <summary>바깥 링이 멈춘 칸(-1 = 바깥 링 없음)과 그 종류.</summary>
+        public int OuterIndex = -1;
+        public SlotKind? OuterKind;
+
+        /// <summary>안쪽과 바깥 링이 같은 종류로 멈췄다.</summary>
+        public bool JackpotLine;
+
+        /// <summary>하우스 몫에 걸렸지만 보호막이 막았다.</summary>
+        public bool CutShielded;
     }
 
     public sealed class CashOutResult
@@ -86,7 +96,7 @@ namespace RouletteLike.Battle
         public int HouseRuleProgress { get; private set; }
 
         /// <summary>하우스 룰 한 번 달성에 필요한 진행도.</summary>
-        public int HouseRuleGoal => Profile.HouseRule == HouseRule.SmallCashOuts ? 2 : 1;
+        public int HouseRuleGoal => Profile.HouseRule == HouseRule.SmallCashOuts || Profile.HouseRule == HouseRule.JackpotLines ? 2 : 1;
 
         private bool _playerMultipliedThisTurn;
         public bool HijackUsedThisRound { get; private set; }
@@ -96,11 +106,14 @@ namespace RouletteLike.Battle
 
         public IReadOnlyList<string> Log => _log;
 
-        public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed)
+        /// <param name="playerOuterRing">플레이어 자신의 바깥 링(해금된 경우). 없으면 딜러의 테이블 바깥 링을 빌려 쓴다.</param>
+        public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null)
         {
             Profile = dealer;
-            Player = new Seat(Side.Player, playerChips, playerWheel);
-            Dealer = new Seat(Side.Dealer, dealer.StartingChips, dealer.Wheel);
+            IReadOnlyList<Slot> tableRing = dealer.TableOuterRing;
+            Player = new Seat(Side.Player, playerChips, playerWheel,
+                playerOuterRing != null && playerOuterRing.Count > 0 ? playerOuterRing : tableRing);
+            Dealer = new Seat(Side.Dealer, dealer.StartingChips, dealer.Wheel, tableRing);
             _rng = new Random(seed);
         }
 
@@ -157,6 +170,7 @@ namespace RouletteLike.Battle
             Seat seat = ActiveSeat;
             int ante = Math.Max(1, Math.Min(amount, MaxAnte(Active)));
             seat.Insurance = Active == Side.Dealer ? Profile.BaseInsurance : 0;
+            seat.CutShields = 0;
             if (Active == Side.Player) _playerMultipliedThisTurn = false;
             seat.Chips -= ante;
             seat.Ante = ante;
@@ -168,8 +182,10 @@ namespace RouletteLike.Battle
 
         /// <summary>
         /// 현재 차례인 쪽의 룰렛이 index 칸에 착지했다. 이어진 같은 종류 칸이 한 묶음(연쇄)으로 발동한다.
+        /// 바깥 링이 있으면 outerIndex 칸도 함께 멈춘다: 보호막은 착지보다 먼저, 레이즈·보험은 착지 뒤에 더하고,
+        /// 배율 링은 안쪽 효과를 한 번 더 발동한다. 안쪽과 바깥이 같은 종류면 잭팟 라인으로 안쪽 효과가 또 한 번 발동한다.
         /// </summary>
-        public LandingResult Land(int index)
+        public LandingResult Land(int index, int outerIndex = -1)
         {
             RequirePhase(BattlePhase.Spinning);
             Seat seat = ActiveSeat;
@@ -178,24 +194,35 @@ namespace RouletteLike.Battle
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
 
+            Slot outer = seat.HasOuterRing && outerIndex >= 0 && outerIndex < seat.OuterRing.Count
+                ? seat.OuterRing[outerIndex]
+                : null;
             Slot slot = seat.Wheel[index];
             LandingResult result = new LandingResult
             {
                 Side = Active,
                 Index = index,
+                OuterIndex = outer == null ? -1 : outerIndex,
                 Kind = slot.Kind,
+                OuterKind = outer?.Kind,
                 PotBefore = seat.Pot
             };
+
+            List<string> parts = new List<string>();
+            if (outer != null && outer.Kind == SlotKind.CutShield)
+            {
+                seat.CutShields++;
+                parts.Add("바깥 보호막");
+            }
 
             if (!slot.FiresOnLand)
             {
                 result.Group = new[] { index };
-                result.PotAfter = seat.Pot;
-                result.Formula = slot.Kind == SlotKind.Sealed
+                parts.Add(slot.Kind == SlotKind.Sealed
                     ? "봉인 칸 · 효과 없음"
-                    : $"{slot.Label} · [{(slot.Trigger == SlotTrigger.CashOut ? "CASH OUT" : "라운드 시작")}] 칸이라 착지 효과 없음";
-                Write($"{Name(Active)} 착지: {result.Formula}");
-                return result;
+                    : $"{slot.Label} · [{(slot.Trigger == SlotTrigger.CashOut ? "CASH OUT" : "라운드 시작")}] 칸이라 착지 효과 없음");
+                ApplyOuterBonus(seat, outer, parts);
+                return FinishLanding(result, seat, parts);
             }
 
             List<int> group = FindChainGroup(seat.Wheel, index);
@@ -207,63 +234,117 @@ namespace RouletteLike.Battle
                 Write("(역전 보정 해제: 좋은 칸이 걸렸다)");
             }
 
+            if (slot.Kind == SlotKind.HouseCut)
+            {
+                if (seat.CutShields > 0)
+                {
+                    seat.CutShields--;
+                    result.CutShielded = true;
+                    parts.Add("하우스 몫 → 보호막이 막았다 (판돈 유지)");
+                    ApplyOuterBonus(seat, outer, parts);
+                    return FinishLanding(result, seat, parts);
+                }
+
+                result.Amount = seat.Pot;
+                parts.Add($"하우스 몫 → 판돈 {seat.Pot} 증발");
+                seat.Pot = 0;
+                seat.Ante = 0;
+                result.EndedTurn = true;
+                if (Active == Side.Player && Profile.CounterHijacks)
+                {
+                    CounterHijackPending = true;
+                }
+
+                return FinishLanding(result, seat, parts);
+            }
+
+            parts.Add(ApplyInnerEffect(seat, slot, group, result));
+            if (outer != null && outer.Kind == SlotKind.Multiplier)
+            {
+                parts.Add("배율 링: " + ApplyInnerEffect(seat, slot, group, result));
+            }
+
+            if (outer != null && outer.Kind == slot.Kind)
+            {
+                result.JackpotLine = true;
+                parts.Add("잭팟 라인! " + ApplyInnerEffect(seat, slot, group, result));
+                if (Active == Side.Player && Profile.HouseRule == HouseRule.JackpotLines)
+                {
+                    AdvanceHouseRule("잭팟 라인");
+                }
+            }
+
+            ApplyOuterBonus(seat, outer, parts);
+            return FinishLanding(result, seat, parts);
+        }
+
+        /// <summary>안쪽 칸 묶음의 효과를 한 번 적용하고 계산식을 돌려준다(배율 링·잭팟 라인이면 여러 번 불린다).</summary>
+        private string ApplyInnerEffect(Seat seat, Slot slot, List<int> group, LandingResult result)
+        {
+            int before = seat.Pot;
             switch (slot.Kind)
             {
                 case SlotKind.Raise:
                 {
                     int sum = SumValues(seat.Wheel, group);
                     seat.Pot += sum;
-                    result.Amount = sum;
-                    result.Formula = $"레이즈 {JoinValues(seat.Wheel, group, " + ")} → 판돈 {result.PotBefore} + {sum} = {seat.Pot}";
-                    break;
+                    result.Amount += sum;
+                    return $"레이즈 {JoinValues(seat.Wheel, group, " + ")} → 판돈 {before} + {sum} = {seat.Pot}";
                 }
                 case SlotKind.Multiplier:
                 {
                     int product = 1;
-                    foreach (int i in group)
-                    {
-                        product *= Math.Max(1, seat.Wheel[i].Value);
-                    }
-
+                    foreach (int i in group) product *= Math.Max(1, seat.Wheel[i].Value);
                     seat.Pot *= product;
-                    result.Amount = product;
+                    result.Amount = Math.Max(result.Amount, 1) * product;
                     if (Active == Side.Player && product > 1) _playerMultipliedThisTurn = true;
-                    result.Formula = $"배율 {JoinValues(seat.Wheel, group, " × ")} → 판돈 {result.PotBefore} × {product} = {seat.Pot}";
-                    break;
+                    return $"배율 {JoinValues(seat.Wheel, group, " × ")} → 판돈 {before} × {product} = {seat.Pot}";
                 }
                 case SlotKind.Insurance:
                 {
                     int sum = SumValues(seat.Wheel, group);
                     seat.Insurance += sum;
-                    result.Amount = sum;
-                    result.Formula = $"보험 {JoinValues(seat.Wheel, group, " + ")} → 보험 {seat.Insurance}";
-                    break;
+                    result.Amount += sum;
+                    return $"보험 {JoinValues(seat.Wheel, group, " + ")} → 보험 {seat.Insurance}";
                 }
                 case SlotKind.Dividend:
                 {
                     int sum = SumValues(seat.Wheel, group);
                     seat.Chips += sum;
-                    result.Amount = sum;
-                    result.Formula = $"배당 {JoinValues(seat.Wheel, group, " + ")} → 칩 +{sum}";
-                    break;
+                    result.Amount += sum;
+                    return $"배당 {JoinValues(seat.Wheel, group, " + ")} → 칩 +{sum}";
                 }
-                case SlotKind.HouseCut:
+                case SlotKind.CutShield:
                 {
-                    result.Amount = seat.Pot;
-                    result.Formula = $"하우스 몫 → 판돈 {seat.Pot} 증발";
-                    seat.Pot = 0;
-                    seat.Ante = 0;
-                    result.EndedTurn = true;
-                    if (Active == Side.Player && Profile.CounterHijacks)
-                    {
-                        CounterHijackPending = true;
-                    }
-
-                    break;
+                    seat.CutShields += group.Count;
+                    result.Amount += group.Count;
+                    return $"{slot.Label} → 이번 턴 하우스 몫 무효 {seat.CutShields}회";
                 }
+                default:
+                    return $"{slot.Label} · 효과 없음";
             }
+        }
 
+        /// <summary>바깥 링의 레이즈·보험 칸은 안쪽 착지 뒤에 더해진다.</summary>
+        private static void ApplyOuterBonus(Seat seat, Slot outer, List<string> parts)
+        {
+            if (outer == null) return;
+            if (outer.Kind == SlotKind.Raise)
+            {
+                seat.Pot += outer.Value;
+                parts.Add($"바깥 레이즈 +{outer.Value} → 판돈 {seat.Pot}");
+            }
+            else if (outer.Kind == SlotKind.Insurance)
+            {
+                seat.Insurance += outer.Value;
+                parts.Add($"바깥 보험 +{outer.Value} → 보험 {seat.Insurance}");
+            }
+        }
+
+        private LandingResult FinishLanding(LandingResult result, Seat seat, List<string> parts)
+        {
             result.PotAfter = seat.Pot;
+            result.Formula = string.Join(" · ", parts);
             Write($"{Name(Active)} 착지: {result.Formula}");
             if (result.EndedTurn)
             {
@@ -271,6 +352,13 @@ namespace RouletteLike.Battle
             }
 
             return result;
+        }
+
+        /// <summary>바깥 링 착지 칸을 고른다(균등). 바깥 링이 없으면 -1.</summary>
+        public int RollOuterIndex(Side side)
+        {
+            Seat seat = SeatOf(side);
+            return seat.HasOuterRing ? _rng.Next(seat.OuterRing.Count) : -1;
         }
 
         /// <summary>CASH OUT 했을 때 상대가 받을 피해 미리보기(판돈 − 상대 보험).</summary>

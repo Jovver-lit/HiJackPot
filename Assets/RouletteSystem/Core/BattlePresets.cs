@@ -60,8 +60,24 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 스테이지 1 보스 「매니저」의 **임시** 버전. 이중 룰렛(바깥 링)과 전용 하우스 룰은 다음 작업(보스와 바깥 링)에서 만든다.
-        /// 그전까지는 보험 2·판돈 8에서 CASH OUT하는 강한 딜러로만 둔다.
+        /// 바깥 링 4칸: 레이즈 +3 / 배율 ×2(안쪽 효과 한 번 더) / 보험 +2 / 보호막(이번 턴 하우스 몫 1회 무효).
+        /// 보스 매니저의 테이블 규칙이자, 보스를 이긴 뒤 다음 런부터 플레이어가 갖는 바깥 링이다.
+        /// </summary>
+        public static List<Slot> CreateOuterRing()
+        {
+            return new List<Slot>
+            {
+                new Slot("o_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
+                new Slot("o_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
+                new Slot("o_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
+                new Slot("o_shield", SlotKind.CutShield, 1, "보호막")
+            };
+        }
+
+        /// <summary>
+        /// 스테이지 1 보스 「매니저」. 테이블 규칙으로 양쪽 룰렛에 바깥 링이 붙는다.
+        /// 하우스 룰 "잭팟 라인 2번"(안쪽과 바깥이 같은 종류로 멈추기). JACKPOT 「VIP 보호막」: [착지] 이번 턴 하우스 몫 1회 무효.
+        /// 수치는 임시값이다.
         /// </summary>
         public static DealerProfile CreateStageBoss()
         {
@@ -72,7 +88,7 @@ namespace RouletteLike.Battle
                 new Slot("m_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
                 new Slot("m_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
                 new Slot("m_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
-                new Slot("m_seal", SlotKind.Raise, 5, "매니저 인장", isJackpot: true),
+                new Slot("m_vip_shield", SlotKind.CutShield, 1, "VIP 보호막", isJackpot: true),
                 new Slot("m_raise_1", SlotKind.Raise, 1, "레이즈 +1"),
                 new Slot("m_dividend_2", SlotKind.Dividend, 2, "배당 +2"),
                 new Slot("m_raise_2_c", SlotKind.Raise, 2, "레이즈 +2"),
@@ -80,9 +96,9 @@ namespace RouletteLike.Battle
             };
 
             return new DealerProfile(
-                name: "매니저(임시 보스)", startingChips: 24, tableLimit: 5, dealerAnte: 2, cashOutAt: 8,
-                houseRule: HouseRule.MultipliedCashOut, telegraphs: false, counterHijacks: true,
-                wheel: wheel, baseInsurance: 2);
+                name: "매니저", startingChips: 26, tableLimit: 5, dealerAnte: 2, cashOutAt: 8,
+                houseRule: HouseRule.JackpotLines, telegraphs: false, counterHijacks: true,
+                wheel: wheel, baseInsurance: 1, tableOuterRing: CreateOuterRing());
         }
 
         /// <summary>

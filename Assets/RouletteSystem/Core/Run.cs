@@ -29,6 +29,7 @@ namespace RouletteLike.Battle
 
         private readonly Random _rng;
         private readonly List<Slot> _wheel;
+        private readonly List<Slot> _outerRing;
         private readonly IReadOnlyList<Func<DealerProfile>> _dealerPool;
         private readonly Func<DealerProfile> _tutorialDealer;
         private readonly Func<DealerProfile> _boss;
@@ -37,6 +38,12 @@ namespace RouletteLike.Battle
 
         public int Chips { get; private set; }
         public IReadOnlyList<Slot> Wheel => _wheel;
+
+        /// <summary>플레이어의 바깥 링. 이전 런에서 보스를 이겨 해금했을 때만 있다.</summary>
+        public IReadOnlyList<Slot> OuterRing => _outerRing;
+
+        /// <summary>이번 런에서 보스를 이겨 바깥 링(룰렛 형식)을 새로 해금했다. 저장은 화면 쪽이 맡는다.</summary>
+        public bool UnlockedOuterRingThisRun { get; private set; }
 
         /// <summary>0부터 센다. 0 = 1층.</summary>
         public int FloorIndex { get; private set; }
@@ -58,12 +65,14 @@ namespace RouletteLike.Battle
             Func<DealerProfile> tutorialDealer,
             IReadOnlyList<Func<DealerProfile>> dealerPool,
             Func<DealerProfile> boss,
-            int floorCount = 5)
+            int floorCount = 5,
+            IEnumerable<Slot> outerRing = null)
         {
             _seed = seed;
             _rng = new Random(seed);
             Chips = startingChips;
             _wheel = new List<Slot>(startingWheel);
+            _outerRing = outerRing == null ? new List<Slot>() : new List<Slot>(outerRing);
             _tutorialDealer = tutorialDealer;
             _dealerPool = dealerPool;
             _boss = boss;
@@ -79,7 +88,7 @@ namespace RouletteLike.Battle
             if (PendingJackpot != null) throw new InvalidOperationException("획득한 JACKPOT 칸을 먼저 배치하세요.");
             if (doorIndex < 0 || doorIndex >= _doors.Count) throw new ArgumentOutOfRangeException(nameof(doorIndex));
 
-            CurrentBattle = new PotBattle(_wheel, Chips, _doors[doorIndex], _seed * 31 + FloorIndex);
+            CurrentBattle = new PotBattle(_wheel, Chips, _doors[doorIndex], _seed * 31 + FloorIndex, _outerRing);
             return CurrentBattle;
         }
 
@@ -113,9 +122,15 @@ namespace RouletteLike.Battle
                 PendingJackpot = FindUnclaimedJackpot(battle.Profile);
             }
 
+            bool beatBoss = CurrentFloorKind == FloorKind.Boss;
             FloorIndex++;
             if (FloorIndex >= FloorCount)
             {
+                if (beatBoss && _outerRing.Count == 0 && battle.Profile.TableOuterRing.Count > 0)
+                {
+                    UnlockedOuterRingThisRun = true;
+                }
+
                 Outcome = RunOutcome.Escaped;
                 return;
             }

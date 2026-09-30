@@ -272,8 +272,18 @@ namespace RouletteLike.Roulette.Editor
             SetObjectArray(identitySo.FindProperty("doorButtons"), doorButtons);
             SetObjectArray(identitySo.FindProperty("doorTitleTexts"), doorTitles);
             SetObjectArray(identitySo.FindProperty("doorBodyTexts"), doorBodies);
+            RectTransform playerOuter = BuildOuterRingStrip("OuterRingStrip", playerPanel, new Vector2(0f, 252f), 82f, font, out UnityEngine.UI.Image[] playerOuterBoxes, out TMP_Text[] playerOuterLabels);
+            RectTransform dealerOuter = BuildOuterRingStrip("OuterRingStrip", dealerPanel, new Vector2(0f, 170f), 80f, font, out UnityEngine.UI.Image[] dealerOuterBoxes, out TMP_Text[] dealerOuterLabels);
+            SetObject(identitySo, "playerOuterRoot", playerOuter.gameObject);
+            SetObjectArray(identitySo.FindProperty("playerOuterBoxes"), playerOuterBoxes);
+            SetObjectArray(identitySo.FindProperty("playerOuterLabels"), playerOuterLabels);
+            SetObject(identitySo, "dealerOuterRoot", dealerOuter.gameObject);
+            SetObjectArray(identitySo.FindProperty("dealerOuterBoxes"), dealerOuterBoxes);
+            SetObjectArray(identitySo.FindProperty("dealerOuterLabels"), dealerOuterLabels);
             identitySo.ApplyModifiedPropertiesWithoutUndo();
             doorPanel.gameObject.SetActive(false);
+            playerOuter.gameObject.SetActive(false);
+            dealerOuter.gameObject.SetActive(false);
 
             SerializedObject holdSo = new SerializedObject(holdInput);
             holdSo.FindProperty("battle").objectReferenceValue = battle;
@@ -392,6 +402,28 @@ namespace RouletteLike.Roulette.Editor
             AddText("Note", panel, "빼앗은 딜러 칸은 봉인되고, 가져온 칸은 내 룰렛에 영구히 남습니다. ★ = JACKPOT 칸", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(0f, -170f), new Vector2(1060f, 36f));
             AddRect("AnimationRoot", panel, Vector2.zero, new Vector2(1180f, 600f));
             return panel;
+        }
+
+        /// <summary>
+        /// 바깥 링(이중 룰렛)을 보여주는 그레이박스 띠: 칸 6개 자리, 멈춘 칸은 컨트롤러가 금색으로 강조한다.
+        /// 원형 바깥 링 아트는 ArtStyleBible 확정 뒤에 교체한다.
+        /// </summary>
+        private static RectTransform BuildOuterRingStrip(string name, Transform parent, Vector2 position, float boxWidth, TMP_FontAsset font, out UnityEngine.UI.Image[] boxes, out TMP_Text[] labels)
+        {
+            const int Count = 6;
+            RectTransform strip = AddRect(name, parent, position, new Vector2(Count * (boxWidth + 6f), 30f));
+            boxes = new UnityEngine.UI.Image[Count];
+            labels = new TMP_Text[Count];
+            for (int i = 0; i < Count; i++)
+            {
+                float x = (i - (Count - 1) * 0.5f) * (boxWidth + 6f);
+                boxes[i] = AddImage($"OuterSlot{i + 1}", strip, new Color32(61, 53, 79, 255));
+                boxes[i].rectTransform.anchoredPosition = new Vector2(x, 0f);
+                boxes[i].rectTransform.sizeDelta = new Vector2(boxWidth, 28f);
+                labels[i] = AddText("Label", boxes[i].transform, "-", font, 14, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(boxWidth - 6f, 24f));
+            }
+
+            return strip;
         }
 
         /// <summary>층 사이 문 선택 패널: 딜러 카드 두 장(이름·성향·하우스 룰·JACKPOT)과 층 안내.</summary>

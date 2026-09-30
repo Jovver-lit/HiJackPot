@@ -17,7 +17,10 @@ namespace RouletteLike.Battle
         MultipliedCashOut,
 
         /// <summary>까마귀 딜러: 내가 선공인 라운드에 CASH OUT 피해 5 이상이면 HIJACK 기회.</summary>
-        FirstStrike
+        FirstStrike,
+
+        /// <summary>보스 매니저: 안쪽과 바깥 링이 같은 종류로 멈추는 잭팟 라인을 2번 만들면 HIJACK 기회.</summary>
+        JackpotLines
     }
 
     /// <summary>
@@ -40,6 +43,12 @@ namespace RouletteLike.Battle
 
         /// <summary>딜러가 앤티를 걸 때마다 보험이 이 값으로 시작한다(여우 3, 토끼 0).</summary>
         public int BaseInsurance { get; }
+
+        /// <summary>
+        /// 테이블 규칙: 이 딜러와 싸우는 동안 양쪽 룰렛에 붙는 바깥 링(보스 매니저). 비어 있으면 없음.
+        /// 플레이어가 이미 자기 바깥 링을 가졌다면 그것을 쓴다.
+        /// </summary>
+        public IReadOnlyList<Slot> TableOuterRing { get; }
 
         /// <summary>다음 행동을 미리 보여주는지. 튜토리얼 딜러만 true.</summary>
         public bool Telegraphs { get; }
@@ -66,7 +75,8 @@ namespace RouletteLike.Battle
             bool counterHijacks,
             IReadOnlyList<Slot> wheel,
             IReadOnlyCollection<int> scriptedInstantCashOutRounds = null,
-            int baseInsurance = 0)
+            int baseInsurance = 0,
+            IReadOnlyList<Slot> tableOuterRing = null)
         {
             Name = name;
             StartingChips = startingChips;
@@ -79,6 +89,7 @@ namespace RouletteLike.Battle
             Wheel = wheel;
             ScriptedInstantCashOutRounds = scriptedInstantCashOutRounds ?? System.Array.Empty<int>();
             BaseInsurance = baseInsurance;
+            TableOuterRing = tableOuterRing ?? System.Array.Empty<Slot>();
         }
     }
 }
