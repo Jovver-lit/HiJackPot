@@ -14,6 +14,7 @@ namespace RouletteLike.Roulette
         [SerializeField] private RabbitBattlePrototype battle;
         [SerializeField] private UnityEngine.UI.Image fillImage;
         [SerializeField] private TMP_Text powerText;
+        [SerializeField] private TMP_Text buttonLabel;
         [SerializeField, Min(0.2f)] private float secondsToFullPower = 1.35f;
         [SerializeField, Range(0f, 1f)] private float minimumPower = 0.08f;
 
@@ -30,6 +31,7 @@ namespace RouletteLike.Roulette
             _isHolding = true;
             _holdTime = 0f;
             SetVisual(minimumPower);
+            SetButtonLabel("놓아서\nSPIN");
         }
 
         public void OnPointerUp(PointerEventData eventData)
@@ -41,7 +43,9 @@ namespace RouletteLike.Roulette
         {
             if (_isHolding && eventData.pointerPress == gameObject)
             {
-                Release();
+                CancelHold();
+                SetVisual(minimumPower);
+                SetButtonLabel("길게 눌러\nSPIN");
             }
         }
 
@@ -69,6 +73,13 @@ namespace RouletteLike.Roulette
         {
             CancelHold();
             SetVisual(minimumPower);
+            SetButtonLabel("길게 눌러\nSPIN");
+        }
+
+        public void ShowUnavailableState(string label)
+        {
+            CancelHold();
+            SetButtonLabel(label);
         }
 
         private void Release()
@@ -80,6 +91,7 @@ namespace RouletteLike.Roulette
 
             float power = GetCurrentPower();
             _isHolding = false;
+            SetButtonLabel("회전 중");
             battle?.ThrowRoulette(power);
         }
 
@@ -105,6 +117,14 @@ namespace RouletteLike.Roulette
             if (powerText != null)
             {
                 powerText.text = $"회전 강도  {Mathf.RoundToInt(power * 100f)}%";
+            }
+        }
+
+        private void SetButtonLabel(string value)
+        {
+            if (buttonLabel != null)
+            {
+                buttonLabel.text = value;
             }
         }
     }

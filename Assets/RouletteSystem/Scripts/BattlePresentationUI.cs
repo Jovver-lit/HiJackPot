@@ -31,7 +31,7 @@ namespace RouletteLike.Roulette
 
         [Header("Palette")]
         [SerializeField] private Color activeColor = new Color32(224, 168, 52, 255);
-        [SerializeField] private Color inactiveColor = new Color32(112, 104, 125, 255);
+        [SerializeField] private Color inactiveColor = new Color32(176, 169, 190, 255);
         [SerializeField] private Color playerGlowColor = new Color32(57, 190, 198, 90);
         [SerializeField] private Color dealerGlowColor = new Color32(220, 72, 78, 90);
         [SerializeField] private Color houseRuleNormalColor = new Color32(125, 91, 38, 255);
@@ -48,7 +48,8 @@ namespace RouletteLike.Roulette
             SetPhaseColor(dealerText, phase == Phase.Dealer);
 
             SetPlayerRouletteActive(phase == Phase.Prepare || phase == Phase.Spin || phase == Phase.Resolve);
-            SetDealerRouletteActive(phase == Phase.Dealer);
+            // 두 룰렛이 함께 도는 SPIN 단계에서는 상대 룰렛도 활성 상태로 보여줍니다.
+            SetDealerRouletteActive(phase == Phase.Spin || phase == Phase.Dealer);
         }
 
         public void SetPlayerRouletteActive(bool active)

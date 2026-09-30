@@ -39,6 +39,7 @@ namespace RouletteLike.Roulette
         public float CenterAngle => (_startAngle + _endAngle) * 0.5f;
         public float AngleSize => _endAngle - _startAngle;
         public bool RendersGeometry => _renderGeometry;
+        public RectTransform LabelRect => _labelText != null ? _labelText.rectTransform : null;
 
         /// <summary>
         /// Controller가 계산한 각도와 표시 옵션을 이 Graphic에 적용합니다.

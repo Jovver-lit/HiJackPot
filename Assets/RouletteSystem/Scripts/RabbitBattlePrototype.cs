@@ -41,6 +41,7 @@ namespace RouletteLike.Roulette
         [SerializeField] private TMP_Text powerPreviewText;
         [SerializeField] private TMP_Text resultText;
         [SerializeField] private TMP_Text calculationText;
+        [SerializeField] private TMP_Text riskSummaryText;
         [SerializeField] private TMP_Text chainPreviewText;
         [SerializeField] private TMP_Text combatLogText;
 
@@ -240,10 +241,10 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
             presentationUi?.SetHouseRuleHighlighted(false);
             dealerLineText.text = "하우스 룰이 공개되었습니다.";
-            instructionText.text = "버튼을 누르고 힘을 정한 뒤 놓으세요. 정확한 칸은 멈출 수 없습니다.";
-            powerPreviewText.text = "강도는 착지 구역만 바꿉니다  |  마지막 2~3칸은 운";
+            instructionText.text = "SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
+            powerPreviewText.text = "버튼 밖으로 드래그하면 취소  ·  강도는 대략적인 착지 구역만 변경";
             resultText.text = "첫 SPIN을 준비하세요";
-            calculationText.text = "인접한 같은 칸은 합산되고, 앞의 ×2는 연쇄를 배가합니다.";
+            calculationText.text = "같은 종류가 이어지면 어느 칸에 멈춰도 합산 · 공격 4+4=8";
             AddLog("계약 체결: 토끼 딜러 전투 시작");
             spinInput?.ResetInput();
             RefreshAllUi();
@@ -282,6 +283,7 @@ namespace RouletteLike.Roulette
 
             _state = BattleState.Resolving;
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
+            spinInput?.ShowUnavailableState("결과\n확인 중");
             ResolvedEffect effect = EvaluateEffect(resultIndex);
             resultText.text = $"착지  {effect.DisplayName} {effect.FinalValue}";
             calculationText.text = effect.Formula;
@@ -415,6 +417,7 @@ namespace RouletteLike.Roulette
         private void OpenHijackSelection()
         {
             _state = BattleState.ChoosingHijack;
+            spinInput?.ShowUnavailableState("칸 선택 중");
             presentationUi?.SetHouseRuleHighlighted(true);
             _selectedHijackSourceIndex = -1;
             hijackPanel?.SetActive(true);
@@ -551,8 +554,9 @@ namespace RouletteLike.Roulette
             _round++;
             _state = BattleState.AwaitingThrow;
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
-            instructionText.text = "바뀐 룰렛을 보고 다시 힘을 정하세요.";
-            powerPreviewText.text = "강도는 착지 구역만 바꿉니다  |  마지막 2~3칸은 운";
+            instructionText.text = "SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
+            powerPreviewText.text = "버튼 밖으로 드래그하면 취소  ·  강도는 대략적인 착지 구역만 변경";
+            calculationText.text = "같은 종류가 이어지면 어느 칸에 멈춰도 합산 · 공격 4+4=8";
             spinInput?.ResetInput();
             RefreshAllUi();
         }
@@ -560,6 +564,7 @@ namespace RouletteLike.Roulette
         private void FinishBattle(bool victory)
         {
             _state = BattleState.Ended;
+            spinInput?.ShowUnavailableState("전투 종료");
             endPanel?.SetActive(true);
             endTitleText.text = victory ? "규칙 탈취 성공" : "계약 갱신";
             endBodyText.text = victory
@@ -582,6 +587,34 @@ namespace RouletteLike.Roulette
             roundText.text = $"TUTORIAL TABLE   ·   ROUND {_round}";
             RefreshChainPreview();
             RefreshEnemyIntentUi();
+            RefreshRiskSummary();
+        }
+
+        private void RefreshRiskSummary()
+        {
+            if (riskSummaryText == null || enemyRoulette == null || enemyRoulette.Count == 0)
+            {
+                return;
+            }
+
+            RouletteSegmentData intent = enemyRoulette.GetSegment(_rabbitIntentIndex % enemyRoulette.Count);
+            if (intent.type == RouletteSegmentType.Damage)
+            {
+                int needed = Mathf.Max(0, intent.value - _guard);
+                riskSummaryText.text = needed > 0
+                    ? $"다음 공격 {intent.value}  ·  현재 방어 {_guard}  →  방어 {needed} 더 필요"
+                    : $"다음 공격 {intent.value}  ·  현재 방어 {_guard}  →  완전 방어 가능";
+                riskSummaryText.color = needed > 0
+                    ? new Color32(242, 194, 110, 255)
+                    : new Color32(115, 220, 207, 255);
+            }
+            else
+            {
+                riskSummaryText.text = intent.type == RouletteSegmentType.Heal
+                    ? $"다음 행동: 토끼 HP {intent.value} 회복  ·  방어 보상 조건 없음"
+                    : "다음 행동: 봉인된 칸  ·  공격 없음";
+                riskSummaryText.color = new Color32(202, 196, 212, 255);
+            }
         }
 
         private void RefreshHouseRuleUi()
@@ -639,7 +672,7 @@ namespace RouletteLike.Roulette
             }
 
             chainPreviewText.text = best == null
-                ? "연쇄 미리보기 · 같은 효과를 인접시키세요"
+                ? "같은 종류가 이어지면 합산 · 공격 4+4=8"
                 : "연쇄 미리보기 · " + best.Formula;
         }
 

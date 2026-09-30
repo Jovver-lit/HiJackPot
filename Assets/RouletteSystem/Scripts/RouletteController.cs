@@ -44,6 +44,7 @@ namespace RouletteLike.Roulette
         [SerializeField, Range(0f, 1f)] private float labelRadiusRatio = 0.79f;
         [SerializeField] private Vector2 iconSize = new Vector2(32f, 32f);
         [SerializeField] private Vector2 labelSize = new Vector2(64f, 24f);
+        [SerializeField] private bool keepLabelsUpright;
 
         private readonly List<float> _startAngles = new List<float>();
         private readonly List<float> _endAngles = new List<float>();
@@ -81,6 +82,24 @@ namespace RouletteLike.Roulette
             if (rebuildOnAwake)
             {
                 RebuildWheel();
+            }
+        }
+
+        private void LateUpdate()
+        {
+            if (!keepLabelsUpright || wheel == null)
+            {
+                return;
+            }
+
+            Quaternion counterRotation = Quaternion.Inverse(wheel.localRotation);
+            for (int i = 0; i < _graphics.Count; i++)
+            {
+                RectTransform label = _graphics[i] != null ? _graphics[i].LabelRect : null;
+                if (label != null)
+                {
+                    label.localRotation = counterRotation;
+                }
             }
         }
 
