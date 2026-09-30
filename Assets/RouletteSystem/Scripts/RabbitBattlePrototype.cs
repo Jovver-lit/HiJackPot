@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using RouletteLike.Battle;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -7,19 +8,23 @@ using UnityEngine.Events;
 namespace RouletteLike.Roulette
 {
     /// <summary>
-    /// 첫 전투에서 강도 선택, 넓은 착지 오차, 보이는 적 행동, 룰렛 개조를 검증하는 수직 프로토타입입니다.
+    /// 1층 토끼 딜러 튜토리얼 전투. 규칙은 전부 <see cref="PotBattle"/>가 계산하고,
+    /// 이 컴포넌트는 입력·룰렛 회전·텍스트 표시만 맡는다.
+    /// 한 턴: 앤티 → SPIN 반복(연쇄로 판돈 키우기) → CASH OUT 또는 하우스 몫.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class RabbitBattlePrototype : MonoBehaviour
     {
-        private enum BattleState
+        private enum ViewState
         {
-            AwaitingThrow,
-            Spinning,
-            Resolving,
+            Busy,
+            PlayerTurn,
             ChoosingHijack,
             Ended
         }
+
+        /// <summary>튜토리얼: 이 라운드 전까지는 앤티가 1로 고정된다(R4부터 앤티 선택 해금).</summary>
+        private const int AnteUnlockRound = 4;
 
         [Header("Roulette")]
         [SerializeField] private RouletteController roulette;
@@ -27,12 +32,19 @@ namespace RouletteLike.Roulette
         [SerializeField] private HoldToSpinInput spinInput;
 
         [Header("Status")]
-        [SerializeField] private TMP_Text playerHpText;
-        [SerializeField] private TMP_Text rabbitHpText;
-        [SerializeField] private TMP_Text guardText;
-        [SerializeField] private TMP_Text shardText;
-        [SerializeField] private UnityEngine.UI.Image playerHpFill;
-        [SerializeField] private UnityEngine.UI.Image rabbitHpFill;
+        [SerializeField] private TMP_Text playerChipsText;
+        [SerializeField] private TMP_Text dealerChipsText;
+        [SerializeField] private TMP_Text insuranceText;
+        [SerializeField] private TMP_Text potText;
+        [SerializeField] private UnityEngine.UI.Image playerChipsFill;
+        [SerializeField] private UnityEngine.UI.Image dealerChipsFill;
+
+        [Header("Bet Controls")]
+        [SerializeField] private TMP_Text anteText;
+        [SerializeField] private UnityEngine.UI.Button anteDownButton;
+        [SerializeField] private UnityEngine.UI.Button anteUpButton;
+        [SerializeField] private UnityEngine.UI.Button cashOutButton;
+        [SerializeField] private TMP_Text cashOutLabel;
 
         [Header("Guidance")]
         [SerializeField] private TMP_Text roundText;
@@ -60,14 +72,15 @@ namespace RouletteLike.Roulette
         [Header("Presentation")]
         [SerializeField] private BattlePresentationUI presentationUi;
         [SerializeField] private HijackTransferPresenter hijackTransferPresenter;
+        [SerializeField, Min(0f)] private float resultPause = 0.6f;
 
-        [Header("Enemy Roulette")]
+        [Header("Dealer Roulette")]
         [SerializeField] private RouletteController enemyRoulette;
         [SerializeField] private RouletteSpinController enemySpinController;
-        [SerializeField] private UnityEngine.UI.Image[] enemyIntentFrames = new UnityEngine.UI.Image[0];
         [SerializeField] private TMP_Text enemyNextIntentText;
-        [SerializeField, Min(0f)] private float rabbitSpinDelay = 0.35f;
+        [SerializeField, Min(0f)] private float dealerSpinDelay = 0.35f;
         [SerializeField, Min(0f)] private float rabbitButtonPressLeadTime = 0.18f;
+        [SerializeField, Min(1)] private int dealerMaxSpinsPerTurn = 6;
         [SerializeField] private UnityEvent onRabbitSpinRequested = new UnityEvent();
 
         [Header("Hijack")]
@@ -85,30 +98,30 @@ namespace RouletteLike.Roulette
         [SerializeField] private UnityEngine.UI.Button retryButton;
 
         [Header("Tuning")]
-        [SerializeField, Min(1)] private int playerMaxHp = 24;
-        [SerializeField, Min(1)] private int rabbitMaxHp = 24;
         [SerializeField] private int battleSeed = 46021;
 
         private readonly Queue<string> _combatLog = new Queue<string>();
-        private BattleState _state;
-        private int _playerHp;
-        private int _rabbitHp;
-        private int _guard;
-        private int _ruleShards;
-        private int _round;
-        private int _rabbitIntentIndex;
-        private bool _enemySpinFinished;
-        private bool _hijackReady;
+        private PotBattle _battle;
+        private ViewState _state;
+        private int _chosenAnte = 1;
+        private int _loggedLines;
+        private bool _playerSpinning;
+        private int _playerSpinsThisTurn;
+        private bool _dealerSpinFinished;
+        private int _dealerLandingIndex;
         private bool _hijackTransferInProgress;
         private int _selectedHijackSourceIndex = -1;
 
-        public bool CanChooseSpinPower => _state == BattleState.AwaitingThrow;
+        public bool CanChooseSpinPower => _state == ViewState.PlayerTurn && !_playerSpinning;
         public UnityEvent OnRabbitSpinRequested => onRabbitSpinRequested;
 
         private void Awake()
         {
             houseRuleInfoButton?.onClick.AddListener(OpenHouseRuleInfo);
             houseRuleInfoCloseButton?.onClick.AddListener(CloseHouseRuleInfo);
+            anteDownButton?.onClick.AddListener(() => ChangeAnte(-1));
+            anteUpButton?.onClick.AddListener(() => ChangeAnte(1));
+            cashOutButton?.onClick.AddListener(PlayerCashOut);
 
             for (int i = 0; i < hijackSourceButtons.Length; i++)
             {
@@ -127,15 +140,8 @@ namespace RouletteLike.Roulette
 
         private void OnEnable()
         {
-            if (spinController != null)
-            {
-                spinController.RouletteFinished += HandleSpinFinished;
-            }
-
-            if (enemySpinController != null)
-            {
-                enemySpinController.RouletteFinished += HandleEnemySpinFinished;
-            }
+            if (spinController != null) spinController.RouletteFinished += HandlePlayerSpinFinished;
+            if (enemySpinController != null) enemySpinController.RouletteFinished += HandleDealerSpinFinished;
         }
 
         private void Start()
@@ -145,22 +151,127 @@ namespace RouletteLike.Roulette
 
         private void OnDisable()
         {
-            if (spinController != null)
-            {
-                spinController.RouletteFinished -= HandleSpinFinished;
-            }
-
-            if (enemySpinController != null)
-            {
-                enemySpinController.RouletteFinished -= HandleEnemySpinFinished;
-            }
+            if (spinController != null) spinController.RouletteFinished -= HandlePlayerSpinFinished;
+            if (enemySpinController != null) enemySpinController.RouletteFinished -= HandleDealerSpinFinished;
         }
 
         private void OnDestroy()
         {
             houseRuleInfoButton?.onClick.RemoveListener(OpenHouseRuleInfo);
             houseRuleInfoCloseButton?.onClick.RemoveListener(CloseHouseRuleInfo);
+            cashOutButton?.onClick.RemoveListener(PlayerCashOut);
             retryButton?.onClick.RemoveListener(RestartBattle);
+        }
+
+        // ───────────── 전투 흐름 ─────────────
+
+        private void RestartBattle()
+        {
+            StopAllCoroutines();
+            _battle = new PotBattle(
+                BattlePresets.CreateStarterWheel(),
+                BattlePresets.PlayerStartingChips,
+                BattlePresets.CreateRabbitDealer(),
+                battleSeed);
+            _combatLog.Clear();
+            _loggedLines = 0;
+            _chosenAnte = 1;
+            _playerSpinning = false;
+            _hijackTransferInProgress = false;
+            _selectedHijackSourceIndex = -1;
+
+            hijackPanel?.SetActive(false);
+            houseRuleInfoPanel?.SetActive(false);
+            openingSpeechBubble?.SetActive(true);
+            endPanel?.SetActive(false);
+            spinController?.SetRandomSeed(battleSeed);
+            enemySpinController?.SetRandomSeed(battleSeed + 1);
+            SyncWheels();
+
+            presentationUi?.SetHouseRuleHighlighted(false);
+            dealerLineText.text = "\"어서오세요, 첫 손님이시네요. 걸고, 돌리고, 적당할 때 터뜨리세요.\"";
+            AddLog("계약 체결: 토끼 딜러 전투 시작");
+            StartCoroutine(HideOpeningSpeechBubbleAfterDelay());
+            StartCoroutine(BeginRound());
+        }
+
+        private IEnumerator BeginRound()
+        {
+            _state = ViewState.Busy;
+            _battle.StartRound();
+            FlushCoreLog();
+            SyncWheels();
+            RefreshAllUi();
+            resultText.text = _battle.Active == Side.Player ? "코인플립: 앞면 · 손님 선공" : "코인플립: 뒷면 · 토끼 선공";
+            calculationText.text = "선공은 매 라운드 동전으로 정합니다";
+            yield return new WaitForSecondsRealtime(resultPause);
+            yield return ContinueTurnFlow();
+        }
+
+        /// <summary>현재 코어 상태에 맞춰 다음 행동(플레이어 입력 대기, 딜러 턴, HIJACK, 다음 라운드, 종료)으로 넘어간다.</summary>
+        private IEnumerator ContinueTurnFlow()
+        {
+            RefreshAllUi();
+
+            if (_battle.Phase == BattlePhase.Ended)
+            {
+                FinishBattle();
+                yield break;
+            }
+
+            if (_battle.HijackChances > 0 && !_battle.HijackUsedThisRound)
+            {
+                OpenHijackSelection();
+                yield break;
+            }
+
+            if (_battle.Phase == BattlePhase.RoundOver)
+            {
+                yield return BeginRound();
+                yield break;
+            }
+
+            if (_battle.Active == Side.Dealer)
+            {
+                yield return RunDealerTurn();
+                yield return ContinueTurnFlow();
+                yield break;
+            }
+
+            BeginPlayerTurn();
+        }
+
+        private void BeginPlayerTurn()
+        {
+            _state = ViewState.PlayerTurn;
+            _playerSpinsThisTurn = 0;
+            _chosenAnte = Mathf.Clamp(_chosenAnte, 1, Mathf.Max(1, CurrentMaxAnte()));
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
+            presentationUi?.SetPlayerRouletteActive(true);
+            presentationUi?.SetDealerRouletteActive(false);
+            instructionText.text = AnteLocked
+                ? "SPIN을 길게 눌렀다 놓으세요. 앤티 1이 걸리고 판돈이 쌓입니다."
+                : "앤티를 고르고 SPIN. 판돈이 충분하면 CASH OUT.";
+            powerPreviewText.text = "SPIN 밖으로 끌어내면 취소";
+            spinInput?.ResetInput();
+            RefreshAllUi();
+        }
+
+        // ───────────── 플레이어 입력 ─────────────
+
+        private bool AnteLocked => _battle.Round < AnteUnlockRound;
+
+        private int CurrentMaxAnte() => AnteLocked ? 1 : _battle.MaxAnte(Side.Player);
+
+        private void ChangeAnte(int delta)
+        {
+            if (_state != ViewState.PlayerTurn || _battle.Phase != BattlePhase.AwaitingAnte)
+            {
+                return;
+            }
+
+            _chosenAnte = Mathf.Clamp(_chosenAnte + delta, 1, Mathf.Max(1, CurrentMaxAnte()));
+            RefreshBetControls();
         }
 
         public void PreviewSpinPower(float power)
@@ -181,27 +292,130 @@ namespace RouletteLike.Roulette
                 return;
             }
 
-            _state = BattleState.Spinning;
+            if (_battle.Phase == BattlePhase.AwaitingAnte)
+            {
+                _battle.PlaceAnte(_chosenAnte);
+                FlushCoreLog();
+            }
+
+            _playerSpinning = true;
+            _playerSpinsThisTurn++;
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Spin);
             instructionText.text = "손을 떠났습니다. 이제 룰렛이 결정합니다.";
-            dealerLineText.text = "\"좋습니다, 손님. 힘은 정하셨고 운은 저희가 보관하겠습니다.\"";
             resultText.text = "회전 중...";
-            calculationText.text = "착지 결과를 기다리는 중";
-            AddLog($"강도 {Mathf.RoundToInt(power * 100f)}%로 SPIN");
-            _enemySpinFinished = enemySpinController == null;
-            StartCoroutine(StartRabbitSpinAfterDelay(_rabbitIntentIndex % 4));
+            calculationText.text = $"판돈 {_battle.Player.Pot} · 착지 결과를 기다리는 중";
+            RefreshAllUi();
             spinController.Spin(power);
         }
 
-        private IEnumerator StartRabbitSpinAfterDelay(int targetIntentIndex)
+        private void HandlePlayerSpinFinished(RouletteSegmentData result)
         {
-            yield return new WaitForSecondsRealtime(rabbitSpinDelay);
-
-            if (_state != BattleState.Spinning && _state != BattleState.Resolving)
+            if (!_playerSpinning || result == null)
             {
-                yield break;
+                return;
             }
 
+            _playerSpinning = false;
+            int index = FindSegmentIndex(roulette, result);
+            if (index < 0)
+            {
+                return;
+            }
+
+            LandingResult landing = _battle.Land(index);
+            FlushCoreLog();
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
+            resultText.text = landing.Kind == SlotKind.HouseCut ? "하우스 몫!" : $"착지  {roulette.GetSegment(index).displayText}";
+            calculationText.text = landing.Formula;
+
+            if (landing.EndedTurn)
+            {
+                dealerLineText.text = "\"하우스 몫입니다. 테이블 위의 칩은 저희가 정리하겠습니다.\"";
+                StartCoroutine(AfterPlayerTurnEnded());
+                return;
+            }
+
+            instructionText.text = $"판돈 {_battle.Player.Pot}. 한 번 더 SPIN, 아니면 CASH OUT.";
+            spinInput?.ResetInput();
+            RefreshAllUi();
+        }
+
+        private void PlayerCashOut()
+        {
+            if (!CanChooseSpinPower || _battle.Phase != BattlePhase.Spinning)
+            {
+                return;
+            }
+
+            CashOutResult result = _battle.CashOut();
+            FlushCoreLog();
+            resultText.text = $"CASH OUT  피해 {result.Damage}";
+            calculationText.text = $"판돈 {result.Pot} − 토끼 보험 {result.OpponentInsurance} = {result.Damage}";
+            dealerLineText.text = result.Damage >= 8
+                ? "\"크게 가져가시네요. 장부에 기록해 두겠습니다.\""
+                : "\"정산 완료. 다음 판도 기대하겠습니다.\"";
+            StartCoroutine(AfterPlayerTurnEnded());
+        }
+
+        private IEnumerator AfterPlayerTurnEnded()
+        {
+            _state = ViewState.Busy;
+            spinInput?.ShowUnavailableState("턴 종료");
+            RefreshAllUi();
+            yield return new WaitForSecondsRealtime(resultPause);
+            yield return ContinueTurnFlow();
+        }
+
+        // ───────────── 딜러 턴 ─────────────
+
+        private IEnumerator RunDealerTurn()
+        {
+            _state = ViewState.Busy;
+            presentationUi?.SetPhase(BattlePresentationUI.Phase.Dealer);
+            presentationUi?.SetPlayerRouletteActive(false);
+            presentationUi?.SetDealerRouletteActive(true);
+            spinInput?.ShowUnavailableState("토끼 차례");
+            instructionText.text = $"토끼 차례 · 판돈 {_battle.Profile.CashOutAt} 이상이면 CASH OUT합니다.";
+
+            _battle.PlaceAnte(_battle.Profile.DealerAnte);
+            FlushCoreLog();
+            RefreshAllUi();
+            yield return new WaitForSecondsRealtime(dealerSpinDelay);
+
+            int spins = 0;
+            while (_battle.Phase == BattlePhase.Spinning && _battle.Active == Side.Dealer)
+            {
+                if (_battle.DealerWantsToCashOut() || spins >= dealerMaxSpinsPerTurn)
+                {
+                    CashOutResult cashOut = _battle.CashOut();
+                    FlushCoreLog();
+                    resultText.text = cashOut.FullCoverage ? "전액 보장!" : $"토끼 CASH OUT  피해 {cashOut.Damage}";
+                    calculationText.text = $"판돈 {cashOut.Pot} − 내 보험 {cashOut.OpponentInsurance} = {cashOut.Damage}";
+                    dealerLineText.text = cashOut.FullCoverage
+                        ? "\"보험이 전액 보장했군요. 규정상 칸 하나를 양도하겠습니다.\""
+                        : "\"정산하겠습니다. 손님 칩에서 받아 두었어요.\"";
+                    presentationUi?.SetHouseRuleHighlighted(cashOut.FullCoverage);
+                    break;
+                }
+
+                spins++;
+                yield return SpinDealerWheel();
+                LandingResult landing = _battle.Land(_dealerLandingIndex);
+                FlushCoreLog();
+                resultText.text = $"토끼 착지  {enemyRoulette.GetSegment(_dealerLandingIndex).displayText}";
+                calculationText.text = landing.Formula;
+                RefreshAllUi();
+                yield return new WaitForSecondsRealtime(resultPause);
+            }
+
+            RefreshAllUi();
+            yield return new WaitForSecondsRealtime(resultPause);
+        }
+
+        private IEnumerator SpinDealerWheel()
+        {
+            _dealerLandingIndex = _battle.RollLandingIndex(Side.Dealer);
+            _dealerSpinFinished = enemySpinController == null;
             onRabbitSpinRequested?.Invoke();
             if (rabbitButtonPressLeadTime > 0f)
             {
@@ -209,46 +423,330 @@ namespace RouletteLike.Roulette
             }
 
             enemyRoulette?.PixelWheelRenderer?.ClearHighlight();
-            enemyNextIntentText.text = "회전 중 · 결과 공개됨";
-            enemySpinController?.SpinToSegment(targetIntentIndex);
+            enemySpinController?.SpinToSegment(_dealerLandingIndex);
+            yield return new WaitUntil(() => _dealerSpinFinished);
         }
 
-        private void RestartBattle()
+        private void HandleDealerSpinFinished(RouletteSegmentData result)
         {
-            StopAllCoroutines();
-            _playerHp = playerMaxHp;
-            _rabbitHp = rabbitMaxHp;
-            _guard = 0;
-            _ruleShards = 0;
-            _round = 1;
-            _rabbitIntentIndex = 0;
-            _enemySpinFinished = true;
-            _hijackReady = false;
-            _hijackTransferInProgress = false;
+            _dealerSpinFinished = true;
+        }
+
+        // ───────────── HIJACK ─────────────
+
+        private void OpenHijackSelection()
+        {
+            _state = ViewState.ChoosingHijack;
+            spinInput?.ShowUnavailableState("칸 선택 중");
+            presentationUi?.SetHouseRuleHighlighted(true);
             _selectedHijackSourceIndex = -1;
-            _combatLog.Clear();
+            hijackPanel?.SetActive(true);
+            hijackInstructionText.text = "1. 빼앗을 토끼의 칸을 고르세요";
 
-            hijackPanel?.SetActive(false);
-            houseRuleInfoPanel?.SetActive(false);
-            openingSpeechBubble?.SetActive(true);
-            endPanel?.SetActive(false);
-            spinController?.SetRandomSeed(battleSeed);
-            enemySpinController?.SetRandomSeed(battleSeed + 1);
-            roulette?.SetSegments(CreateStarterWheel(), false);
-            enemyRoulette?.SetSegments(CreateRabbitWheel(), false);
+            for (int i = 0; i < hijackSourceButtons.Length; i++)
+            {
+                bool exists = i < _battle.Dealer.Wheel.Count;
+                Slot slot = exists ? _battle.Dealer.Wheel[i] : null;
+                hijackSourceButtons[i].gameObject.SetActive(exists);
+                hijackSourceButtons[i].interactable = exists && slot.Kind != SlotKind.Sealed;
+                hijackSourceLabels[i].text = exists
+                    ? $"{i + 1}\n{slot.Label}{(slot.IsJackpot ? " ★" : "")}"
+                    : "-";
+            }
 
-            _state = BattleState.AwaitingThrow;
-            presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
-            presentationUi?.SetHouseRuleHighlighted(false);
-            dealerLineText.text = "하우스 룰이 공개되었습니다.";
-            instructionText.text = "룰렛 가운데 SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
-            powerPreviewText.text = "SPIN 밖으로 끌어내면 취소";
-            resultText.text = "첫 SPIN을 준비하세요";
-            calculationText.text = "같은 종류가 이어지면 어느 칸에 멈춰도 합산 · 공격 4+4=8";
-            AddLog("계약 체결: 토끼 딜러 전투 시작");
-            spinInput?.ResetInput();
+            for (int i = 0; i < hijackDestinationButtons.Length; i++)
+            {
+                bool exists = i < _battle.Player.Wheel.Count;
+                hijackDestinationButtons[i].gameObject.SetActive(exists);
+                hijackDestinationButtons[i].interactable = false;
+                hijackDestinationLabels[i].text = exists ? $"{i + 1}\n{_battle.Player.Wheel[i].Label}" : "-";
+            }
+
+            instructionText.text = "하우스 룰 달성. 토끼의 칸으로 내 칸 하나를 영구히 덮어씁니다.";
             RefreshAllUi();
-            StartCoroutine(HideOpeningSpeechBubbleAfterDelay());
+        }
+
+        private void SelectHijackSource(int sourceIndex)
+        {
+            if (_state != ViewState.ChoosingHijack
+                || sourceIndex >= _battle.Dealer.Wheel.Count
+                || _battle.Dealer.Wheel[sourceIndex].Kind == SlotKind.Sealed)
+            {
+                return;
+            }
+
+            _selectedHijackSourceIndex = sourceIndex;
+            hijackInstructionText.text = $"2. {_battle.Dealer.Wheel[sourceIndex].Label}로 덮어쓸 내 칸을 고르세요 (하우스 몫은 불가)";
+            for (int i = 0; i < hijackDestinationButtons.Length && i < _battle.Player.Wheel.Count; i++)
+            {
+                hijackDestinationButtons[i].interactable =
+                    _battle.CanHijack(sourceIndex, i) == HijackError.None;
+            }
+        }
+
+        private void PlaceHijackedSegment(int destinationIndex)
+        {
+            if (_state != ViewState.ChoosingHijack
+                || _hijackTransferInProgress
+                || _selectedHijackSourceIndex < 0
+                || _battle.CanHijack(_selectedHijackSourceIndex, destinationIndex) != HijackError.None)
+            {
+                return;
+            }
+
+            StartCoroutine(PlaceHijackedSegmentRoutine(_selectedHijackSourceIndex, destinationIndex));
+        }
+
+        private IEnumerator PlaceHijackedSegmentRoutine(int sourceIndex, int destinationIndex)
+        {
+            _hijackTransferInProgress = true;
+            foreach (UnityEngine.UI.Button button in hijackSourceButtons) button.interactable = false;
+            foreach (UnityEngine.UI.Button button in hijackDestinationButtons) button.interactable = false;
+
+            Slot stolenSlot = _battle.Dealer.Wheel[sourceIndex];
+            RouletteSegmentData stolenView = ToSegment(stolenSlot.AsStolen("preview"));
+            hijackPanel?.SetActive(false);
+
+            bool applied = false;
+            void ApplyTransfer()
+            {
+                if (applied) return;
+                applied = true;
+                _battle.Hijack(sourceIndex, destinationIndex);
+                FlushCoreLog();
+                SyncWheels();
+            }
+
+            if (hijackTransferPresenter != null)
+            {
+                yield return hijackTransferPresenter.PlayHijack(
+                    enemyRoulette, sourceIndex, roulette, destinationIndex, stolenView, ApplyTransfer);
+            }
+
+            ApplyTransfer();
+            _hijackTransferInProgress = false;
+            presentationUi?.SetHouseRuleHighlighted(false);
+            resultText.text = stolenSlot.IsJackpot ? $"JACKPOT HIJACK  {stolenSlot.Label}" : $"HIJACK  {stolenSlot.Label}";
+            calculationText.text = $"토끼 {sourceIndex + 1}번 칸 → 내 {destinationIndex + 1}번 칸 (영구)";
+            dealerLineText.text = stolenSlot.IsJackpot
+                ? "\"「서비스」까지요? 보안팀을 불러드리겠습니다.\""
+                : "\"양도 처리가 완료됐습니다. 반환은 불가능합니다.\"";
+            _state = ViewState.Busy;
+            yield return new WaitForSecondsRealtime(resultPause);
+            yield return ContinueTurnFlow();
+        }
+
+        // ───────────── 종료 ─────────────
+
+        private void FinishBattle()
+        {
+            _state = ViewState.Ended;
+            spinInput?.ShowUnavailableState("전투 종료");
+            endPanel?.SetActive(true);
+            switch (_battle.Outcome)
+            {
+                case BattleOutcome.PlayerWinsByCleanSweep:
+                    endTitleText.text = "완전 강탈";
+                    endBodyText.text = "토끼의 룰렛을 전부 봉인했습니다.\n빼앗은 칸은 모두 손님의 것입니다.";
+                    dealerLineText.text = "\"...제 룰렛이 텅 비었네요. 다음 테이블도 화이팅~\"";
+                    break;
+                case BattleOutcome.PlayerWinsByBankrupt:
+                    endTitleText.text = "토끼 딜러 파산";
+                    endBodyText.text = $"남은 칩 {_battle.Player.Chips}.\n빼앗은 칸은 손님의 룰렛에 영구히 남습니다.";
+                    dealerLineText.text = "\"축하드립니다. 다음 테이블도 화이팅~\"";
+                    break;
+                default:
+                    endTitleText.text = "계약 갱신";
+                    endBodyText.text = "칩이 바닥났습니다. 이번 계약은 되감깁니다.\n다음에는 언제 멈출지 다시 정해 보세요.";
+                    dealerLineText.text = "\"재도전은 무료입니다. 미래의 행운은 별도 청구됩니다.\"";
+                    break;
+            }
+
+            RefreshAllUi();
+        }
+
+        // ───────────── 표시 ─────────────
+
+        private void RefreshAllUi()
+        {
+            if (_battle == null) return;
+
+            int playerStart = BattlePresets.PlayerStartingChips;
+            int dealerStart = _battle.Profile.StartingChips;
+            playerChipsText.text = $"칩 {_battle.Player.Chips}";
+            dealerChipsText.text = $"칩 {_battle.Dealer.Chips}";
+            playerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Player.Chips / playerStart);
+            dealerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Dealer.Chips / dealerStart);
+            insuranceText.text = $"내 보험 {_battle.Player.Insurance}";
+            potText.text = $"내 판돈 {_battle.Player.Pot}";
+            roundText.text = $"TUTORIAL TABLE   ·   ROUND {_battle.Round}";
+            RefreshBetControls();
+            RefreshHouseRuleUi();
+            RefreshChainPreview();
+            RefreshDealerTelegraph();
+            RefreshOddsBoard();
+        }
+
+        private void RefreshBetControls()
+        {
+            bool awaitingAnte = _state == ViewState.PlayerTurn && _battle.Phase == BattlePhase.AwaitingAnte;
+            bool canCashOut = _state == ViewState.PlayerTurn && !_playerSpinning && _battle.Phase == BattlePhase.Spinning
+                              && _battle.Active == Side.Player;
+
+            if (anteText != null)
+            {
+                anteText.text = _battle.Phase == BattlePhase.Spinning && _battle.Active == Side.Player
+                    ? $"앤티 {_battle.Player.Ante} 걸림"
+                    : AnteLocked ? "앤티 1 (R4 해금)" : $"앤티 {_chosenAnte} / 한도 {_battle.Profile.TableLimit}";
+            }
+
+            if (anteDownButton != null) anteDownButton.interactable = awaitingAnte && !AnteLocked && _chosenAnte > 1;
+            if (anteUpButton != null) anteUpButton.interactable = awaitingAnte && !AnteLocked && _chosenAnte < CurrentMaxAnte();
+            if (cashOutButton != null) cashOutButton.interactable = canCashOut;
+            if (cashOutLabel != null)
+            {
+                cashOutLabel.text = canCashOut
+                    ? $"CASH OUT\n피해 {_battle.PreviewCashOutDamage(Side.Player)}"
+                    : "CASH OUT";
+            }
+        }
+
+        /// <summary>확률판: 다음 SPIN의 하우스 몫 확률과 CASH OUT 예상 피해.</summary>
+        private void RefreshOddsBoard()
+        {
+            if (riskSummaryText == null) return;
+
+            int houseCuts = 0;
+            foreach (Slot slot in _battle.Player.Wheel)
+            {
+                if (slot.Kind == SlotKind.HouseCut) houseCuts++;
+            }
+
+            float houseCutChance = 100f * houseCuts / Mathf.Max(1, _battle.Player.Wheel.Count);
+            if (_battle.Active == Side.Player && _battle.Phase == BattlePhase.Spinning)
+            {
+                riskSummaryText.text =
+                    $"판돈 {_battle.Player.Pot} − 토끼 보험 {_battle.Dealer.Insurance} = 피해 {_battle.PreviewCashOutDamage(Side.Player)}  ·  하우스 몫 {houseCutChance:0.#}%";
+                riskSummaryText.color = new Color32(242, 194, 110, 255);
+            }
+            else
+            {
+                riskSummaryText.text = $"다음 SPIN 하우스 몫 확률 {houseCutChance:0.#}%  ·  토끼 판돈 {_battle.Dealer.Pot}";
+                riskSummaryText.color = new Color32(202, 196, 212, 255);
+            }
+        }
+
+        private void RefreshHouseRuleUi()
+        {
+            bool ready = _battle.HijackChances > 0;
+            string progress = ready ? "1 / 1  ·  HIJACK 가능" : "0 / 1  ·  토끼의 CASH OUT을 보험으로 전액 보장";
+            houseRuleProgressFill.fillAmount = ready ? 1f : 0f;
+            houseRuleProgressText.text = progress;
+            if (houseRuleDetailProgressText != null)
+            {
+                houseRuleDetailProgressText.text = "현재 진행도  " + progress;
+            }
+        }
+
+        /// <summary>토끼는 튜토리얼 딜러라 다음 행동을 예고한다(성향 + 필요한 보험).</summary>
+        private void RefreshDealerTelegraph()
+        {
+            if (enemyNextIntentText == null) return;
+
+            int threshold = _battle.Profile.CashOutAt;
+            int needed = Mathf.Max(0, threshold - _battle.Player.Insurance);
+            enemyNextIntentText.text = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning
+                ? $"판돈 {_battle.Dealer.Pot} → {threshold} 이상이면 CASH OUT"
+                : needed > 0
+                    ? $"판돈 {threshold}+에서 CASH OUT · 보험 {needed} 부족"
+                    : $"판돈 {threshold}+에서 CASH OUT · 전액 보장 가능성";
+        }
+
+        private void RefreshChainPreview()
+        {
+            if (chainPreviewText == null) return;
+
+            int bestRaise = 0;
+            for (int i = 0; i < _battle.Player.Wheel.Count; i++)
+            {
+                if (_battle.Player.Wheel[i].Kind != SlotKind.Raise) continue;
+                int sum = 0;
+                foreach (int index in PotBattle.FindChainGroup(_battle.Player.Wheel, i)) sum += _battle.Player.Wheel[index].Value;
+                bestRaise = Mathf.Max(bestRaise, sum);
+            }
+
+            chainPreviewText.text = $"이어진 같은 칸은 한 묶음 · 최대 레이즈 연쇄 +{bestRaise}";
+        }
+
+        private void SyncWheels()
+        {
+            roulette?.SetSegments(ToSegments(_battle.Player.Wheel), false);
+            enemyRoulette?.SetSegments(ToSegments(_battle.Dealer.Wheel), false);
+        }
+
+        private static List<RouletteSegmentData> ToSegments(IReadOnlyList<Slot> wheel)
+        {
+            List<RouletteSegmentData> segments = new List<RouletteSegmentData>(wheel.Count);
+            foreach (Slot slot in wheel) segments.Add(ToSegment(slot));
+            return segments;
+        }
+
+        private static RouletteSegmentData ToSegment(Slot slot)
+        {
+            (RouletteSegmentType type, Color color) = slot.Kind switch
+            {
+                SlotKind.Raise => (RouletteSegmentType.Damage, (Color)new Color32(196, 67, 72, 255)),
+                SlotKind.Multiplier => (RouletteSegmentType.Multiplier, (Color)new Color32(57, 139, 191, 255)),
+                SlotKind.Insurance => (RouletteSegmentType.Custom, (Color)new Color32(56, 153, 160, 255)),
+                SlotKind.Dividend => (RouletteSegmentType.Heal, (Color)new Color32(67, 166, 109, 255)),
+                SlotKind.HouseCut => (RouletteSegmentType.Poison, (Color)new Color32(40, 30, 48, 255)),
+                _ => (RouletteSegmentType.Custom, (Color)new Color32(54, 48, 65, 255))
+            };
+
+            if (slot.IsJackpot)
+            {
+                type = RouletteSegmentType.Jackpot;
+                color = new Color32(222, 164, 48, 255);
+            }
+
+            string label = slot.Label;
+            if (slot.IsStolen)
+            {
+                label = "H " + label;
+                color = Color.Lerp(color, new Color32(224, 168, 52, 255), 0.35f);
+            }
+
+            return new RouletteSegmentData(
+                slot.Id, type, slot.Value, 1f, color, null, label,
+                slot.IsJackpot || slot.IsStolen || slot.Kind == SlotKind.HouseCut);
+        }
+
+        private static int FindSegmentIndex(RouletteController controller, RouletteSegmentData segment)
+        {
+            for (int i = 0; i < controller.Count; i++)
+            {
+                RouletteSegmentData candidate = controller.GetSegment(i);
+                if (ReferenceEquals(candidate, segment) || candidate.id == segment.id) return i;
+            }
+
+            return -1;
+        }
+
+        /// <summary>코어가 남긴 전투 로그 중 아직 표시하지 않은 줄을 전투 기록에 옮긴다.</summary>
+        private void FlushCoreLog()
+        {
+            IReadOnlyList<string> log = _battle.Log;
+            for (; _loggedLines < log.Count; _loggedLines++)
+            {
+                AddLog(log[_loggedLines]);
+            }
+        }
+
+        private void AddLog(string message)
+        {
+            _combatLog.Enqueue(message);
+            while (_combatLog.Count > 7) _combatLog.Dequeue();
+            combatLogText.text = string.Join("\n", _combatLog);
         }
 
         private IEnumerator HideOpeningSpeechBubbleAfterDelay()
@@ -266,641 +764,6 @@ namespace RouletteLike.Roulette
         private void CloseHouseRuleInfo()
         {
             houseRuleInfoPanel?.SetActive(false);
-        }
-
-        private void HandleSpinFinished(RouletteSegmentData result)
-        {
-            if (_state != BattleState.Spinning || result == null)
-            {
-                return;
-            }
-
-            int resultIndex = FindSegmentIndex(roulette, result);
-            if (resultIndex < 0)
-            {
-                return;
-            }
-
-            _state = BattleState.Resolving;
-            presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
-            spinInput?.ShowUnavailableState("결과\n확인 중");
-            ResolvedEffect effect = EvaluateEffect(resultIndex);
-            resultText.text = $"착지  {effect.DisplayName} {effect.FinalValue}";
-            calculationText.text = effect.Formula;
-            instructionText.text = "착지 결과가 확정되었습니다. 연쇄 효과를 계산합니다.";
-            StartCoroutine(ResolveRound(resultIndex));
-        }
-
-        private void HandleEnemySpinFinished(RouletteSegmentData result)
-        {
-            _enemySpinFinished = true;
-        }
-
-        private IEnumerator ResolveRound(int resultIndex)
-        {
-            yield return new WaitUntil(() => _enemySpinFinished);
-
-            ResolvePlayerResult(resultIndex);
-            RefreshAllUi();
-            yield return new WaitForSecondsRealtime(0.75f);
-
-            if (_rabbitHp <= 0)
-            {
-                FinishBattle(true);
-                yield break;
-            }
-
-            presentationUi?.SetPhase(BattlePresentationUI.Phase.Dealer);
-            ResolveRabbitIntent();
-            RefreshAllUi();
-            yield return new WaitForSecondsRealtime(0.75f);
-
-            if (_playerHp <= 0)
-            {
-                FinishBattle(false);
-                yield break;
-            }
-
-            if (_hijackReady)
-            {
-                OpenHijackSelection();
-                yield break;
-            }
-
-            BeginNextRound();
-        }
-
-        private void ResolvePlayerResult(int resultIndex)
-        {
-            ResolvedEffect effect = EvaluateEffect(resultIndex);
-            calculationText.text = effect.Formula;
-
-            switch (effect.Type)
-            {
-                case RouletteSegmentType.Damage:
-                    _rabbitHp = Mathf.Max(0, _rabbitHp - effect.FinalValue);
-                    resultText.text = $"최종 피해 {effect.FinalValue}";
-                    AddLog($"플레이어: 연쇄 공격 {effect.FinalValue} 피해");
-                    break;
-                case RouletteSegmentType.Heal:
-                    int healed = Mathf.Min(effect.FinalValue, playerMaxHp - _playerHp);
-                    _playerHp += healed;
-                    resultText.text = $"최종 회복 {healed}";
-                    AddLog($"플레이어: HP {healed} 회복");
-                    break;
-                case RouletteSegmentType.Jackpot:
-                    _rabbitHp = Mathf.Max(0, _rabbitHp - effect.FinalValue);
-                    _ruleShards++;
-                    resultText.text = $"JACKPOT! 피해 {effect.FinalValue}";
-                    dealerLineText.text = "\"축하드립니다. 보안팀에도 즉시 공유하겠습니다.\"";
-                    AddLog($"JACKPOT: {effect.FinalValue} 피해");
-                    break;
-                case RouletteSegmentType.Custom when effect.IsGuard:
-                    _guard += effect.FinalValue;
-                    resultText.text = $"최종 방어 {effect.FinalValue}";
-                    AddLog($"플레이어: 방어 {effect.FinalValue} 획득");
-                    break;
-                default:
-                    _ruleShards++;
-                    resultText.text = "꽝... 규칙 조각 +1";
-                    dealerLineText.text = "\"운이 없으시군요. 규칙을 고칠 재료는 드리겠습니다.\"";
-                    AddLog("꽝: 규칙 조각 +1");
-                    break;
-            }
-        }
-
-        private void ResolveRabbitIntent()
-        {
-            int activeIndex = _rabbitIntentIndex % enemyRoulette.Count;
-            RouletteSegmentData intent = enemyRoulette.GetSegment(activeIndex);
-            if (intent.type == RouletteSegmentType.Damage)
-            {
-                ApplyRabbitDamage(intent.value);
-            }
-            else if (intent.type == RouletteSegmentType.Heal)
-            {
-                int healed = Mathf.Min(intent.value, rabbitMaxHp - _rabbitHp);
-                _rabbitHp += healed;
-                AddLog($"토끼: HP {healed} 회복");
-                dealerLineText.text = "\"직원 복지는 계약서에 명시되어 있습니다.\"";
-            }
-            else
-            {
-                AddLog("토끼: 빼앗긴 칸이 비어 아무 일도 일어나지 않음");
-                dealerLineText.text = "\"해당 규칙은 현재 손님 명의로 등록되어 있습니다.\"";
-            }
-
-            _rabbitIntentIndex++;
-        }
-
-        private void ApplyRabbitDamage(int damage)
-        {
-            int absorbed = Mathf.Min(_guard, damage);
-            _guard -= absorbed;
-            int healthDamage = damage - absorbed;
-            _playerHp = Mathf.Max(0, _playerHp - healthDamage);
-            AddLog($"토끼: 공격 {damage} (방어 흡수 {absorbed})");
-
-            if (damage > 0 && absorbed == damage)
-            {
-                _hijackReady = true;
-                presentationUi?.SetHouseRuleHighlighted(true);
-                AddLog("HOUSE RULE 달성: HIJACK 권한 획득");
-                dealerLineText.text = "\"완전 방어라니요. 규정상 칸 하나를 양도하겠습니다.\"";
-            }
-            else
-            {
-                dealerLineText.text = "\"불편을 드려 죄송합니다. 다음 공격도 공개되어 있습니다.\"";
-            }
-        }
-
-        private void OpenHijackSelection()
-        {
-            _state = BattleState.ChoosingHijack;
-            spinInput?.ShowUnavailableState("칸 선택 중");
-            presentationUi?.SetHouseRuleHighlighted(true);
-            _selectedHijackSourceIndex = -1;
-            hijackPanel?.SetActive(true);
-            hijackInstructionText.text = "1. 토끼의 칸 하나를 선택하세요";
-
-            for (int i = 0; i < hijackSourceButtons.Length; i++)
-            {
-                bool valid = i < enemyRoulette.Count && !IsStolenSlot(enemyRoulette.GetSegment(i));
-                hijackSourceButtons[i].interactable = valid;
-                hijackSourceLabels[i].text = i < enemyRoulette.Count
-                    ? $"{i + 1}\n{enemyRoulette.GetSegment(i).displayText}"
-                    : "-";
-            }
-
-            for (int i = 0; i < hijackDestinationButtons.Length; i++)
-            {
-                hijackDestinationButtons[i].interactable = false;
-                hijackDestinationLabels[i].text = i < roulette.Count
-                    ? $"{i + 1}\n{roulette.GetSegment(i).displayText}"
-                    : "-";
-            }
-
-            instructionText.text = "HOUSE RULE 달성. 토끼의 칸과 교체할 내 칸을 선택하세요.";
-        }
-
-        private void SelectHijackSource(int sourceIndex)
-        {
-            if (_state != BattleState.ChoosingHijack
-                || sourceIndex < 0
-                || sourceIndex >= enemyRoulette.Count
-                || IsStolenSlot(enemyRoulette.GetSegment(sourceIndex)))
-            {
-                return;
-            }
-
-            _selectedHijackSourceIndex = sourceIndex;
-            hijackInstructionText.text = $"2. {enemyRoulette.GetSegment(sourceIndex).displayText}과 교체할 내 칸 선택";
-            for (int i = 0; i < hijackDestinationButtons.Length; i++)
-            {
-                hijackDestinationButtons[i].interactable = i < roulette.Count;
-            }
-        }
-
-        private void PlaceHijackedSegment(int destinationIndex)
-        {
-            if (_state != BattleState.ChoosingHijack
-                || _hijackTransferInProgress
-                || _selectedHijackSourceIndex < 0
-                || _selectedHijackSourceIndex >= enemyRoulette.Count
-                || destinationIndex < 0
-                || destinationIndex >= roulette.Count)
-            {
-                return;
-            }
-
-            StartCoroutine(PlaceHijackedSegmentRoutine(_selectedHijackSourceIndex, destinationIndex));
-        }
-
-        private IEnumerator PlaceHijackedSegmentRoutine(int sourceIndex, int destinationIndex)
-        {
-            _hijackTransferInProgress = true;
-            for (int i = 0; i < hijackSourceButtons.Length; i++)
-            {
-                hijackSourceButtons[i].interactable = false;
-            }
-
-            for (int i = 0; i < hijackDestinationButtons.Length; i++)
-            {
-                hijackDestinationButtons[i].interactable = false;
-            }
-
-            RouletteSegmentData stolen = enemyRoulette.GetSegment(sourceIndex).Clone();
-            stolen.id = $"hijacked_{_round}_{stolen.id}";
-            stolen.displayText = "H " + stolen.displayText;
-            stolen.color = Color.Lerp(stolen.color, new Color32(224, 168, 52, 255), 0.35f);
-            stolen.isSpecial = true;
-
-            List<RouletteSegmentData> playerWheel = CloneWheel(roulette);
-            playerWheel[destinationIndex] = stolen;
-
-            List<RouletteSegmentData> rabbitWheel = CloneWheel(enemyRoulette);
-            rabbitWheel[sourceIndex] = CreateSegment(
-                $"rabbit_stolen_{_round}_{sourceIndex}",
-                RouletteSegmentType.Custom,
-                0,
-                1f,
-                new Color32(54, 48, 65, 255),
-                "봉인",
-                true);
-
-            bool applied = false;
-            void ApplyTransfer()
-            {
-                if (applied)
-                {
-                    return;
-                }
-
-                applied = true;
-                roulette.SetSegments(playerWheel, false);
-                enemyRoulette.SetSegments(rabbitWheel, false);
-            }
-
-            hijackPanel?.SetActive(false);
-            if (hijackTransferPresenter != null)
-            {
-                yield return hijackTransferPresenter.PlayHijack(
-                    enemyRoulette,
-                    sourceIndex,
-                    roulette,
-                    destinationIndex,
-                    stolen,
-                    ApplyTransfer);
-            }
-            else
-            {
-                ApplyTransfer();
-            }
-
-            ApplyTransfer();
-
-            _hijackReady = false;
-            _hijackTransferInProgress = false;
-            presentationUi?.SetHouseRuleHighlighted(false);
-            resultText.text = $"HIJACK  {stolen.displayText}";
-            calculationText.text = $"토끼 {sourceIndex + 1}번 칸 → 내 {destinationIndex + 1}번 칸";
-            AddLog($"HIJACK: {stolen.displayText}을 내 {destinationIndex + 1}번 칸에 배치");
-            dealerLineText.text = "\"양도 처리가 완료됐습니다. 반환은 불가능합니다.\"";
-            BeginNextRound();
-        }
-
-        private void BeginNextRound()
-        {
-            _round++;
-            _state = BattleState.AwaitingThrow;
-            presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
-            instructionText.text = "룰렛 가운데 SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
-            powerPreviewText.text = "SPIN 밖으로 끌어내면 취소";
-            calculationText.text = "같은 종류가 이어지면 어느 칸에 멈춰도 합산 · 공격 4+4=8";
-            spinInput?.ResetInput();
-            RefreshAllUi();
-        }
-
-        private void FinishBattle(bool victory)
-        {
-            _state = BattleState.Ended;
-            spinInput?.ShowUnavailableState("전투 종료");
-            endPanel?.SetActive(true);
-            endTitleText.text = victory ? "규칙 탈취 성공" : "계약 갱신";
-            endBodyText.text = victory
-                ? "토끼 딜러의 초급 규칙을 훔쳤습니다.\n잘 멈춘 것이 아니라, 실패할 칸을 줄여 이겼습니다."
-                : "이번 계약은 되감깁니다.\n다음에는 룰렛부터 더 유리하게 만드세요.";
-            dealerLineText.text = victory
-                ? "\"축하드립니다. 보안팀이 곧 안내해 드리겠습니다.\""
-                : "\"재도전은 무료입니다. 미래의 행운은 별도 청구됩니다.\"";
-        }
-
-        private void RefreshAllUi()
-        {
-            playerHpText.text = $"{_playerHp} / {playerMaxHp}";
-            rabbitHpText.text = $"{_rabbitHp} / {rabbitMaxHp}";
-            guardText.text = $"방어 {_guard}";
-            shardText.text = $"규칙 조각 {_ruleShards}";
-            playerHpFill.fillAmount = (float)_playerHp / playerMaxHp;
-            rabbitHpFill.fillAmount = (float)_rabbitHp / rabbitMaxHp;
-            RefreshHouseRuleUi();
-            roundText.text = $"TUTORIAL TABLE   ·   ROUND {_round}";
-            RefreshChainPreview();
-            RefreshEnemyIntentUi();
-            RefreshRiskSummary();
-        }
-
-        private void RefreshRiskSummary()
-        {
-            if (riskSummaryText == null || enemyRoulette == null || enemyRoulette.Count == 0)
-            {
-                return;
-            }
-
-            RouletteSegmentData intent = enemyRoulette.GetSegment(_rabbitIntentIndex % enemyRoulette.Count);
-            if (intent.type == RouletteSegmentType.Damage)
-            {
-                int needed = Mathf.Max(0, intent.value - _guard);
-                riskSummaryText.text = needed > 0
-                    ? $"다음 공격 {intent.value}  ·  현재 방어 {_guard}  →  방어 {needed} 더 필요"
-                    : $"다음 공격 {intent.value}  ·  현재 방어 {_guard}  →  완전 방어 가능";
-                riskSummaryText.color = needed > 0
-                    ? new Color32(242, 194, 110, 255)
-                    : new Color32(115, 220, 207, 255);
-            }
-            else
-            {
-                riskSummaryText.text = intent.type == RouletteSegmentType.Heal
-                    ? $"다음 행동: 토끼 HP {intent.value} 회복  ·  방어 보상 조건 없음"
-                    : "다음 행동: 봉인된 칸  ·  공격 없음";
-                riskSummaryText.color = new Color32(202, 196, 212, 255);
-            }
-        }
-
-        private void RefreshHouseRuleUi()
-        {
-            string progress = _hijackReady ? "1 / 1  ·  HIJACK 가능" : "0 / 1  ·  공개 공격 완전 방어";
-            houseRuleProgressFill.fillAmount = _hijackReady ? 1f : 0f;
-            houseRuleProgressText.text = progress;
-            if (houseRuleDetailProgressText != null)
-            {
-                houseRuleDetailProgressText.text = "현재 진행도  " + progress;
-            }
-        }
-
-        private void RefreshEnemyIntentUi()
-        {
-            int activeIndex = _rabbitIntentIndex % enemyRoulette.Count;
-            for (int i = 0; i < enemyIntentFrames.Length; i++)
-            {
-                enemyIntentFrames[i].color = i == activeIndex
-                    ? new Color32(224, 168, 52, 255)
-                    : new Color32(61, 53, 79, 255);
-            }
-
-            RouletteSegmentData intent = enemyRoulette.GetSegment(activeIndex);
-            enemyNextIntentText.text = intent.type switch
-            {
-                RouletteSegmentType.Damage => $"공격 {intent.value}",
-                RouletteSegmentType.Heal => $"회복 {intent.value}",
-                _ => "봉인 · 행동 없음"
-            };
-
-            if (enemyRoulette != null && activeIndex < enemyRoulette.Count)
-            {
-                RouletteSegmentData activeSegment = enemyRoulette.GetSegment(activeIndex);
-                enemyRoulette.PixelWheelRenderer?.SetHighlightedSegment(activeSegment.id, true);
-
-                if (enemyRoulette.TryGetSegmentAngles(activeIndex, out _, out _, out float centerAngle, out _))
-                {
-                    enemyRoulette.Wheel.localRotation = Quaternion.Euler(0f, 0f, centerAngle);
-                }
-            }
-        }
-
-        private void RefreshChainPreview()
-        {
-            ResolvedEffect best = null;
-            for (int i = 0; i < roulette.Count; i++)
-            {
-                ResolvedEffect candidate = EvaluateEffect(i);
-                if ((candidate.ChainCount > 1 || candidate.Multiplier > 1)
-                    && (best == null || candidate.FinalValue > best.FinalValue))
-                {
-                    best = candidate;
-                }
-            }
-
-            chainPreviewText.text = best == null
-                ? "같은 종류가 이어지면 합산 · 공격 4+4=8"
-                : "연쇄 미리보기 · " + best.Formula;
-        }
-
-        private ResolvedEffect EvaluateEffect(int selectedIndex)
-        {
-            ResolvedEffect effect = new ResolvedEffect();
-            if (roulette == null || roulette.Count == 0 || selectedIndex < 0 || selectedIndex >= roulette.Count)
-            {
-                return effect;
-            }
-
-            int count = roulette.Count;
-            int baseIndex = selectedIndex;
-            int multiplierScan = 0;
-            while (roulette.GetSegment(baseIndex).type == RouletteSegmentType.Multiplier && multiplierScan < count)
-            {
-                baseIndex = (baseIndex + 1) % count;
-                multiplierScan++;
-            }
-
-            RouletteSegmentData baseSegment = roulette.GetSegment(baseIndex);
-            int chainStart = baseIndex;
-            if (IsChainable(baseSegment))
-            {
-                for (int i = 0; i < count - 1; i++)
-                {
-                    int previous = (chainStart - 1 + count) % count;
-                    if (!HasSameEffect(baseSegment, roulette.GetSegment(previous)))
-                    {
-                        break;
-                    }
-
-                    chainStart = previous;
-                }
-            }
-
-            List<int> values = new List<int>();
-            int cursor = chainStart;
-            do
-            {
-                RouletteSegmentData current = roulette.GetSegment(cursor);
-                if (values.Count > 0 && !HasSameEffect(baseSegment, current))
-                {
-                    break;
-                }
-
-                values.Add(current.value);
-                cursor = (cursor + 1) % count;
-            }
-            while (cursor != chainStart && IsChainable(baseSegment));
-
-            int multiplier = 1;
-            cursor = (chainStart - 1 + count) % count;
-            int multiplierCount = 0;
-            while (roulette.GetSegment(cursor).type == RouletteSegmentType.Multiplier
-                   && multiplierCount < count - values.Count)
-            {
-                multiplier *= Mathf.Max(2, roulette.GetSegment(cursor).value);
-                cursor = (cursor - 1 + count) % count;
-                multiplierCount++;
-            }
-
-            int baseValue = 0;
-            for (int i = 0; i < values.Count; i++)
-            {
-                baseValue += values[i];
-            }
-
-            effect.Type = baseSegment.type;
-            effect.IsGuard = IsGuard(baseSegment);
-            effect.ChainCount = values.Count;
-            effect.Multiplier = multiplier;
-            effect.FinalValue = baseValue * multiplier;
-            effect.DisplayName = GetEffectName(baseSegment);
-
-            string joinedValues = string.Join(" + ", values);
-            effect.Formula = values.Count > 1
-                ? $"{effect.DisplayName} {joinedValues} → {baseValue}"
-                : $"{effect.DisplayName} {baseValue}";
-            if (multiplier > 1)
-            {
-                effect.Formula += $"  ·  ×{multiplier} → 최종 {effect.FinalValue}";
-            }
-            else
-            {
-                effect.Formula += $" → 최종 {effect.FinalValue}";
-            }
-
-            return effect;
-        }
-
-        private static bool IsChainable(RouletteSegmentData segment)
-        {
-            return segment.type == RouletteSegmentType.Damage
-                   || segment.type == RouletteSegmentType.Heal
-                   || IsGuard(segment);
-        }
-
-        private static bool HasSameEffect(RouletteSegmentData first, RouletteSegmentData second)
-        {
-            if (first == null || second == null)
-            {
-                return false;
-            }
-
-            if (IsGuard(first) || IsGuard(second))
-            {
-                return IsGuard(first) && IsGuard(second);
-            }
-
-            return first.type == second.type
-                   && (first.type == RouletteSegmentType.Damage || first.type == RouletteSegmentType.Heal);
-        }
-
-        private static bool IsGuard(RouletteSegmentData segment)
-        {
-            return segment != null
-                   && segment.type == RouletteSegmentType.Custom
-                   && ((!string.IsNullOrEmpty(segment.id) && segment.id.Contains("guard"))
-                       || (!string.IsNullOrEmpty(segment.displayText) && segment.displayText.Contains("방어")));
-        }
-
-        private static bool IsStolenSlot(RouletteSegmentData segment)
-        {
-            return segment == null
-                   || (!string.IsNullOrEmpty(segment.id) && segment.id.StartsWith("rabbit_stolen"));
-        }
-
-        private static string GetEffectName(RouletteSegmentData segment)
-        {
-            if (IsGuard(segment))
-            {
-                return "방어";
-            }
-
-            return segment.type switch
-            {
-                RouletteSegmentType.Damage => "공격",
-                RouletteSegmentType.Heal => "회복",
-                RouletteSegmentType.Jackpot => "JACKPOT",
-                RouletteSegmentType.Multiplier => "배율",
-                _ => "꽝"
-            };
-        }
-
-        private static int FindSegmentIndex(RouletteController controller, RouletteSegmentData segment)
-        {
-            for (int i = 0; i < controller.Count; i++)
-            {
-                RouletteSegmentData candidate = controller.GetSegment(i);
-                if (ReferenceEquals(candidate, segment) || candidate.id == segment.id)
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        private void AddLog(string message)
-        {
-            _combatLog.Enqueue(message);
-            while (_combatLog.Count > 6)
-            {
-                _combatLog.Dequeue();
-            }
-
-            combatLogText.text = string.Join("\n", _combatLog);
-        }
-
-        private static List<RouletteSegmentData> CloneWheel(RouletteController controller)
-        {
-            List<RouletteSegmentData> copy = new List<RouletteSegmentData>(controller.Count);
-            for (int i = 0; i < controller.Count; i++)
-            {
-                copy.Add(controller.GetSegment(i).Clone());
-            }
-
-            return copy;
-        }
-
-        private static List<RouletteSegmentData> CreateStarterWheel()
-        {
-            return new List<RouletteSegmentData>
-            {
-                CreateSegment("multiplier_2", RouletteSegmentType.Multiplier, 2, 1f, new Color32(57, 139, 191, 255), "×2", true),
-                CreateSegment("damage_4_a", RouletteSegmentType.Damage, 4, 1f, new Color32(196, 67, 72, 255), "공격 4"),
-                CreateSegment("damage_4_b", RouletteSegmentType.Damage, 4, 1f, new Color32(196, 67, 72, 255), "공격 4"),
-                CreateSegment("guard_3", RouletteSegmentType.Custom, 3, 1f, new Color32(56, 153, 160, 255), "방어 3"),
-                CreateSegment("heal_3", RouletteSegmentType.Heal, 3, 1f, new Color32(67, 166, 109, 255), "회복 3"),
-                CreateSegment("blank_b", RouletteSegmentType.Custom, 0, 1f, new Color32(68, 62, 82, 255), "꽝"),
-                CreateSegment("jackpot_8", RouletteSegmentType.Jackpot, 8, 1f, new Color32(222, 164, 48, 255), "JACK 8", true),
-                CreateSegment("guard_4", RouletteSegmentType.Custom, 4, 1f, new Color32(56, 153, 160, 255), "방어 4")
-            };
-        }
-
-        private static List<RouletteSegmentData> CreateRabbitWheel()
-        {
-            return new List<RouletteSegmentData>
-            {
-                CreateSegment("rabbit_attack_4_a", RouletteSegmentType.Damage, 4, 1f, new Color32(196, 67, 72, 255), "공격 4"),
-                CreateSegment("rabbit_heal_3", RouletteSegmentType.Heal, 3, 1f, new Color32(67, 166, 109, 255), "회복 3"),
-                CreateSegment("rabbit_attack_5", RouletteSegmentType.Damage, 5, 1f, new Color32(150, 46, 59, 255), "공격 5", true),
-                CreateSegment("rabbit_attack_4_b", RouletteSegmentType.Damage, 4, 1f, new Color32(196, 67, 72, 255), "공격 4")
-            };
-        }
-
-        private static RouletteSegmentData CreateSegment(
-            string id,
-            RouletteSegmentType type,
-            int value,
-            float weight,
-            Color color,
-            string label,
-            bool special = false)
-        {
-            return new RouletteSegmentData(id, type, value, weight, color, null, label, special);
-        }
-
-        private sealed class ResolvedEffect
-        {
-            public RouletteSegmentType Type;
-            public bool IsGuard;
-            public int ChainCount;
-            public int Multiplier = 1;
-            public int FinalValue;
-            public string DisplayName = "결과";
-            public string Formula = "계산할 결과가 없습니다.";
         }
     }
 }
