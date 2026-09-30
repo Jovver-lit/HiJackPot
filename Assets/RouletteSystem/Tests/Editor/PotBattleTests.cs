@@ -336,6 +336,37 @@ namespace RouletteLike.Battle.Tests
             Assert.AreEqual(before.Id, battle.Player.Wheel[seized].Id);
         }
 
+        [Test]
+        public void CounterHijack_HappensAtMostOncePerBattle()
+        {
+            DealerProfile thief = new DealerProfile(
+                "도둑 딜러", 30, 3, 1, 99, HouseRule.FullCoverage, false, true,
+                BattlePresets.CreateRabbitDealer().Wheel);
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, thief, 8);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(1);
+            battle.Land(5);
+            Assert.GreaterOrEqual(battle.ResolveCounterHijack(), 0);
+            Assert.AreEqual(0, battle.CounterHijacksRemaining);
+            FinishRound(battle);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(1);
+
+            battle.Land(5);
+
+            Assert.IsFalse(battle.CounterHijackPending);
+        }
+
+        [Test]
+        public void RoundStartEffects_AreReportedForTheScreen()
+        {
+            PotBattle battle = NewRabbitBattle();
+
+            battle.StartRound();
+
+            CollectionAssert.Contains(battle.RoundStartEffects, "토끼 딜러의 서비스: 칩 +1");
+        }
+
         private static void AdvanceToDealerInRound(PotBattle battle)
         {
             if (battle.Active == Side.Player)

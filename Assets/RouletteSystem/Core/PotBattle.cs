@@ -82,6 +82,10 @@ namespace RouletteLike.Battle
         private readonly Random _rng;
         private readonly List<string> _log = new List<string>();
         private readonly List<KeyValuePair<int, Slot>> _seizedSlots = new List<KeyValuePair<int, Slot>>();
+        private readonly List<string> _roundStartEffects = new List<string>();
+
+        /// <summary>역탈취는 전투당 이 횟수까지만 일어난다(첫 플레이테스트: 보스전 봉인 과다로 중도 포기).</summary>
+        public const int MaxCounterHijacksPerBattle = 1;
         private int _turnsThisRound;
         private int _stolenCount;
 
@@ -109,6 +113,14 @@ namespace RouletteLike.Battle
 
         public IReadOnlyList<string> Log => _log;
 
+        /// <summary>방금 시작한 라운드에 발동한 [라운드 시작] 효과(서비스·선불 등). 화면이 크게 보여 주는 용도.</summary>
+        public IReadOnlyList<string> RoundStartEffects => _roundStartEffects;
+
+        /// <summary>이번 전투에 남은 역탈취 횟수.</summary>
+        public int CounterHijacksRemaining => Profile.CounterHijacks ? MaxCounterHijacksPerBattle - _seizedSlots.Count - _returnedSeizures : 0;
+
+        private int _returnedSeizures;
+
         /// <param name="playerOuterRing">플레이어 자신의 바깥 링(해금된 경우). 없으면 딜러의 테이블 바깥 링을 빌려 쓴다.</param>
         public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null)
         {
@@ -132,6 +144,7 @@ namespace RouletteLike.Battle
             RequirePhase(BattlePhase.RoundOver);
             Round++;
             _turnsThisRound = 0;
+            _roundStartEffects.Clear();
             HijackUsedThisRound = false;
 
             ApplyRoundStartSlots(Player);
@@ -148,6 +161,7 @@ namespace RouletteLike.Battle
                 Active = FirstThisRound;
                 Phase = BattlePhase.AwaitingAnte;
                 Write($"라운드 {Round}: 코인플립(선불로 두 번) → {Name(Active)} 선공");
+                _roundStartEffects.Add($"{Name(holder)}의 선불: 코인플립 두 번 → {(holderWins ? "선공 획득" : "그래도 후공")}");
                 return Active;
             }
 
@@ -295,7 +309,7 @@ namespace RouletteLike.Battle
             seat.Pot = 0;
             seat.Ante = 0;
             result.EndedTurn = true;
-            if (Active == Side.Player && Profile.CounterHijacks)
+            if (Active == Side.Player && CounterHijacksRemaining > 0)
             {
                 CounterHijackPending = true;
             }
@@ -711,6 +725,7 @@ namespace RouletteLike.Battle
                     Write($"압수된 {_seizedSlots[i].Value.Label} 반환");
                 }
 
+                _returnedSeizures += _seizedSlots.Count;
                 _seizedSlots.Clear();
             }
 
@@ -754,6 +769,7 @@ namespace RouletteLike.Battle
                 {
                     seat.Chips += slot.Value;
                     Write($"{Name(seat.Side)} [라운드 시작] {slot.Label}: 칩 +{slot.Value}");
+                    _roundStartEffects.Add($"{Name(seat.Side)}의 {slot.Label}: 칩 +{slot.Value}");
                 }
             }
         }

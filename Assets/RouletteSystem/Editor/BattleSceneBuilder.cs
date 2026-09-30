@@ -195,13 +195,14 @@ namespace RouletteLike.Roulette.Editor
 
             AddRect("EffectRoot", playerRouletteContainer, Vector2.zero, new Vector2(470f, 470f));
             // 배팅 조작: 앤티 − / 앤티 표시 / 앤티 + / CASH OUT. SPIN은 룰렛 가운데 버튼이 맡는다.
-            RectTransform betControls = AddRect("BetControls", playerPanel, new Vector2(0f, -262f), new Vector2(520f, 56f));
+            RectTransform betControls = AddRect("BetControls", playerPanel, new Vector2(0f, -250f), new Vector2(520f, 56f));
             UnityEngine.UI.Button anteDownButton = AddButton("AnteDown", betControls, new Vector2(-226f, 0f), new Vector2(52f, 52f), PanelLight, font, "−", 26, out _);
             TMP_Text anteText = AddText("AnteText", betControls, "앤티 1", font, 18, Ink, TextAlignmentOptions.Center, new Vector2(-112f, 0f), new Vector2(170f, 48f));
             UnityEngine.UI.Button anteUpButton = AddButton("AnteUp", betControls, new Vector2(2f, 0f), new Vector2(52f, 52f), PanelLight, font, "+", 26, out _);
             UnityEngine.UI.Button cashOutButton = AddButton("CashOutButton", betControls, new Vector2(160f, 0f), new Vector2(200f, 56f), Gold, font, "CASH OUT", 18, out TMP_Text cashOutLabel);
             cashOutLabel.color = Background;
-            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "이어진 같은 칸은 한 묶음", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, -308f), new Vector2(510f, 26f));
+            // 룰렛 아래 안내: 특수 칸이 있으면 효과 설명, 없으면 연쇄 안내(두 줄까지).
+            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "이어진 같은 칸은 한 묶음", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, -302f), new Vector2(530f, 40f));
 
             // 가운데 패널: 박스 안의 박스를 없애고 안내 → 결과 → 위험 → 상태 → 딜러 한마디 → 전투 기록 순으로 한 줄씩 쌓는다.
             RectTransform centerPanel = AddFramedPanel("CenterPanel", mainGameArea, Vector2.zero, new Vector2(600f, 660f), Panel, DarkGold, out _, out _);
@@ -243,7 +244,9 @@ namespace RouletteLike.Roulette.Editor
             ConfigurePresentation(presentation, preparePhase, spinPhase, resolvePhase, dealerPhase, playerGlow, dealerGlow, houseRuleFrame);
             HijackTransferPresenter hijackTransferPresenter = BuildHijackTransferEffect(canvasObject.transform, font);
 
-            RectTransform houseRuleOverlay = BuildHouseRuleOverlay(canvasObject.transform, font, out UnityEngine.UI.Button houseRuleInfoCloseButton, out TMP_Text houseRuleDetailProgressText);
+            RectTransform houseRuleOverlay = BuildHouseRuleOverlay(canvasObject.transform, font, out UnityEngine.UI.Button houseRuleInfoCloseButton, out TMP_Text houseRuleDetailProgressText, out TMP_Text[] houseRuleDetailTexts);
+            // 딜러 룰렛 아래 안내: 역탈취 경고 + 딜러 특수 칸 효과.
+            TMP_Text dealerNoteText = AddText("DealerNote", dealerPanel, "", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, -293f), new Vector2(530f, 56f));
             RectTransform hijackPanel = BuildHijackPanel(canvasObject.transform, font, out TMP_Text hijackInstruction, out TMP_Text hijackSourceTitle, out UnityEngine.UI.Button[] hijackSourceButtons, out TMP_Text[] hijackSourceLabels, out UnityEngine.UI.Button[] hijackDestinationButtons, out TMP_Text[] hijackDestinationLabels);
             RectTransform endPanel = BuildEndPanel(canvasObject.transform, font, out TMP_Text endTitle, out TMP_Text endBody, out UnityEngine.UI.Button endContinueButton, out TMP_Text endContinueLabel);
             RectTransform doorPanel = BuildDoorPanel(canvasObject.transform, font, out TMP_Text doorFloorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies);
@@ -267,6 +270,12 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "houseRuleDescriptionText", houseRuleDescriptionText);
             SetObject(identitySo, "hijackSourceTitleText", hijackSourceTitle);
             SetObject(identitySo, "endContinueLabel", endContinueLabel);
+            SetObject(identitySo, "dealerNoteText", dealerNoteText);
+            SetObject(identitySo, "houseRuleDetailNameText", houseRuleDetailTexts[0]);
+            SetObject(identitySo, "houseRuleDetailConditionText", houseRuleDetailTexts[1]);
+            SetObject(identitySo, "houseRuleDetailRewardText", houseRuleDetailTexts[2]);
+            SetObject(identitySo, "houseRuleDetailDealerText", houseRuleDetailTexts[3]);
+            SetObject(identitySo, "houseRuleDetailWarningText", houseRuleDetailTexts[4]);
             SetObject(identitySo, "doorPanel", doorPanel.gameObject);
             SetObject(identitySo, "doorFloorText", doorFloorText);
             SetObjectArray(identitySo.FindProperty("doorButtons"), doorButtons);
@@ -356,21 +365,23 @@ namespace RouletteLike.Roulette.Editor
             spinSo.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static RectTransform BuildHouseRuleOverlay(Transform parent, TMP_FontAsset font, out UnityEngine.UI.Button closeButton, out TMP_Text detailProgress)
+        /// <summary>하우스 룰 상세 페이지. 문구는 컨트롤러가 딜러에 맞게 채운다(detailTexts: 이름·조건·보상·딜러 변화·주의).</summary>
+        private static RectTransform BuildHouseRuleOverlay(Transform parent, TMP_FontAsset font, out UnityEngine.UI.Button closeButton, out TMP_Text detailProgress, out TMP_Text[] detailTexts)
         {
             RectTransform overlay = AddPanel("HouseRuleInfoPanel", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(10, 8, 14, 220));
             overlay.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
             RectTransform dialog = AddFramedPanel("Dialog", overlay, Vector2.zero, new Vector2(840f, 500f), new Color32(35, 29, 45, 255), Gold, out _, out _);
             AddText("Title", dialog, "HOUSE RULE", font, 24, Gold, TextAlignmentOptions.Center, new Vector2(0f, 200f), new Vector2(720f, 38f));
-            AddText("RuleName", dialog, "전액 보장", font, 36, Ink, TextAlignmentOptions.Center, new Vector2(0f, 150f), new Vector2(720f, 52f));
+            detailTexts = new TMP_Text[5];
+            detailTexts[0] = AddText("RuleName", dialog, "전액 보장", font, 36, Ink, TextAlignmentOptions.Center, new Vector2(0f, 150f), new Vector2(720f, 52f));
             AddText("ConditionLabel", dialog, "발동 조건", font, 18, Gold, TextAlignmentOptions.Left, new Vector2(-290f, 64f), new Vector2(150f, 30f));
-            AddText("Condition", dialog, "토끼가 CASH OUT한 판돈을 내 보험으로 전부 막는다.", font, 20, Ink, TextAlignmentOptions.Left, new Vector2(70f, 64f), new Vector2(540f, 34f));
+            detailTexts[1] = AddText("Condition", dialog, "", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(70f, 64f), new Vector2(560f, 46f));
             AddText("RewardLabel", dialog, "보상", font, 18, Gold, TextAlignmentOptions.Left, new Vector2(-290f, 8f), new Vector2(150f, 30f));
-            AddText("Reward", dialog, "토끼 칸 하나로 내 칸 하나를 영구히 덮어쓴다.", font, 20, Ink, TextAlignmentOptions.Left, new Vector2(70f, 8f), new Vector2(540f, 34f));
-            AddText("PenaltyLabel", dialog, "토끼 변화", font, 18, Gold, TextAlignmentOptions.Left, new Vector2(-290f, -48f), new Vector2(150f, 30f));
-            AddText("Penalty", dialog, "빼앗긴 칸은 봉인된다. 전부 봉인하면 완전 강탈.", font, 20, Ink, TextAlignmentOptions.Left, new Vector2(70f, -48f), new Vector2(540f, 34f));
-            AddText("Warning", dialog, "보험은 내 다음 앤티 때 사라집니다. 하우스 몫은 덮어쓸 수 없습니다.", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(0f, -112f), new Vector2(720f, 34f));
-            detailProgress = AddText("Progress", dialog, "현재 진행도  0 / 1", font, 20, Gold, TextAlignmentOptions.Center, new Vector2(0f, -164f), new Vector2(720f, 36f));
+            detailTexts[2] = AddText("Reward", dialog, "", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(70f, 8f), new Vector2(560f, 46f));
+            AddText("PenaltyLabel", dialog, "딜러 칸", font, 18, Gold, TextAlignmentOptions.Left, new Vector2(-290f, -48f), new Vector2(150f, 30f));
+            detailTexts[3] = AddText("Penalty", dialog, "", font, 16, Ink, TextAlignmentOptions.TopLeft, new Vector2(70f, -70f), new Vector2(560f, 90f));
+            detailTexts[4] = AddText("Warning", dialog, "", font, 16, Muted, TextAlignmentOptions.Center, new Vector2(0f, -135f), new Vector2(760f, 40f));
+            detailProgress = AddText("Progress", dialog, "현재 진행도  0 / 1", font, 20, Gold, TextAlignmentOptions.Center, new Vector2(0f, -195f), new Vector2(720f, 36f));
             closeButton = AddButton("CloseButton", dialog, new Vector2(372f, 210f), new Vector2(54f, 54f), PanelLight, font, "×", 28, out _);
             AddRect("AnimationRoot", dialog, Vector2.zero, new Vector2(840f, 500f));
             return overlay;

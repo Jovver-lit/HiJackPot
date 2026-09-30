@@ -5,6 +5,7 @@
 | 파일 | 무엇 |
 |---|---|
 | `DealerBattleController.cs` | 전투 화면과 런 진행: 코어(`Run`·`PotBattle`) 호출, 턴 흐름, 문 선택, JACKPOT 배치, 바깥 링 띠, 딜러 정보·텍스트·버튼 갱신, 템포, 바깥 링 해금 저장(PlayerPrefs) |
+| `SlotDescriptions.cs` | 칸 효과를 읽을 문장으로 바꿈(문 카드·HIJACK 선택·룰렛 아래 특수 칸 안내·상세 페이지 공용) |
 | `HoldToSpinInput.cs` | SPIN 버튼 길게 누르기 → 강도 게이지 → 놓으면 회전 |
 | `BattlePresentationUI.cs` | 단계 표시(준비·회전·결과·딜러)와 룰렛·하우스 룰 강조 |
 | `HijackTransferPresenter.cs` | HIJACK 때 칸 토큰이 딜러 룰렛에서 내 룰렛으로 날아가는 연출 |
