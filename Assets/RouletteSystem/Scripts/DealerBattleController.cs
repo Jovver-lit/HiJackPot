@@ -1033,6 +1033,7 @@ namespace RouletteLike.Roulette
         {
             if (landing.CutShielded) return "보호막! 하우스 몫을 막았다";
             if (landing.HouseCutHit) return landing.Kind == SlotKind.HouseCut ? "하우스 몫!" : "바깥 하우스 몫!";
+            if (landing.KeywordTriggered) return $"특수 칸 발동!  {innerLabel}";
             return landing.JackpotLine ? $"잭팟 라인!  {innerLabel}" : $"착지  {innerLabel}";
         }
 

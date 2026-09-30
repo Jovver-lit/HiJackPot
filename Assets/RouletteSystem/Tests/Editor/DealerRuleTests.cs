@@ -108,6 +108,61 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
+        public void LandingOnStolenService_PaysChipsImmediately()
+        {
+            System.Collections.Generic.List<Slot> wheel = BattlePresets.CreateStarterWheel();
+            wheel[6] = BattlePresets.CreateRabbitDealer().Wheel[5].AsStolen("svc");
+            PotBattle battle = new PotBattle(wheel, 20, BattlePresets.CreateFoxDealer(), 9);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(1);
+            int chips = battle.Player.Chips;
+
+            LandingResult result = battle.Land(6);
+
+            Assert.IsTrue(result.KeywordTriggered);
+            Assert.AreEqual(chips + 1, battle.Player.Chips);
+        }
+
+        [Test]
+        public void LandingOnStolenPrepaid_GuaranteesNextRoundInitiative()
+        {
+            for (int seed = 0; seed < 20; seed++)
+            {
+                System.Collections.Generic.List<Slot> wheel = BattlePresets.CreateStarterWheel();
+                wheel[6] = BattlePresets.CreateCrowDealer().Wheel[6].AsStolen("pre");
+                PotBattle battle = new PotBattle(wheel, 20, BattlePresets.CreateFoxDealer(), seed);
+                AdvanceTo(battle, Side.Player);
+                battle.PlaceAnte(1);
+                battle.Land(6);
+                battle.CashOut();
+                while (battle.Phase != BattlePhase.RoundOver)
+                {
+                    battle.PlaceAnte(1);
+                    battle.CashOut();
+                }
+
+                Assert.AreEqual(Side.Player, battle.StartRound(), $"seed {seed}");
+            }
+        }
+
+        [Test]
+        public void LandingOnStolenBluff_IgnoresInsuranceThisTurn()
+        {
+            System.Collections.Generic.List<Slot> wheel = BattlePresets.CreateStarterWheel();
+            wheel[6] = BattlePresets.CreateFoxDealer().Wheel[5].AsStolen("bluff");
+            PotBattle battle = new PotBattle(wheel, 20, BattlePresets.CreateFoxDealer(), 9);
+            AdvanceTo(battle, Side.Dealer);
+            battle.PlaceAnte(1); // 여우 보험 3
+            battle.CashOut();
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(3);
+            battle.Land(0); // 판돈 7
+            battle.Land(6); // 허풍 착지
+
+            Assert.AreEqual(System.Math.Min(battle.Dealer.Chips, 7), battle.PreviewCashOutDamage(Side.Player));
+        }
+
+        [Test]
         public void Cat_CashOutAfterMultiplier_GrantsHijack()
         {
             PotBattle battle = Battle(BattlePresets.CreateCatDealer());

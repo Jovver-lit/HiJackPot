@@ -51,6 +51,9 @@ namespace RouletteLike.Battle
 
         /// <summary>안쪽 또는 바깥 하우스 몫으로 판돈이 증발했다.</summary>
         public bool HouseCutHit;
+
+        /// <summary>[라운드 시작]·[CASH OUT] 특수 칸에 착지해 그 효과가 즉시 발동했다.</summary>
+        public bool KeywordTriggered;
     }
 
     public sealed class CashOutResult
@@ -120,6 +123,7 @@ namespace RouletteLike.Battle
         public int CounterHijacksRemaining => Profile.CounterHijacks ? MaxCounterHijacksPerBattle - _seizedSlots.Count - _returnedSeizures : 0;
 
         private int _returnedSeizures;
+        private Side? _guaranteedInitiative;
 
         /// <param name="playerOuterRing">플레이어 자신의 바깥 링(해금된 경우). 없으면 딜러의 테이블 바깥 링을 빌려 쓴다.</param>
         public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null)
@@ -149,6 +153,17 @@ namespace RouletteLike.Battle
 
             ApplyRoundStartSlots(Player);
             ApplyRoundStartSlots(Dealer);
+
+            if (_guaranteedInitiative.HasValue)
+            {
+                FirstThisRound = _guaranteedInitiative.Value;
+                _guaranteedInitiative = null;
+                Active = FirstThisRound;
+                Phase = BattlePhase.AwaitingAnte;
+                Write($"라운드 {Round}: 선불 착지 효과 → {Name(Active)} 선공 확정");
+                _roundStartEffects.Add($"{Name(Active)}의 선불(착지): 선공 확정");
+                return Active;
+            }
 
             bool playerPrepaid = HasActiveSlot(Player, SlotKind.Initiative);
             bool dealerPrepaid = HasActiveSlot(Dealer, SlotKind.Initiative);
@@ -188,6 +203,7 @@ namespace RouletteLike.Battle
             int ante = Math.Max(1, Math.Min(amount, MaxAnte(Active)));
             seat.Insurance = Active == Side.Dealer ? Profile.BaseInsurance : 0;
             seat.CutShields = 0;
+            seat.IgnoresInsuranceThisTurn = false;
             if (Active == Side.Player) _playerMultipliedThisTurn = false;
             seat.Chips -= ante;
             seat.Ante = ante;
@@ -236,9 +252,7 @@ namespace RouletteLike.Battle
             if (!slot.FiresOnLand)
             {
                 result.Group = new[] { index };
-                parts.Add(slot.Kind == SlotKind.Sealed
-                    ? "봉인 칸 · 효과 없음"
-                    : $"{slot.Label} · [{(slot.Trigger == SlotTrigger.CashOut ? "CASH OUT" : "라운드 시작")}] 칸이라 착지 효과 없음");
+                parts.Add(slot.Kind == SlotKind.Sealed ? "봉인 칸 · 효과 없음" : ApplyKeywordLanding(seat, slot, result));
                 ApplyOuterBonus(seat, outer, parts);
                 return FinishLanding(result, seat, parts);
             }
@@ -312,6 +326,31 @@ namespace RouletteLike.Battle
             if (Active == Side.Player && CounterHijacksRemaining > 0)
             {
                 CounterHijackPending = true;
+            }
+        }
+
+        /// <summary>
+        /// [라운드 시작]·[CASH OUT] 특수 칸에 착지하면 그 효과가 즉시 한 번 더 발동한다(첫 플레이테스트: 착지해도 아무 일 없어 죽은 칸처럼 보였다).
+        /// 서비스류: 칩 즉시 지급 / 선불: 다음 라운드 선공 확정 / 허풍: 이번 턴 CASH OUT에서 상대 보험 완전 무시.
+        /// </summary>
+        private string ApplyKeywordLanding(Seat seat, Slot slot, LandingResult result)
+        {
+            result.KeywordTriggered = true;
+            switch (slot.Kind)
+            {
+                case SlotKind.Dividend:
+                    seat.Chips += slot.Value;
+                    result.Amount = slot.Value;
+                    return $"{slot.Label} 착지 → 즉시 칩 +{slot.Value}";
+                case SlotKind.Initiative:
+                    _guaranteedInitiative = Active;
+                    return $"{slot.Label} 착지 → 다음 라운드 선공 확정";
+                case SlotKind.MinimumPayout:
+                    seat.IgnoresInsuranceThisTurn = true;
+                    return $"{slot.Label} 착지 → 이번 턴 CASH OUT은 상대 보험 무시";
+                default:
+                    result.KeywordTriggered = false;
+                    return $"{slot.Label} · 착지 효과 없음";
             }
         }
 
@@ -403,7 +442,8 @@ namespace RouletteLike.Battle
         {
             Seat seat = SeatOf(side);
             Seat opponent = Opponent(side);
-            int damage = Math.Max(0, seat.Pot - opponent.Insurance);
+            int insurance = seat.IgnoresInsuranceThisTurn ? 0 : opponent.Insurance;
+            int damage = Math.Max(0, seat.Pot - insurance);
             if (seat.Pot > 0)
             {
                 foreach (Slot slot in seat.Wheel)
