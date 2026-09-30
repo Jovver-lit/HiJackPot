@@ -410,12 +410,14 @@ namespace RouletteLike.Battle
             }
 
             if (Dealer.Wheel[dealerIndex].Kind == SlotKind.Sealed) return HijackError.SourceSealed;
+            if (Dealer.Wheel[dealerIndex].Kind == SlotKind.HouseCut) return HijackError.HouseCutProtected;
             if (Player.Wheel[playerIndex].Kind == SlotKind.HouseCut) return HijackError.HouseCutProtected;
             return HijackError.None;
         }
 
         /// <summary>
-        /// 딜러 칸 하나로 내 칸 하나를 영구히 덮어쓴다. 딜러 칸은 봉인되고, 모두 봉인되면 완전 강탈로 승리한다.
+        /// 딜러 칸 하나로 내 칸 하나를 영구히 덮어쓴다. 딜러 칸은 봉인되고, 하우스 몫을 뺀 모든 칸이 봉인되면 완전 강탈로 승리한다.
+        /// 하우스 몫은 양쪽 모두 빼앗을 수도, 덮어쓸 수도 없다.
         /// </summary>
         public HijackError Hijack(int dealerIndex, int playerIndex)
         {
@@ -437,7 +439,7 @@ namespace RouletteLike.Battle
             bool allSealed = true;
             foreach (Slot slot in Dealer.Wheel)
             {
-                if (slot.Kind != SlotKind.Sealed)
+                if (slot.Kind != SlotKind.Sealed && slot.Kind != SlotKind.HouseCut)
                 {
                     allSealed = false;
                     break;

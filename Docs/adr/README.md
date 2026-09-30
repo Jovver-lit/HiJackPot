@@ -9,3 +9,4 @@
 | [0001](0001-spin-builds-pot-cash-out-deals-damage.md) | SPIN은 판돈을 쌓고, 피해는 CASH OUT이 낸다 |
 | [0002](0002-hijack-is-earned-not-flipped.md) | HIJACK 기회는 운(코인플립)이 아니라 딜러의 하우스 룰 달성으로 얻는다 |
 | [0003](0003-no-trophy-hijack-is-permanent.md) | 전리품 칸 없이 HIJACK이 영구 덮어쓰기다 (룰렛 8칸 고정) |
+| [0004](0004-dealers-have-house-cut.md) | 일반 딜러의 룰렛에도 하우스 몫이 있다 (토끼 제외) |

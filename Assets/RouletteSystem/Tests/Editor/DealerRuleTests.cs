@@ -69,6 +69,45 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
+        public void DealerHouseCut_CannotBeHijacked()
+        {
+            PotBattle battle = Battle(BattlePresets.CreateFoxDealer());
+            for (int i = 0; i < 2; i++)
+            {
+                AdvanceTo(battle, Side.Player);
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            int houseCut = battle.Dealer.Wheel.Count - 1;
+            Assert.AreEqual(SlotKind.HouseCut, battle.Dealer.Wheel[houseCut].Kind);
+            Assert.AreEqual(HijackError.HouseCutProtected, battle.CanHijack(houseCut, 0));
+        }
+
+        [Test]
+        public void CleanSweep_IgnoresDealerHouseCut()
+        {
+            DealerProfile tiny = new DealerProfile(
+                "시험 딜러", 30, 3, 1, 99, HouseRule.SmallCashOuts, false, false,
+                new System.Collections.Generic.List<Slot>
+                {
+                    new Slot("x", SlotKind.Raise, 1, "레이즈 +1"),
+                    new Slot("x_cut", SlotKind.HouseCut, 0, "하우스 몫")
+                });
+            PotBattle battle = Battle(tiny);
+            for (int i = 0; i < 2; i++)
+            {
+                AdvanceTo(battle, Side.Player);
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            battle.Hijack(0, 0);
+
+            Assert.AreEqual(BattleOutcome.PlayerWinsByCleanSweep, battle.Outcome);
+        }
+
+        [Test]
         public void Cat_CashOutAfterMultiplier_GrantsHijack()
         {
             PotBattle battle = Battle(BattlePresets.CreateCatDealer());
