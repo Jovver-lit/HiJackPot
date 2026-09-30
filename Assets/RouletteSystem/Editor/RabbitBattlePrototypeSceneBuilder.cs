@@ -10,6 +10,10 @@ using UnityEngine.TextCore.LowLevel;
 
 namespace RouletteLike.Roulette.Editor
 {
+    /// <summary>
+    /// 기준 씬(SampleScene)을 코드로 처음부터 만든다: 캔버스·패널·룰렛·배팅 버튼·HIJACK 패널을 배치하고
+    /// RabbitBattlePrototype의 참조를 연결한다. 씬 구조를 바꾸려면 씬이 아니라 이 파일을 고친다.
+    /// </summary>
     public static class RabbitBattlePrototypeSceneBuilder
     {
         private const string ScenePath = "Assets/Scenes/SampleScene.unity";

@@ -30,4 +30,4 @@ description: Use when checking HIJACKPOT's balance, reviewing a playtest, or jud
 2. 수치 표와 판정 표
 3. 수정 제안: 수치 조정 → 규칙 조정 → 신규 기능 순으로 가벼운 것부터. 신규 기능이 필요하면 `hijackpot-feature-review`로 넘긴다.
 
-결과는 `Docs/playtest/<날짜>.md`로 저장한다.
+결과는 `Docs/playtest/<날짜>-<대상>-<종류>.md`로 저장하고 `Docs/playtest/README.md` 목록에 한 줄 추가한다.

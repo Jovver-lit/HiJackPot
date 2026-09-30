@@ -4,6 +4,7 @@ using NUnit.Framework;
 
 namespace RouletteLike.Battle.Tests
 {
+    /// <summary>런 구조(Run)의 EditMode 테스트: 층·문, 칩·룰렛 이어가기, 상금, 탈출, JACKPOT 획득.</summary>
     public sealed class RunTests
     {
         private static DealerProfile Dealer(string name, int chips)

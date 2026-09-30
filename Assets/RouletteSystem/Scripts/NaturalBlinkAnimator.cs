@@ -3,6 +3,9 @@ using UnityEngine;
 
 namespace RouletteLike.Roulette
 {
+    /// <summary>
+    /// 캐릭터 Image의 대기 프레임을 돌리다가 불규칙한 간격으로 눈 깜빡임 프레임을 재생한다. 연출 전용.
+    /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(UnityEngine.UI.Image))]
     public sealed class NaturalBlinkAnimator : MonoBehaviour

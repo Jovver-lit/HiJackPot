@@ -30,4 +30,4 @@ description: Use when a new HIJACKPOT feature, system, relic, enemy or content i
 핵심 플레이, 플레이어 경험, 되돌리기 어려운 구조, 큰 트레이드오프가 바뀔 때만 먼저 묻는다. 나머지는 기존 원칙에서 합리적인 기본값으로 진행한다.
 
 ## 기록
-결정된 제안은 `Docs/feature-decisions.md`에 날짜, 분류, 결론을 한 줄씩 추가한다.
+결정된 제안은 `Docs/design/feature-decisions.md`에 날짜, 분류, 결론을 한 줄씩 추가한다.

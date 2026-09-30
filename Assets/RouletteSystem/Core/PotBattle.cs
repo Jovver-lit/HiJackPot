@@ -4,6 +4,7 @@ using System.Linq;
 
 namespace RouletteLike.Battle
 {
+    /// <summary>한 전투가 지금 무엇을 기다리는지.</summary>
     public enum BattlePhase
     {
         /// <summary>라운드가 끝났거나 시작 전. StartRound를 기다린다.</summary>

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 namespace RouletteLike.Battle
 {
+    /// <summary>테이블의 어느 쪽인지.</summary>
     public enum Side
     {
         Player,

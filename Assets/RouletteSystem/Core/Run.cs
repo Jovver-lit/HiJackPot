@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace RouletteLike.Battle
 {
+    /// <summary>층의 종류. MVP에는 딜러층과 보스층만 있다(상점층은 정식판).</summary>
     public enum FloorKind
     {
         /// <summary>문 앞에서 딜러를 고른다(후보가 하나면 고정).</summary>

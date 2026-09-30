@@ -3,6 +3,7 @@ using NUnit.Framework;
 
 namespace RouletteLike.Battle.Tests
 {
+    /// <summary>한 전투 규칙(PotBattle)의 EditMode 테스트. 코인플립 순서와 무관하게 통과하도록 헬퍼로 차례를 맞춘다.</summary>
     public sealed class PotBattleTests
     {
         private static PotBattle NewRabbitBattle(int seed = 46021)
