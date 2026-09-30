@@ -241,8 +241,8 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
             presentationUi?.SetHouseRuleHighlighted(false);
             dealerLineText.text = "하우스 룰이 공개되었습니다.";
-            instructionText.text = "SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
-            powerPreviewText.text = "버튼 밖으로 드래그하면 취소  ·  강도는 대략적인 착지 구역만 변경";
+            instructionText.text = "룰렛 가운데 SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
+            powerPreviewText.text = "SPIN 밖으로 끌어내면 취소";
             resultText.text = "첫 SPIN을 준비하세요";
             calculationText.text = "같은 종류가 이어지면 어느 칸에 멈춰도 합산 · 공격 4+4=8";
             AddLog("계약 체결: 토끼 딜러 전투 시작");
@@ -554,8 +554,8 @@ namespace RouletteLike.Roulette
             _round++;
             _state = BattleState.AwaitingThrow;
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
-            instructionText.text = "SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
-            powerPreviewText.text = "버튼 밖으로 드래그하면 취소  ·  강도는 대략적인 착지 구역만 변경";
+            instructionText.text = "룰렛 가운데 SPIN을 길게 누르고, 원하는 강도에서 놓으세요.";
+            powerPreviewText.text = "SPIN 밖으로 끌어내면 취소";
             calculationText.text = "같은 종류가 이어지면 어느 칸에 멈춰도 합산 · 공격 4+4=8";
             spinInput?.ResetInput();
             RefreshAllUi();
