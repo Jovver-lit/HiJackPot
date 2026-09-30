@@ -291,6 +291,50 @@ namespace RouletteLike.Battle.Tests
             Assert.AreEqual(0f, battle.ComebackBoost);
         }
 
+        [Test]
+        public void CounterHijack_SeizesStolenSlotFirst_AndReturnsItOnWin()
+        {
+            DealerProfile thief = new DealerProfile(
+                "도둑 딜러", 30, 3, 1, 99, HouseRule.FullCoverage, false, true,
+                new List<Slot> { new Slot("t1", SlotKind.Raise, 1, "레이즈 +1"), new Slot("t2", SlotKind.Raise, 5, "레이즈 +5") });
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, thief, 11);
+            GrantHijack(battle);
+            battle.Hijack(1, 0); // 레이즈 +5를 내 1번 칸에
+            FinishRound(battle);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(1);
+
+            battle.Land(5); // 하우스 몫
+            Assert.IsTrue(battle.CounterHijackPending);
+            int seized = battle.ResolveCounterHijack();
+
+            Assert.AreEqual(0, seized);
+            Assert.AreEqual(SlotKind.Sealed, battle.Player.Wheel[0].Kind);
+            Assert.IsFalse(battle.CounterHijackPending);
+        }
+
+        [Test]
+        public void CounterHijack_SeizedSlotComesBackWhenPlayerWins()
+        {
+            DealerProfile thief = new DealerProfile(
+                "도둑 딜러", 2, 3, 1, 99, HouseRule.FullCoverage, false, true,
+                BattlePresets.CreateRabbitDealer().Wheel);
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, thief, 5);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(1);
+            battle.Land(5);
+            int seized = battle.ResolveCounterHijack();
+            Slot before = BattlePresets.CreateStarterWheel()[seized];
+            FinishRound(battle);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(3);
+            battle.Land(1);
+            battle.CashOut(); // 판돈 7 ≥ 딜러 칩
+
+            Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
+            Assert.AreEqual(before.Id, battle.Player.Wheel[seized].Id);
+        }
+
         private static void AdvanceToDealerInRound(PotBattle battle)
         {
             if (battle.Active == Side.Player)

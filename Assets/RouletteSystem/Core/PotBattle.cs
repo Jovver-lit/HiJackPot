@@ -67,6 +67,7 @@ namespace RouletteLike.Battle
     {
         private readonly Random _rng;
         private readonly List<string> _log = new List<string>();
+        private readonly List<KeyValuePair<int, Slot>> _seizedSlots = new List<KeyValuePair<int, Slot>>();
         private int _turnsThisRound;
         private int _stolenCount;
 
@@ -397,6 +398,46 @@ namespace RouletteLike.Battle
             return HijackError.None;
         }
 
+        /// <summary>
+        /// 역탈취: 플레이어가 하우스 몫에 걸린 직후 딜러가 플레이어 칸 하나를 압수한다.
+        /// 플레이어가 빼앗아 온 칸을 먼저 되찾고, 없으면 값이 가장 큰 칸을 가져간다. 하우스 몫은 대상이 아니다.
+        /// 압수된 칸은 이 전투 동안 봉인되며, 플레이어가 이기면 원래대로 돌아온다.
+        /// </summary>
+        /// <returns>압수한 칸의 인덱스. 대상이 없으면 -1.</returns>
+        public int ResolveCounterHijack()
+        {
+            if (!CounterHijackPending)
+            {
+                return -1;
+            }
+
+            CounterHijackPending = false;
+            int target = -1;
+            for (int i = 0; i < Player.Wheel.Count; i++)
+            {
+                Slot candidate = Player.Wheel[i];
+                if (candidate.Kind == SlotKind.HouseCut || candidate.Kind == SlotKind.Sealed) continue;
+                if (target < 0) { target = i; continue; }
+
+                Slot best = Player.Wheel[target];
+                bool better = candidate.IsStolen != best.IsStolen
+                    ? candidate.IsStolen
+                    : candidate.Value > best.Value;
+                if (better) target = i;
+            }
+
+            if (target < 0)
+            {
+                return -1;
+            }
+
+            Slot seized = Player.Wheel[target];
+            _seizedSlots.Add(new KeyValuePair<int, Slot>(target, seized));
+            Player.ReplaceSlot(target, Slot.Sealed($"seized_{_seizedSlots.Count}_{seized.Id}"));
+            Write($"역탈취: {Profile.Name}이(가) 내 {target + 1}번 칸({seized.Label})을 압수");
+            return target;
+        }
+
         /// <summary>시뮬레이션·딜러 헤드리스 진행용. 연출 쪽은 자기 회전 RNG로 착지 칸을 정한다.</summary>
         public int RollLandingIndex(Side side)
         {
@@ -494,6 +535,18 @@ namespace RouletteLike.Battle
         {
             Outcome = outcome;
             Phase = BattlePhase.Ended;
+            CounterHijackPending = false;
+            if (outcome != BattleOutcome.DealerWins)
+            {
+                for (int i = _seizedSlots.Count - 1; i >= 0; i--)
+                {
+                    Player.ReplaceSlot(_seizedSlots[i].Key, _seizedSlots[i].Value);
+                    Write($"압수된 {_seizedSlots[i].Value.Label} 반환");
+                }
+
+                _seizedSlots.Clear();
+            }
+
             Write(outcome switch
             {
                 BattleOutcome.PlayerWinsByBankrupt => $"{Profile.Name} 파산 · 승리",

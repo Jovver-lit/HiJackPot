@@ -74,6 +74,12 @@ namespace RouletteLike.Roulette
         [SerializeField] private HijackTransferPresenter hijackTransferPresenter;
         [SerializeField, Min(0f)] private float resultPause = 0.6f;
 
+        [Header("Tempo")]
+        [Tooltip("한 턴의 두 번째 SPIN부터 회전 시간 배율. 첫 SPIN만 길게 보여주고 이어지는 SPIN은 1초 안에 끝낸다.")]
+        [SerializeField, Range(0.1f, 1f)] private float followUpSpinScale = 0.3f;
+        [Tooltip("딜러 턴 빨리 감기: 딜러 회전 시간 배율과 결과 확인 시간 배율.")]
+        [SerializeField, Range(0.1f, 1f)] private float dealerFastForwardScale = 0.4f;
+
         [Header("Dealer Roulette")]
         [SerializeField] private RouletteController enemyRoulette;
         [SerializeField] private RouletteSpinController enemySpinController;
@@ -307,6 +313,7 @@ namespace RouletteLike.Roulette
 
             _playerSpinning = true;
             _playerSpinsThisTurn++;
+            spinController.DurationScale = _playerSpinsThisTurn == 1 ? 1f : followUpSpinScale;
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Spin);
             instructionText.text = "손을 떠났습니다. 이제 룰렛이 결정합니다.";
             resultText.text = "회전 중...";
@@ -338,6 +345,13 @@ namespace RouletteLike.Roulette
             if (landing.EndedTurn)
             {
                 dealerLineText.text = "\"하우스 몫입니다. 테이블 위의 칩은 저희가 정리하겠습니다.\"";
+                if (_battle.CounterHijackPending && _battle.ResolveCounterHijack() >= 0)
+                {
+                    FlushCoreLog();
+                    SyncWheels();
+                    dealerLineText.text = "\"하우스 몫에 이어 칸 하나도 압수하겠습니다. 이기시면 돌려드리죠.\"";
+                }
+
                 StartCoroutine(AfterPlayerTurnEnded());
                 return;
             }
@@ -387,6 +401,8 @@ namespace RouletteLike.Roulette
             _battle.PlaceAnte(_battle.Profile.DealerAnte);
             FlushCoreLog();
             RefreshAllUi();
+            if (enemySpinController != null) enemySpinController.DurationScale = dealerFastForwardScale;
+            float dealerPause = resultPause * dealerFastForwardScale;
             yield return new WaitForSecondsRealtime(dealerSpinDelay);
 
             int spins = 0;
@@ -412,7 +428,7 @@ namespace RouletteLike.Roulette
                 resultText.text = $"토끼 착지  {enemyRoulette.GetSegment(_dealerLandingIndex).displayText}";
                 calculationText.text = landing.Formula;
                 RefreshAllUi();
-                yield return new WaitForSecondsRealtime(resultPause);
+                yield return new WaitForSecondsRealtime(dealerPause);
             }
 
             RefreshAllUi();

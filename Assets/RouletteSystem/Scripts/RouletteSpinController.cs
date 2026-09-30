@@ -90,6 +90,12 @@ namespace RouletteLike.Roulette
 
         private const int LandingBiasMaxAttempts = 8;
 
+        /// <summary>
+        /// 회전 시간 배율(기본 1). 한 턴의 두 번째 SPIN부터나 딜러 턴 빨리 감기에서 줄인다.
+        /// 회전 거리는 그대로라 착지 판정과 시드 재현에는 영향이 없다.
+        /// </summary>
+        public float DurationScale { get; set; } = 1f;
+
         private void Reset()
         {
             rouletteController = GetComponent<RouletteController>();
@@ -242,7 +248,7 @@ namespace RouletteLike.Roulette
             float duration = normalizedPower.HasValue
                 ? Mathf.Lerp(minSpinDuration, maxSpinDuration, normalizedPower.Value)
                 : NextRandomRange(minSpinDuration, maxSpinDuration);
-            duration = Mathf.Max(0.1f, duration);
+            duration = Mathf.Max(0.1f, duration * Mathf.Clamp(DurationScale, 0.1f, 1f));
             PlaySpinSound(duration);
 
             // 설정한 감속도가 클수록 감속 구간이 짧아집니다.
