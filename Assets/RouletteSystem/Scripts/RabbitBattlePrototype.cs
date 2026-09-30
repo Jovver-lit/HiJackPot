@@ -185,6 +185,11 @@ namespace RouletteLike.Roulette
             openingSpeechBubble?.SetActive(true);
             endPanel?.SetActive(false);
             spinController?.SetRandomSeed(battleSeed);
+            if (spinController != null)
+            {
+                spinController.LandingBias = segment => LandingWeightFor(segment);
+            }
+
             enemySpinController?.SetRandomSeed(battleSeed + 1);
             SyncWheels();
 
@@ -249,9 +254,11 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
             presentationUi?.SetPlayerRouletteActive(true);
             presentationUi?.SetDealerRouletteActive(false);
-            instructionText.text = AnteLocked
-                ? "SPIN을 길게 눌렀다 놓으세요. 앤티 1이 걸리고 판돈이 쌓입니다."
-                : "앤티를 고르고 SPIN. 판돈이 충분하면 CASH OUT.";
+            instructionText.text = _battle.IsScriptedInstantCashOutRound && _battle.FirstThisRound == Side.Player
+                ? "토끼가 이번에 앤티만으로 곧장 정산합니다. 보험 칸에 걸리면 전액 보장!"
+                : AnteLocked
+                    ? "SPIN을 길게 눌렀다 놓으세요. 앤티 1이 걸리고 판돈이 쌓입니다."
+                    : "앤티를 고르고 SPIN. 판돈이 충분하면 CASH OUT.";
             powerPreviewText.text = "SPIN 밖으로 끌어내면 취소";
             spinInput?.ResetInput();
             RefreshAllUi();
@@ -655,6 +662,14 @@ namespace RouletteLike.Roulette
 
             int threshold = _battle.Profile.CashOutAt;
             int needed = Mathf.Max(0, threshold - _battle.Player.Insurance);
+            if (_battle.IsScriptedInstantCashOutRound)
+            {
+                enemyNextIntentText.text = _battle.Player.Insurance > 0
+                    ? $"이번 라운드: 앤티만 걸고 곧장 CASH OUT · 전액 보장 가능!"
+                    : $"이번 라운드: 앤티만 걸고 곧장 CASH OUT · 보험 칸을 노리세요";
+                return;
+            }
+
             enemyNextIntentText.text = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning
                 ? $"판돈 {_battle.Dealer.Pot} → {threshold} 이상이면 CASH OUT"
                 : needed > 0
@@ -719,6 +734,18 @@ namespace RouletteLike.Roulette
             return new RouletteSegmentData(
                 slot.Id, type, slot.Value, 1f, color, null, label,
                 slot.IsJackpot || slot.IsStolen || slot.Kind == SlotKind.HouseCut);
+        }
+
+        /// <summary>역전 보정 무게. 코어가 계산하고 회전은 그 무게를 착지 구역 안에서만 반영한다.</summary>
+        private float LandingWeightFor(RouletteSegmentData segment)
+        {
+            if (_battle == null || segment == null) return 1f;
+            foreach (Slot slot in _battle.Player.Wheel)
+            {
+                if (slot.Id == segment.id) return _battle.LandingWeight(Side.Player, slot);
+            }
+
+            return 1f;
         }
 
         private static int FindSegmentIndex(RouletteController controller, RouletteSegmentData segment)

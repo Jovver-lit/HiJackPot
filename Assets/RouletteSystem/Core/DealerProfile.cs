@@ -37,6 +37,12 @@ namespace RouletteLike.Battle
 
         public IReadOnlyList<Slot> Wheel { get; }
 
+        /// <summary>
+        /// 튜토리얼 대본: 이 라운드에는 딜러가 SPIN 없이 앤티만으로 곧장 CASH OUT한다(예고와 함께).
+        /// 토끼 R3에서 전액 보장 → HIJACK을 반드시 한 번 경험시키기 위한 장치.
+        /// </summary>
+        public IReadOnlyCollection<int> ScriptedInstantCashOutRounds { get; }
+
         public DealerProfile(
             string name,
             int startingChips,
@@ -46,7 +52,8 @@ namespace RouletteLike.Battle
             HouseRule houseRule,
             bool telegraphs,
             bool counterHijacks,
-            IReadOnlyList<Slot> wheel)
+            IReadOnlyList<Slot> wheel,
+            IReadOnlyCollection<int> scriptedInstantCashOutRounds = null)
         {
             Name = name;
             StartingChips = startingChips;
@@ -57,6 +64,7 @@ namespace RouletteLike.Battle
             Telegraphs = telegraphs;
             CounterHijacks = counterHijacks;
             Wheel = wheel;
+            ScriptedInstantCashOutRounds = scriptedInstantCashOutRounds ?? System.Array.Empty<int>();
         }
     }
 }

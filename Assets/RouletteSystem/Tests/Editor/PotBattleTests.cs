@@ -211,7 +211,7 @@ namespace RouletteLike.Battle.Tests
             if (battle.Active == Side.Dealer)
             {
                 battle.PlaceAnte(1);
-                battle.Land(3); // 딜러 보험 +2
+                battle.Land(3); // 딜러 레이즈 +1·+3 연쇄
                 battle.CashOut();
             }
 
@@ -233,6 +233,73 @@ namespace RouletteLike.Battle.Tests
                 FinishRound(a);
                 FinishRound(b);
             }
+        }
+
+        [Test]
+        public void RabbitScriptedRound_CashesOutWithAnteOnly()
+        {
+            PotBattle battle = NewRabbitBattle();
+            while (true)
+            {
+                if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();
+                if (battle.Round == 3) break;
+                FinishRound(battle);
+            }
+
+            Assert.IsTrue(battle.IsScriptedInstantCashOutRound);
+            AdvanceToDealerInRound(battle);
+            battle.PlaceAnte(1);
+
+            Assert.IsTrue(battle.DealerWantsToCashOut());
+        }
+
+        [Test]
+        public void Comeback_IsOffWhenEven_AndBoostsGoodSlotsWhenBehind()
+        {
+            PotBattle battle = NewRabbitBattle();
+            battle.StartRound();
+            Assert.AreEqual(0f, battle.ComebackBoost);
+
+            DealerProfile rich = new DealerProfile(
+                "부자 딜러", 40, 3, 1, 6, HouseRule.FullCoverage, false, false,
+                BattlePresets.CreateRabbitDealer().Wheel);
+            PotBattle behind = new PotBattle(BattlePresets.CreateStarterWheel(), 20, rich, 3);
+            behind.StartRound();
+
+            Assert.Greater(behind.ComebackBoost, 0f);
+            Assert.LessOrEqual(behind.ComebackBoost, PotBattle.ComebackMaxBoost);
+            Slot raise = behind.Player.Wheel[0];
+            Slot houseCut = behind.Player.Wheel[5];
+            Assert.Greater(behind.LandingWeight(Side.Player, raise), 1f);
+            Assert.AreEqual(1f, behind.LandingWeight(Side.Player, houseCut));
+            Assert.AreEqual(1f, behind.LandingWeight(Side.Dealer, raise));
+        }
+
+        [Test]
+        public void Comeback_TurnsOffAfterAGoodLanding()
+        {
+            DealerProfile rich = new DealerProfile(
+                "부자 딜러", 40, 3, 1, 99, HouseRule.FullCoverage, false, false,
+                BattlePresets.CreateRabbitDealer().Wheel);
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, rich, 3);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(1);
+            Assert.Greater(battle.ComebackBoost, 0f);
+
+            battle.Land(0);
+
+            Assert.AreEqual(0f, battle.ComebackBoost);
+        }
+
+        private static void AdvanceToDealerInRound(PotBattle battle)
+        {
+            if (battle.Active == Side.Player)
+            {
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            Assert.AreEqual(Side.Dealer, battle.Active);
         }
 
         private static PotBattle GrantedHijackBattle()

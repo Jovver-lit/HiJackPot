@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace RouletteLike.Battle
 {
@@ -173,6 +174,12 @@ namespace RouletteLike.Battle
             List<int> group = FindChainGroup(seat.Wheel, index);
             result.Group = group;
 
+            if (Active == Side.Player && ComebackBoost > 0f && IsGoodSlot(slot))
+            {
+                _comebackSuspendedThroughRound = Round + 1;
+                Write("(역전 보정 해제: 좋은 칸이 걸렸다)");
+            }
+
             switch (slot.Kind)
             {
                 case SlotKind.Raise:
@@ -285,10 +292,55 @@ namespace RouletteLike.Battle
             return result;
         }
 
-        /// <summary>딜러의 성향: 판돈이 기준 이상이면 CASH OUT.</summary>
+        /// <summary>딜러의 성향: 판돈이 기준 이상이면 CASH OUT. 튜토리얼 대본 라운드에는 앤티만으로 곧장 CASH OUT.</summary>
         public bool DealerWantsToCashOut()
         {
-            return Dealer.Pot >= Profile.CashOutAt;
+            return IsScriptedInstantCashOutRound || Dealer.Pot >= Profile.CashOutAt;
+        }
+
+        public bool IsScriptedInstantCashOutRound => Profile.ScriptedInstantCashOutRounds.Contains(Round);
+
+        // ───────────── 역전 보정 ─────────────
+        // 플레이어가 칩에서 크게 밀리면, SPIN 강도로 정한 착지 구역 안에서 좋은 칸(레이즈·배율·배당)이
+        // 조금 더 잘 걸리게 한다. 하우스 몫의 무게는 그대로 둬서 판돈이 털리는 상실감은 유지한다.
+        // 보정 중에 좋은 칸이 한 번 걸리면 곧바로 꺼지고, 다음 라운드가 끝날 때까지 다시 켜지지 않는다.
+
+        /// <summary>칩 차이가 이 값 이상일 때부터 보정이 켜진다.</summary>
+        public const int ComebackDeficitThreshold = 5;
+
+        /// <summary>좋은 칸 무게에 더해지는 최대치(+60%).</summary>
+        public const float ComebackMaxBoost = 0.6f;
+
+        private const float ComebackBoostPerChip = 0.06f;
+        private int _comebackSuspendedThroughRound;
+
+        /// <summary>현재 플레이어에게 적용되는 좋은 칸 무게 보너스(0 = 보정 없음).</summary>
+        public float ComebackBoost
+        {
+            get
+            {
+                if (Round <= _comebackSuspendedThroughRound) return 0f;
+                int deficit = Dealer.Chips - (Player.Chips + Player.Pot);
+                if (deficit < ComebackDeficitThreshold) return 0f;
+                return Math.Min(ComebackMaxBoost, (deficit - ComebackDeficitThreshold + 1) * ComebackBoostPerChip);
+            }
+        }
+
+        /// <summary>착지 칸을 고를 때의 상대 무게. 1이 기본이며, 연출 쪽 회전도 이 값을 쓴다.</summary>
+        public float LandingWeight(Side side, Slot slot)
+        {
+            if (side != Side.Player) return 1f;
+            float boost = ComebackBoost;
+            if (boost <= 0f) return 1f;
+            if (IsGoodSlot(slot)) return 1f + boost;
+            if (slot.Kind == SlotKind.HouseCut) return 1f;
+            return Math.Max(0.4f, 1f - boost * 0.5f);
+        }
+
+        public static bool IsGoodSlot(Slot slot)
+        {
+            return slot.FiresOnLand
+                   && (slot.Kind == SlotKind.Raise || slot.Kind == SlotKind.Multiplier || slot.Kind == SlotKind.Dividend);
         }
 
         public HijackError CanHijack(int dealerIndex, int playerIndex)
@@ -348,7 +400,18 @@ namespace RouletteLike.Battle
         /// <summary>시뮬레이션·딜러 헤드리스 진행용. 연출 쪽은 자기 회전 RNG로 착지 칸을 정한다.</summary>
         public int RollLandingIndex(Side side)
         {
-            return _rng.Next(SeatOf(side).Wheel.Count);
+            IReadOnlyList<Slot> wheel = SeatOf(side).Wheel;
+            float total = 0f;
+            foreach (Slot slot in wheel) total += LandingWeight(side, slot);
+
+            double roll = _rng.NextDouble() * total;
+            for (int i = 0; i < wheel.Count; i++)
+            {
+                roll -= LandingWeight(side, wheel[i]);
+                if (roll < 0) return i;
+            }
+
+            return wheel.Count - 1;
         }
 
         /// <summary>

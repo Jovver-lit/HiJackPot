@@ -29,8 +29,10 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 토끼 딜러: 칩 15, 테이블 한도 3, 판돈 6 이상이면 CASH OUT, 하우스 룰은 전액 보장.
+        /// 토끼 딜러: 칩 15, 테이블 한도 3, 앤티 1, 판돈 5 이상이면 CASH OUT(소심한 튜토리얼 딜러), 하우스 룰은 전액 보장.
         /// JACKPOT 칸은 「서비스」([라운드 시작] 칩 +1).
+        /// 보험 칸이 없다(보험 0 고정). 원안의 "토끼 방어력 0"처럼 작은 판돈 갉아먹기가 통하게 한다.
+        /// R3는 대본: 예고 후 앤티만으로 곧장 CASH OUT → 보험이 1 이상이면 전액 보장.
         /// </summary>
         public static DealerProfile CreateRabbitDealer()
         {
@@ -39,7 +41,7 @@ namespace RouletteLike.Battle
                 new Slot("r_raise_2_a", SlotKind.Raise, 2, "레이즈 +2"),
                 new Slot("r_raise_2_b", SlotKind.Raise, 2, "레이즈 +2"),
                 new Slot("r_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
-                new Slot("r_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
+                new Slot("r_raise_1", SlotKind.Raise, 1, "레이즈 +1"),
                 new Slot("r_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
                 new Slot("r_service", SlotKind.Dividend, 1, "서비스", SlotTrigger.RoundStart, isJackpot: true)
             };
@@ -48,12 +50,13 @@ namespace RouletteLike.Battle
                 name: "토끼 딜러",
                 startingChips: 15,
                 tableLimit: 3,
-                dealerAnte: 2,
-                cashOutAt: 6,
+                dealerAnte: 1,
+                cashOutAt: 5,
                 houseRule: HouseRule.FullCoverage,
                 telegraphs: true,
                 counterHijacks: false,
-                wheel: wheel);
+                wheel: wheel,
+                scriptedInstantCashOutRounds: new[] { 3 });
         }
     }
 }

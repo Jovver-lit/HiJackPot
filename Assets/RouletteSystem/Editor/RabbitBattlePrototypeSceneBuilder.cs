@@ -221,7 +221,7 @@ namespace RouletteLike.Roulette.Editor
             RectTransform dealerIntent = AddFramedPanel("DealerIntent", dealerPanel, new Vector2(0f, 222f), new Vector2(470f, 76f), PanelLight, Red, out _, out _);
             AddText("IconPlaceholder", dealerIntent, "!", font, 22, Red, TextAlignmentOptions.Center, new Vector2(-170f, 0f), new Vector2(60f, 54f));
             AddText("NextText", dealerIntent, "예고", font, 16, Muted, TextAlignmentOptions.Center, new Vector2(-96f, 16f), new Vector2(90f, 22f));
-            TMP_Text enemyNextIntentText = AddText("ValueText", dealerIntent, "판돈 6+에서 CASH OUT", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(66f, -5f), new Vector2(280f, 34f));
+            TMP_Text enemyNextIntentText = AddText("ValueText", dealerIntent, "판돈 5+에서 CASH OUT", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(66f, -5f), new Vector2(280f, 34f));
             RectTransform dealerRouletteContainer = AddRect("RouletteContainer", dealerPanel, new Vector2(0f, -40f), new Vector2(440f, 440f));
             UnityEngine.UI.Image dealerGlow = AddGlow("ActiveGlow", dealerRouletteContainer, new Color32(220, 72, 78, 90), new Vector2(418f, 418f));
             RectTransform enemyRouletteRoot = AddRect("ExistingDealerRoulette", dealerRouletteContainer, Vector2.zero, new Vector2(410f, 410f));

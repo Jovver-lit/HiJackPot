@@ -82,6 +82,14 @@ namespace RouletteLike.Roulette
         /// </summary>
         public event Action<RouletteSegmentData> RouletteFinished;
 
+        /// <summary>
+        /// 강도 회전의 착지 오차 안에서 칸별 상대 무게(기본 1)를 반영한다. null이면 균등.
+        /// 강도로 정한 구역을 벗어나지 않으므로 조준감은 유지되고, 그 구역 안에서만 확률이 기운다.
+        /// </summary>
+        public Func<RouletteSegmentData, float> LandingBias { get; set; }
+
+        private const int LandingBiasMaxAttempts = 8;
+
         private void Reset()
         {
             rouletteController = GetComponent<RouletteController>();
@@ -274,9 +282,8 @@ namespace RouletteLike.Roulette
                     maximumLandingUncertainty,
                     power);
                 float intendedTravel = Mathf.Lerp(powerTravelArc.x, powerTravelArc.y, power);
-                totalDistance = fullRotations * 360f
-                                + intendedTravel
-                                + NextRandomRange(-landingUncertainty, landingUncertainty);
+                float baseDistance = fullRotations * 360f + intendedTravel;
+                totalDistance = baseDistance + SampleLandingOffset(startAngle, baseDistance, landingUncertainty);
             }
             else
             {
@@ -360,6 +367,40 @@ namespace RouletteLike.Roulette
         {
             wheel.localRotation = Quaternion.Euler(0f, 0f, zAngle);
             ApplyFixedCenterCapRotation();
+        }
+
+        /// <summary>
+        /// 착지 오차를 고른다. LandingBias가 있으면 거절 샘플링으로 무거운 칸에 멈출 가능성을 높인다.
+        /// </summary>
+        private float SampleLandingOffset(float startAngle, float baseDistance, float uncertainty)
+        {
+            float offset = NextRandomRange(-uncertainty, uncertainty);
+            if (LandingBias == null)
+            {
+                return offset;
+            }
+
+            float maxWeight = 1f;
+            for (int i = 0; i < rouletteController.Count; i++)
+            {
+                maxWeight = Mathf.Max(maxWeight, LandingBias(rouletteController.GetSegment(i)));
+            }
+
+            for (int attempt = 0; attempt < LandingBiasMaxAttempts; attempt++)
+            {
+                float finalWheelAngle = startAngle - (baseDistance + offset);
+                RouletteSegmentData landed = rouletteController.GetSegmentAtLocalAngle(
+                    RouletteController.NormalizeAngle(pointerAngle + finalWheelAngle));
+                float weight = landed == null ? 1f : Mathf.Max(0f, LandingBias(landed));
+                if (NextRandomRange(0f, maxWeight) <= weight)
+                {
+                    break;
+                }
+
+                offset = NextRandomRange(-uncertainty, uncertainty);
+            }
+
+            return offset;
         }
 
         private float NextRandomRange(float minimum, float maximum)
