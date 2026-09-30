@@ -37,6 +37,8 @@ namespace RouletteLike.Roulette
         [SerializeField] private TMP_Text dealerChipsText;
         [SerializeField] private TMP_Text insuranceText;
         [SerializeField] private TMP_Text potText;
+        [Tooltip("테이블 가운데 판돈 칩 더미(그레이박스). 판돈 2마다 칩 1개")]
+        [SerializeField] private UnityEngine.UI.Image[] potChipImages = new UnityEngine.UI.Image[0];
         [SerializeField] private UnityEngine.UI.Image playerChipsFill;
         [SerializeField] private UnityEngine.UI.Image dealerChipsFill;
 
@@ -876,7 +878,13 @@ namespace RouletteLike.Roulette
             playerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Player.Chips / playerStart);
             dealerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Dealer.Chips / dealerStart);
             insuranceText.text = $"내 보험 {_battle.Player.Insurance}";
-            potText.text = $"내 판돈 {_battle.Player.Pot}";
+            Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
+            potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {potSeat.Pot}" : $"판돈 {potSeat.Pot}";
+            int chipsShown = Mathf.Min(potChipImages.Length, (potSeat.Pot + 1) / 2);
+            for (int i = 0; i < potChipImages.Length; i++)
+            {
+                potChipImages[i].gameObject.SetActive(i < chipsShown);
+            }
             roundText.text = _battle.Profile.Telegraphs
                 ? $"{_run.FloorIndex + 1}F · TUTORIAL TABLE   ·   ROUND {_battle.Round}"
                 : $"{_run.FloorIndex + 1}F · {_battle.Profile.Name}   ·   ROUND {_battle.Round}";
@@ -978,7 +986,7 @@ namespace RouletteLike.Roulette
 
             if (!_battle.Profile.Telegraphs)
             {
-                enemyNextIntentText.text = $"성향: 판돈 {threshold}+에서 CASH OUT · 보험 {_battle.Profile.BaseInsurance}";
+                enemyNextIntentText.text = $"판돈 {threshold}+에서 CASH OUT · 기본 보험 {_battle.Profile.BaseInsurance}";
                 return;
             }
 
@@ -1222,11 +1230,14 @@ namespace RouletteLike.Roulette
             }
         }
 
+        /// <summary>하단 사건 띠: 방금 일어난 일 3개를 한 줄로, 최신이 왼쪽.</summary>
         private void AddLog(string message)
         {
             _combatLog.Enqueue(message);
-            while (_combatLog.Count > 7) _combatLog.Dequeue();
-            combatLogText.text = string.Join("\n", _combatLog);
+            while (_combatLog.Count > 3) _combatLog.Dequeue();
+            string[] recent = _combatLog.ToArray();
+            System.Array.Reverse(recent);
+            combatLogText.text = string.Join("   ›   ", recent);
         }
 
         private IEnumerator HideOpeningSpeechBubbleAfterDelay()
