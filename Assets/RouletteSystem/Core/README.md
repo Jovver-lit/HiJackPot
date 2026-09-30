@@ -9,7 +9,7 @@
 | `DealerProfile.cs` | 딜러 공개 정보: 시작 칩, 테이블 한도, 성향(CASH OUT 기준), 하우스 룰, 예고·역탈취 여부, 튜토리얼 대본 |
 | `PotBattle.cs` | 한 전투의 규칙: 선공 코인플립 → 앤티 → 착지 연쇄 → CASH OUT/하우스 몫, HIJACK, 역탈취, 역전 보정, 승패 |
 | `Run.cs` | 한 런: 1층 토끼 → 문 선택 → 보스, 칩·룰렛 이어가기, 상금, JACKPOT 칸 획득 |
-| `BattlePresets.cs` | 시작 룰렛 8칸, 토끼(튜토리얼)·여우·고양이·까마귀 딜러 수치(전부 임시값) |
+| `BattlePresets.cs` | 시작 룰렛 8칸, 토끼(튜토리얼)·여우·고양이·까마귀 딜러, 임시 보스 「매니저」 수치(전부 임시값) |
 | `HiJackPot.Core.asmdef` | 어셈블리 정의. `Assembly-CSharp`가 자동 참조한다 |
 
 수치 변경 근거와 시뮬레이션 결과는 `Docs/playtest/`에 남긴다.

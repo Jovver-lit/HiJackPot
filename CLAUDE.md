@@ -59,7 +59,7 @@
 ### 공통 규칙
 - GitHub: 저장소 `Jovver-lit/HiJackPot`, 기본 브랜치 `main`. 2인 팀 공용 브랜치이므로 `main` 푸시 전에 사용자에게 확인한다.
 - **기준 씬은 `Assets/Scenes/SampleScene.unity`(룰렛 배틀 데모)로 고정한다.** 모든 게임 화면 변경은 이 씬에 적용하고 확인한다. `HijackpotMainSceneLock.cs`가 Play 시작 씬과 Build Settings 0번을 이 씬으로 유지한다. `RabbitBattlePrototype.unity`는 이전 사본이며 더 이상 수정하지 않는다.
-- 씬은 Editor 빌더 스크립트로 생성된다(`Tools/Roulette Like/Build Rabbit Battle Prototype` → SampleScene에 저장, `Tools/HIJACKPOT/Create Roulette Demo Scene`). 빌더를 다시 실행하면 씬을 새로 만들어 덮어쓰므로, 씬 구조 변경은 빌더 코드에 반영한다. 씬만 직접 고칠 때는 그 사실을 사용자에게 알린다.
+- 씬은 Editor 빌더 스크립트로 생성된다(`Tools/HIJACKPOT/Build Battle Scene (SampleScene)` → SampleScene에 저장, `Tools/HIJACKPOT/Create Roulette Demo Scene`). 빌더를 다시 실행하면 씬을 새로 만들어 덮어쓰므로, 씬 구조 변경은 빌더 코드에 반영한다. 씬만 직접 고칠 때는 그 사실을 사용자에게 알린다.
 - 스크립트 수정 후에는 항상 Unity 새로고침 → 콘솔 에러 확인까지 마친 뒤 완료를 보고한다.
 - `Library/`, `Temp/`, `Logs/`, `UserSettings/`는 수정하지 않는다.
 

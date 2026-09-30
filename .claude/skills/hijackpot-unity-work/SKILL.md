@@ -18,8 +18,8 @@ description: Use when changing HIJACKPOT's Unity project (scripts, scenes, prefa
 3. `git status`로 미커밋 변경을 확인한다. 사용자가 작업 중인 파일을 덮어쓰지 않는다.
 
 ## 2. 수정 규칙
-- 씬은 빌더가 생성한다(`Tools/Roulette Like/Build Rabbit Battle Prototype` → SampleScene 저장). 빌더를 다시 실행하면 씬이 새로 만들어져 덮어써지므로, 구조 변경은 빌더 코드(`RabbitBattlePrototypeSceneBuilder.cs`)에 반영하고 `execute_menu_item`으로 다시 빌드한다. 씬만 직접 고쳤다면 보고에 명시한다.
-- 빌더에서 UI 오브젝트를 없앨 때는 `RabbitBattlePrototype`/`BattlePresentationUI`가 null 체크 없이 참조하는 필드가 있는지 먼저 확인한다. 숨길 오브젝트는 만들고 `SetActive(false)`로 둔다.
+- 씬은 빌더가 생성한다(`Tools/HIJACKPOT/Build Battle Scene (SampleScene)` → SampleScene 저장). 빌더를 다시 실행하면 씬이 새로 만들어져 덮어써지므로, 구조 변경은 빌더 코드(`BattleSceneBuilder.cs`)에 반영하고 `execute_menu_item`으로 다시 빌드한다. 씬만 직접 고쳤다면 보고에 명시한다.
+- 빌더에서 UI 오브젝트를 없앨 때는 `DealerBattleController`/`BattlePresentationUI`가 null 체크 없이 참조하는 필드가 있는지 먼저 확인한다. 숨길 오브젝트는 만들고 `SetActive(false)`로 둔다.
 - 전투 계산과 연출을 분리한다. 룰렛 칸·유물·적 패턴·보상 수치는 데이터로 둔다. 동일 시드 재현(`battleSeed`)을 깨지 않는다.
 - `Library/`, `Temp/`, `Logs/`, `UserSettings/`는 건드리지 않는다.
 

@@ -12,9 +12,10 @@ namespace RouletteLike.Roulette.Editor
 {
     /// <summary>
     /// 기준 씬(SampleScene)을 코드로 처음부터 만든다: 캔버스·패널·룰렛·배팅 버튼·HIJACK 패널을 배치하고
-    /// RabbitBattlePrototype의 참조를 연결한다. 씬 구조를 바꾸려면 씬이 아니라 이 파일을 고친다.
+    /// DealerBattleController의 참조를 연결한다. 문 선택·HIJACK·종료 패널도 여기서 만든다.
+    /// 씬 구조를 바꾸려면 씬이 아니라 이 파일을 고친다.
     /// </summary>
-    public static class RabbitBattlePrototypeSceneBuilder
+    public static class BattleSceneBuilder
     {
         private const string ScenePath = "Assets/Scenes/SampleScene.unity";
         private const string FontAssetPath = "Assets/RouletteSystem/Art/Fonts/neodgm SDF.asset";
@@ -35,7 +36,7 @@ namespace RouletteLike.Roulette.Editor
         private static readonly Color Red = new Color32(202, 70, 75, 255);
         private static readonly Color Teal = new Color32(57, 180, 188, 255);
 
-        [MenuItem("Tools/Roulette Like/Build Rabbit Battle Prototype")]
+        [MenuItem("Tools/HIJACKPOT/Build Battle Scene (SampleScene)")]
         public static void Build()
         {
             TMP_FontAsset font = GetOrCreateFontAsset();
@@ -59,7 +60,7 @@ namespace RouletteLike.Roulette.Editor
             AudioClip rouletteSpinSound = AssetDatabase.LoadAssetAtPath<AudioClip>(RouletteSpinSoundPath);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            scene.name = "RabbitBattlePrototype";
+            scene.name = "SampleScene";
 
             GameObject cameraObject = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener));
             cameraObject.tag = "MainCamera";
@@ -100,7 +101,7 @@ namespace RouletteLike.Roulette.Editor
 
             RectTransform playerArea = AddRect("PlayerArea", battleStage, new Vector2(-650f, 0f), new Vector2(500f, 300f));
             TMP_Text playerChipsText;
-            UnityEngine.UI.Image playerChipsFill = AddChipsWidget("PlayerChips", playerArea, new Vector2(0f, 112f), "손님", Teal, font, out playerChipsText);
+            UnityEngine.UI.Image playerChipsFill = AddChipsWidget("PlayerChips", playerArea, new Vector2(0f, 112f), "손님", Teal, font, out playerChipsText, out _);
             RectTransform playerCharacter = AddRect("PlayerCharacter", playerArea, new Vector2(0f, -35f), new Vector2(230f, 230f));
             UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(220f, 220f));
             businessmanImage.raycastTarget = false;
@@ -125,9 +126,9 @@ namespace RouletteLike.Roulette.Editor
             phaseIndicator.gameObject.SetActive(false);
 
             RectTransform houseRuleCard = AddFramedPanel("HouseRuleCard", centerStage, new Vector2(0f, -22f), new Vector2(680f, 150f), Panel, DarkGold, out _, out UnityEngine.UI.Image houseRuleFrame);
-            AddText("Title", houseRuleCard, "하우스 룰  ·  전액 보장", font, 20, Gold, TextAlignmentOptions.Center, new Vector2(0f, 46f), new Vector2(480f, 30f));
+            TMP_Text houseRuleTitleText = AddText("Title", houseRuleCard, "하우스 룰  ·  전액 보장", font, 20, Gold, TextAlignmentOptions.Center, new Vector2(0f, 46f), new Vector2(480f, 30f));
             UnityEngine.UI.Button houseRuleInfoButton = AddButton("InfoButton", houseRuleCard, new Vector2(284f, 46f), new Vector2(78f, 32f), PanelLight, font, "상세", 15, out _);
-            AddText("Description", houseRuleCard, "토끼의 CASH OUT을 보험으로 전부 막으면  →  토끼 칸 1개 HIJACK", font, 17, Ink, TextAlignmentOptions.Center, new Vector2(0f, 10f), new Vector2(640f, 28f));
+            TMP_Text houseRuleDescriptionText = AddText("Description", houseRuleCard, "딜러의 CASH OUT을 보험으로 전부 막기  →  칸 1개 HIJACK", font, 17, Ink, TextAlignmentOptions.Center, new Vector2(0f, 10f), new Vector2(640f, 28f));
             UnityEngine.UI.Image houseRuleTrack = AddImage("ProgressBar", houseRuleCard, new Color32(66, 59, 78, 255));
             houseRuleTrack.rectTransform.anchoredPosition = new Vector2(0f, -24f);
             houseRuleTrack.rectTransform.sizeDelta = new Vector2(560f, 10f);
@@ -138,7 +139,7 @@ namespace RouletteLike.Roulette.Editor
 
             RectTransform dealerArea = AddRect("DealerArea", battleStage, new Vector2(650f, 0f), new Vector2(500f, 300f));
             TMP_Text dealerChipsText;
-            UnityEngine.UI.Image dealerChipsFill = AddChipsWidget("DealerChips", dealerArea, new Vector2(0f, 112f), "토끼 딜러", Red, font, out dealerChipsText);
+            UnityEngine.UI.Image dealerChipsFill = AddChipsWidget("DealerChips", dealerArea, new Vector2(0f, 112f), "토끼 딜러", Red, font, out dealerChipsText, out TMP_Text dealerNameText);
             RectTransform dealerCharacter = AddRect("DealerCharacter", dealerArea, new Vector2(112f, -42f), new Vector2(230f, 230f));
             UnityEngine.UI.Image rabbitImage = AddSpriteImage("Sprite", dealerCharacter, rabbitSprite, new Vector2(220f, 220f));
             rabbitImage.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
@@ -221,10 +222,10 @@ namespace RouletteLike.Roulette.Editor
             combatLogText.lineSpacing = 8f;
 
             RectTransform dealerPanel = AddFramedPanel("DealerRoulettePanel", mainGameArea, new Vector2(630f, 0f), new Vector2(560f, 660f), Panel, DarkGold, out _, out _);
-            AddText("Header", dealerPanel, "◆  상대 룰렛 · 토끼 딜러  ◆", font, 21, Red, TextAlignmentOptions.Center, new Vector2(0f, 292f), new Vector2(510f, 38f));
+            TMP_Text dealerHeaderText = AddText("Header", dealerPanel, "◆  상대 룰렛 · 토끼 딜러  ◆", font, 21, Red, TextAlignmentOptions.Center, new Vector2(0f, 292f), new Vector2(510f, 38f));
             RectTransform dealerIntent = AddFramedPanel("DealerIntent", dealerPanel, new Vector2(0f, 222f), new Vector2(470f, 76f), PanelLight, Red, out _, out _);
             AddText("IconPlaceholder", dealerIntent, "!", font, 22, Red, TextAlignmentOptions.Center, new Vector2(-170f, 0f), new Vector2(60f, 54f));
-            AddText("NextText", dealerIntent, "예고", font, 16, Muted, TextAlignmentOptions.Center, new Vector2(-96f, 16f), new Vector2(90f, 22f));
+            AddText("NextText", dealerIntent, "성향", font, 16, Muted, TextAlignmentOptions.Center, new Vector2(-96f, 16f), new Vector2(90f, 22f));
             TMP_Text enemyNextIntentText = AddText("ValueText", dealerIntent, "판돈 5+에서 CASH OUT", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(66f, -5f), new Vector2(280f, 34f));
             RectTransform dealerRouletteContainer = AddRect("RouletteContainer", dealerPanel, new Vector2(0f, -40f), new Vector2(440f, 440f));
             UnityEngine.UI.Image dealerGlow = AddGlow("ActiveGlow", dealerRouletteContainer, new Color32(220, 72, 78, 90), new Vector2(418f, 418f));
@@ -234,17 +235,18 @@ namespace RouletteLike.Roulette.Editor
             BuildRoulette(enemyRouletteRoot, enemyRoulette, enemySpin, legacyFont, frameSprite, pointerSprite, centerCapSprite, null, true);
             AddRect("EffectRoot", dealerRouletteContainer, Vector2.zero, new Vector2(440f, 440f));
 
-            GameObject battleObject = new GameObject("RabbitBattle", typeof(RectTransform));
+            GameObject battleObject = new GameObject("DealerBattle", typeof(RectTransform));
             battleObject.transform.SetParent(canvasObject.transform, false);
-            RabbitBattlePrototype battle = battleObject.AddComponent<RabbitBattlePrototype>();
+            DealerBattleController battle = battleObject.AddComponent<DealerBattleController>();
             BattlePresentationUI presentation = battleObject.AddComponent<BattlePresentationUI>();
             HoldToSpinInput holdInput = throwButton.gameObject.AddComponent<HoldToSpinInput>();
             ConfigurePresentation(presentation, preparePhase, spinPhase, resolvePhase, dealerPhase, playerGlow, dealerGlow, houseRuleFrame);
             HijackTransferPresenter hijackTransferPresenter = BuildHijackTransferEffect(canvasObject.transform, font);
 
             RectTransform houseRuleOverlay = BuildHouseRuleOverlay(canvasObject.transform, font, out UnityEngine.UI.Button houseRuleInfoCloseButton, out TMP_Text houseRuleDetailProgressText);
-            RectTransform hijackPanel = BuildHijackPanel(canvasObject.transform, font, out TMP_Text hijackInstruction, out UnityEngine.UI.Button[] hijackSourceButtons, out TMP_Text[] hijackSourceLabels, out UnityEngine.UI.Button[] hijackDestinationButtons, out TMP_Text[] hijackDestinationLabels);
-            RectTransform endPanel = BuildEndPanel(canvasObject.transform, font, out TMP_Text endTitle, out TMP_Text endBody, out UnityEngine.UI.Button retryButton);
+            RectTransform hijackPanel = BuildHijackPanel(canvasObject.transform, font, out TMP_Text hijackInstruction, out TMP_Text hijackSourceTitle, out UnityEngine.UI.Button[] hijackSourceButtons, out TMP_Text[] hijackSourceLabels, out UnityEngine.UI.Button[] hijackDestinationButtons, out TMP_Text[] hijackDestinationLabels);
+            RectTransform endPanel = BuildEndPanel(canvasObject.transform, font, out TMP_Text endTitle, out TMP_Text endBody, out UnityEngine.UI.Button endContinueButton, out TMP_Text endContinueLabel);
+            RectTransform doorPanel = BuildDoorPanel(canvasObject.transform, font, out TMP_Text doorFloorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies);
 
             BindBattle(
                 battle, presentation, hijackTransferPresenter, roulette, enemyRoulette, spin, enemySpin, holdInput,
@@ -255,7 +257,23 @@ namespace RouletteLike.Roulette.Editor
                 houseRuleOverlay.gameObject, houseRuleInfoButton, houseRuleInfoCloseButton, houseRuleDetailProgressText,
                 openingSpeechBubble.gameObject, enemyNextIntentText,
                 hijackPanel.gameObject, hijackInstruction, hijackSourceButtons, hijackSourceLabels,
-                hijackDestinationButtons, hijackDestinationLabels, endPanel.gameObject, endTitle, endBody, retryButton);
+                hijackDestinationButtons, hijackDestinationLabels, endPanel.gameObject, endTitle, endBody, endContinueButton);
+
+            SerializedObject identitySo = new SerializedObject(battle);
+            SetObject(identitySo, "dealerNameText", dealerNameText);
+            SetObject(identitySo, "dealerHeaderText", dealerHeaderText);
+            SetObject(identitySo, "dealerSprite", rabbitImage);
+            SetObject(identitySo, "houseRuleTitleText", houseRuleTitleText);
+            SetObject(identitySo, "houseRuleDescriptionText", houseRuleDescriptionText);
+            SetObject(identitySo, "hijackSourceTitleText", hijackSourceTitle);
+            SetObject(identitySo, "endContinueLabel", endContinueLabel);
+            SetObject(identitySo, "doorPanel", doorPanel.gameObject);
+            SetObject(identitySo, "doorFloorText", doorFloorText);
+            SetObjectArray(identitySo.FindProperty("doorButtons"), doorButtons);
+            SetObjectArray(identitySo.FindProperty("doorTitleTexts"), doorTitles);
+            SetObjectArray(identitySo.FindProperty("doorBodyTexts"), doorBodies);
+            identitySo.ApplyModifiedPropertiesWithoutUndo();
+            doorPanel.gameObject.SetActive(false);
 
             SerializedObject holdSo = new SerializedObject(holdInput);
             holdSo.FindProperty("battle").objectReferenceValue = battle;
@@ -274,7 +292,7 @@ namespace RouletteLike.Roulette.Editor
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
             Selection.activeObject = battleObject;
-            Debug.Log($"Rabbit battle tutorial UI built at {ScenePath}");
+            Debug.Log($"Battle scene built at {ScenePath}");
         }
 
         private static void BuildRoulette(RectTransform root, RouletteController controller, RouletteSpinController spin, Font legacyFont, Sprite frameSprite, Sprite pointerSprite, Sprite centerCapSprite, AudioClip spinSound, bool enemy)
@@ -348,39 +366,66 @@ namespace RouletteLike.Roulette.Editor
             return overlay;
         }
 
-        private static RectTransform BuildHijackPanel(Transform parent, TMP_FontAsset font, out TMP_Text instruction, out UnityEngine.UI.Button[] sourceButtons, out TMP_Text[] sourceLabels, out UnityEngine.UI.Button[] destinationButtons, out TMP_Text[] destinationLabels)
+        /// <summary>딜러 칸(최대 14칸, 7칸씩 2줄)과 내 칸 8개를 고르는 HIJACK 패널. JACKPOT 칸 배치에도 재사용한다.</summary>
+        private static RectTransform BuildHijackPanel(Transform parent, TMP_FontAsset font, out TMP_Text instruction, out TMP_Text sourceTitle, out UnityEngine.UI.Button[] sourceButtons, out TMP_Text[] sourceLabels, out UnityEngine.UI.Button[] destinationButtons, out TMP_Text[] destinationLabels)
         {
-            RectTransform panel = AddFramedPanel("HijackPanel", parent, new Vector2(0f, -70f), new Vector2(1180f, 520f), new Color32(30, 25, 39, 252), Gold, out _, out _);
-            AddText("Title", panel, "HOUSE RULE CLEAR · HIJACK", font, 32, Gold, TextAlignmentOptions.Center, new Vector2(0f, 210f), new Vector2(1080f, 48f));
-            instruction = AddText("Instruction", panel, "1. 토끼의 칸 하나를 선택하세요", font, 20, Ink, TextAlignmentOptions.Center, new Vector2(0f, 165f), new Vector2(1080f, 38f));
-            AddText("EnemySlotsTitle", panel, "토끼 룰렛 · 빼앗을 칸", font, 17, Gold, TextAlignmentOptions.Left, new Vector2(-390f, 125f), new Vector2(300f, 30f));
-            sourceButtons = new UnityEngine.UI.Button[6];
-            sourceLabels = new TMP_Text[6];
+            RectTransform panel = AddFramedPanel("HijackPanel", parent, new Vector2(0f, -60f), new Vector2(1180f, 600f), new Color32(30, 25, 39, 252), Gold, out _, out _);
+            AddText("Title", panel, "HOUSE RULE CLEAR · HIJACK", font, 32, Gold, TextAlignmentOptions.Center, new Vector2(0f, 255f), new Vector2(1080f, 48f));
+            instruction = AddText("Instruction", panel, "1. 빼앗을 딜러의 칸을 고르세요", font, 20, Ink, TextAlignmentOptions.Center, new Vector2(0f, 212f), new Vector2(1100f, 38f));
+            sourceTitle = AddText("EnemySlotsTitle", panel, "딜러 룰렛 · 빼앗을 칸", font, 17, Gold, TextAlignmentOptions.Left, new Vector2(-390f, 175f), new Vector2(360f, 30f));
+            sourceButtons = new UnityEngine.UI.Button[14];
+            sourceLabels = new TMP_Text[14];
             for (int i = 0; i < sourceButtons.Length; i++)
             {
-                float x = -412.5f + i * 165f;
-                sourceButtons[i] = AddButton($"EnemySlot{i + 1}", panel, new Vector2(x, 73f), new Vector2(150f, 76f), new Color32(112, 50, 60, 255), font, $"{i + 1}\n-", 16, out sourceLabels[i]);
+                float x = -480f + (i % 7) * 160f;
+                float y = i < 7 ? 125f : 45f;
+                sourceButtons[i] = AddButton($"EnemySlot{i + 1}", panel, new Vector2(x, y), new Vector2(148f, 70f), new Color32(112, 50, 60, 255), font, $"{i + 1}\n-", 15, out sourceLabels[i]);
             }
-            AddText("PlayerSlotsTitle", panel, "내 룰렛 · 교체할 위치", font, 17, Gold, TextAlignmentOptions.Left, new Vector2(-390f, 15f), new Vector2(300f, 30f));
+            AddText("PlayerSlotsTitle", panel, "내 룰렛 · 덮어쓸 위치 (하우스 몫 불가)", font, 17, Gold, TextAlignmentOptions.Left, new Vector2(-390f, -15f), new Vector2(360f, 30f));
             destinationButtons = new UnityEngine.UI.Button[8];
             destinationLabels = new TMP_Text[8];
             for (int i = 0; i < destinationButtons.Length; i++)
             {
                 float x = -437.5f + i * 125f;
-                destinationButtons[i] = AddButton($"PlayerSlot{i + 1}", panel, new Vector2(x, -43f), new Vector2(112f, 86f), new Color32(38, 91, 96, 255), font, $"{i + 1}\n-", 15, out destinationLabels[i]);
+                destinationButtons[i] = AddButton($"PlayerSlot{i + 1}", panel, new Vector2(x, -80f), new Vector2(112f, 86f), new Color32(38, 91, 96, 255), font, $"{i + 1}\n-", 15, out destinationLabels[i]);
             }
-            AddText("Note", panel, "선택한 토끼 칸은 봉인되고, 가져온 칸은 내 룰렛에 영구히 남습니다. ★ = JACKPOT 칸", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(0f, -125f), new Vector2(1060f, 36f));
-            AddRect("AnimationRoot", panel, Vector2.zero, new Vector2(1180f, 520f));
+            AddText("Note", panel, "빼앗은 딜러 칸은 봉인되고, 가져온 칸은 내 룰렛에 영구히 남습니다. ★ = JACKPOT 칸", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(0f, -170f), new Vector2(1060f, 36f));
+            AddRect("AnimationRoot", panel, Vector2.zero, new Vector2(1180f, 600f));
             return panel;
         }
 
-        private static RectTransform BuildEndPanel(Transform parent, TMP_FontAsset font, out TMP_Text title, out TMP_Text body, out UnityEngine.UI.Button retryButton)
+        /// <summary>층 사이 문 선택 패널: 딜러 카드 두 장(이름·성향·하우스 룰·JACKPOT)과 층 안내.</summary>
+        private static RectTransform BuildDoorPanel(Transform parent, TMP_FontAsset font, out TMP_Text floorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies)
+        {
+            RectTransform overlay = AddPanel("DoorPanel", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(10, 8, 14, 235));
+            overlay.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
+            AddText("Title", overlay, "다음 테이블", font, 40, Gold, TextAlignmentOptions.Center, new Vector2(0f, 380f), new Vector2(1200f, 60f));
+            floorText = AddText("FloorText", overlay, "2층", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 325f), new Vector2(1200f, 36f));
+            doorButtons = new UnityEngine.UI.Button[2];
+            doorTitles = new TMP_Text[2];
+            doorBodies = new TMP_Text[2];
+            for (int i = 0; i < doorButtons.Length; i++)
+            {
+                float x = i == 0 ? -330f : 330f;
+                doorButtons[i] = AddButton($"Door{i + 1}", overlay, new Vector2(x, -20f), new Vector2(560f, 520f), new Color32(43, 38, 58, 255), font, "", 16, out TMP_Text unused);
+                unused.gameObject.SetActive(false);
+                AddFrame("Frame", doorButtons[i].transform, DarkGold);
+                doorTitles[i] = AddText("DealerName", doorButtons[i].transform, "딜러", font, 32, Gold, TextAlignmentOptions.Center, new Vector2(0f, 200f), new Vector2(500f, 48f));
+                doorBodies[i] = AddText("DealerInfo", doorButtons[i].transform, "", font, 19, Ink, TextAlignmentOptions.TopLeft, new Vector2(0f, 10f), new Vector2(480f, 300f));
+                doorBodies[i].lineSpacing = 18f;
+                AddText("Enter", doorButtons[i].transform, "이 문으로 들어가기", font, 20, Teal, TextAlignmentOptions.Center, new Vector2(0f, -215f), new Vector2(500f, 36f));
+            }
+
+            return overlay;
+        }
+
+        private static RectTransform BuildEndPanel(Transform parent, TMP_FontAsset font, out TMP_Text title, out TMP_Text body, out UnityEngine.UI.Button continueButton, out TMP_Text continueLabel)
         {
             RectTransform panel = AddFramedPanel("EndPanel", parent, Vector2.zero, new Vector2(900f, 480f), new Color32(35, 29, 45, 252), Gold, out _, out _);
             title = AddText("Title", panel, "", font, 42, Gold, TextAlignmentOptions.Center, new Vector2(0f, 130f), new Vector2(760f, 64f));
             body = AddText("Body", panel, "", font, 23, Ink, TextAlignmentOptions.Center, new Vector2(0f, 20f), new Vector2(760f, 120f));
-            retryButton = AddButton("RetryButton", panel, new Vector2(0f, -145f), new Vector2(360f, 76f), Gold, font, "계약 되감기", 24, out TMP_Text label);
-            label.color = Background;
+            continueButton = AddButton("ContinueButton", panel, new Vector2(0f, -145f), new Vector2(360f, 76f), Gold, font, "계약 되감기", 24, out continueLabel);
+            continueLabel.color = Background;
             return panel;
         }
 
@@ -455,7 +500,7 @@ namespace RouletteLike.Roulette.Editor
         }
 
         private static void BindBattle(
-            RabbitBattlePrototype battle, BattlePresentationUI presentation,
+            DealerBattleController battle, BattlePresentationUI presentation,
             HijackTransferPresenter hijackTransferPresenter,
             RouletteController roulette, RouletteController enemyRoulette,
             RouletteSpinController spin, RouletteSpinController enemySpin, HoldToSpinInput holdInput,
@@ -472,7 +517,7 @@ namespace RouletteLike.Roulette.Editor
             GameObject hijackPanel, TMP_Text hijackInstructionText,
             UnityEngine.UI.Button[] hijackSourceButtons, TMP_Text[] hijackSourceLabels,
             UnityEngine.UI.Button[] hijackDestinationButtons, TMP_Text[] hijackDestinationLabels,
-            GameObject endPanel, TMP_Text endTitle, TMP_Text endBody, UnityEngine.UI.Button retryButton)
+            GameObject endPanel, TMP_Text endTitle, TMP_Text endBody, UnityEngine.UI.Button endContinueButton)
         {
             SerializedObject so = new SerializedObject(battle);
             SetObject(so, "presentationUi", presentation);
@@ -515,7 +560,7 @@ namespace RouletteLike.Roulette.Editor
             SetObject(so, "endPanel", endPanel);
             SetObject(so, "endTitleText", endTitle);
             SetObject(so, "endBodyText", endBody);
-            SetObject(so, "retryButton", retryButton);
+            SetObject(so, "endContinueButton", endContinueButton);
             SetObjectArray(so.FindProperty("hijackSourceButtons"), hijackSourceButtons);
             SetObjectArray(so.FindProperty("hijackSourceLabels"), hijackSourceLabels);
             SetObjectArray(so.FindProperty("hijackDestinationButtons"), hijackDestinationButtons);
@@ -536,10 +581,10 @@ namespace RouletteLike.Roulette.Editor
             return asset;
         }
 
-        private static UnityEngine.UI.Image AddChipsWidget(string name, Transform parent, Vector2 position, string combatantName, Color fillColor, TMP_FontAsset font, out TMP_Text chipsText)
+        private static UnityEngine.UI.Image AddChipsWidget(string name, Transform parent, Vector2 position, string combatantName, Color fillColor, TMP_FontAsset font, out TMP_Text chipsText, out TMP_Text nameText)
         {
             RectTransform root = AddRect(name, parent, position, new Vector2(440f, 78f));
-            AddText("NameText", root, combatantName, font, 18, Ink, TextAlignmentOptions.Left, new Vector2(-125f, 20f), new Vector2(170f, 28f));
+            nameText = AddText("NameText", root, combatantName, font, 18, Ink, TextAlignmentOptions.Left, new Vector2(-125f, 20f), new Vector2(170f, 28f));
             chipsText = AddText("ChipsText", root, "칩 20", font, 18, Ink, TextAlignmentOptions.Right, new Vector2(125f, 20f), new Vector2(170f, 28f));
             UnityEngine.UI.Image background = AddImage("BarBackground", root, new Color32(58, 52, 70, 255));
             background.rectTransform.anchoredPosition = new Vector2(0f, -18f);

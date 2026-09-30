@@ -11,7 +11,7 @@ namespace RouletteLike.Roulette
     [DisallowMultipleComponent]
     public sealed class HoldToSpinInput : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
     {
-        [SerializeField] private RabbitBattlePrototype battle;
+        [SerializeField] private DealerBattleController battle;
         [SerializeField] private UnityEngine.UI.Image fillImage;
         [SerializeField] private TMP_Text powerText;
         [SerializeField] private TMP_Text buttonLabel;

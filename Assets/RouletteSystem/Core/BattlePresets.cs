@@ -60,6 +60,32 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
+        /// 스테이지 1 보스 「매니저」의 **임시** 버전. 이중 룰렛(바깥 링)과 전용 하우스 룰은 다음 작업(보스와 바깥 링)에서 만든다.
+        /// 그전까지는 보험 2·판돈 8에서 CASH OUT하는 강한 딜러로만 둔다.
+        /// </summary>
+        public static DealerProfile CreateStageBoss()
+        {
+            List<Slot> wheel = new List<Slot>
+            {
+                new Slot("m_raise_2_a", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("m_raise_2_b", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("m_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
+                new Slot("m_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
+                new Slot("m_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
+                new Slot("m_seal", SlotKind.Raise, 5, "매니저 인장", isJackpot: true),
+                new Slot("m_raise_1", SlotKind.Raise, 1, "레이즈 +1"),
+                new Slot("m_dividend_2", SlotKind.Dividend, 2, "배당 +2"),
+                new Slot("m_raise_2_c", SlotKind.Raise, 2, "레이즈 +2"),
+                new Slot("m_house_cut", SlotKind.HouseCut, 0, "하우스 몫")
+            };
+
+            return new DealerProfile(
+                name: "매니저(임시 보스)", startingChips: 24, tableLimit: 5, dealerAnte: 2, cashOutAt: 8,
+                houseRule: HouseRule.MultipliedCashOut, telegraphs: false, counterHijacks: true,
+                wheel: wheel, baseInsurance: 2);
+        }
+
+        /// <summary>
         /// 2~4층 문 뒤에 설 수 있는 일반 딜러들. 일반 딜러는 룰렛에 하우스 몫이 1칸 있다(ADR 0004).
         /// 튜토리얼 토끼만 하우스 몫이 없다.
         /// </summary>

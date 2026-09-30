@@ -16,7 +16,7 @@
 ## 데이터 흐름 (전투 한 번)
 
 ```
-HoldToSpinInput ──SPIN──▶ RabbitBattlePrototype ──PlaceAnte/Land/CashOut/Hijack──▶ Core.PotBattle
+HoldToSpinInput ──SPIN──▶ DealerBattleController ──PlaceAnte/Land/CashOut/Hijack──▶ Core.PotBattle
         ▲                        │  ▲                                                     │
         │                        ▼  │ 착지 칸                                              ▼ 칩·판돈·보험·로그
    플레이어 입력        RouletteSpinController (회전·착지)                         텍스트/룰렛 표시 갱신
