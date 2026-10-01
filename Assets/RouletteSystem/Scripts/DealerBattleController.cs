@@ -245,6 +245,7 @@ namespace RouletteLike.Roulette
 
         /// <summary>보스를 이겨 해금한 바깥 링을 다음 런으로 넘기는 저장 키(메타 진행).</summary>
         private const string OuterRingUnlockedKey = "hijackpot.meta.outerRingUnlocked";
+        // ↑ 예전(5층 런) 해금 저장 키. 이제 바깥 링은 매 런 5층 보스를 이겨야 얻으므로(ADR 0009) 읽지 않고, 남아 있으면 지운다.
         private PotBattle _battle;
         private ViewState _state;
         private int _chosenAnte = 1;
@@ -455,15 +456,18 @@ namespace RouletteLike.Roulette
             titlePanel.SetActive(true);
             titlePanel.transform.SetAsLastSibling();
             spinInput?.ShowUnavailableState("대기");
-            bool outer = PlayerPrefs.GetInt(OuterRingUnlockedKey, 0) == 1;
-            if (titleMetaText != null)
+            if (PlayerPrefs.HasKey(OuterRingUnlockedKey))
             {
-                titleMetaText.text = outer
-                    ? "해금된 룰렛 형식: 바깥 링 (보스 「매니저」 격파)"
-                    : "보스를 이기면 다음 계약부터 룰렛 형식을 얻습니다";
+                PlayerPrefs.DeleteKey(OuterRingUnlockedKey);
+                PlayerPrefs.Save();
             }
 
-            if (titleResetButton != null) titleResetButton.gameObject.SetActive(outer);
+            if (titleMetaText != null)
+            {
+                titleMetaText.text = "5층 보스 「매니저」를 이기면 그 런에서 바깥 링(이중 룰렛)을 얻습니다";
+            }
+
+            if (titleResetButton != null) titleResetButton.gameObject.SetActive(false);
         }
 
         private void OnTitleStart()
@@ -508,7 +512,7 @@ namespace RouletteLike.Roulette
                 BattlePresets.CreateRabbitDealer,
                 BattlePresets.CreateDealerPool(),
                 BattlePresets.CreateStageBoss,
-                outerRing: PlayerPrefs.GetInt(OuterRingUnlockedKey, 0) == 1 ? BattlePresets.CreateOuterRing() : null);
+                outerRing: null);
             _placingJackpot = false;
             endPanel?.SetActive(false);
             ShowDoorsOrEnter();
@@ -608,12 +612,6 @@ namespace RouletteLike.Roulette
 
             _run.CompleteBattle();
             endPanel?.SetActive(false);
-            if (_run.GainedWheelFormThisBattle)
-            {
-                // 보스를 이기면 그 런에서 바로 바깥 링을 얻고, 다음 런부터도 쓰도록 바로 저장한다(2회차에서 져도 해금은 남는다).
-                PlayerPrefs.SetInt(OuterRingUnlockedKey, 1);
-                PlayerPrefs.Save();
-            }
             if (_run.Outcome == RunOutcome.Escaped)
             {
                 ShowRunEscaped();
@@ -1796,7 +1794,7 @@ namespace RouletteLike.Roulette
 
             if (_battle.Outcome != BattleOutcome.DealerWins && !lastFloor && _battle.Profile.TableOuterRing.Count > 0 && _run.OuterRing.Count == 0)
             {
-                endBodyText.text += "\n룰렛 형식 획득: 바깥 링 — 지금부터 이 런의 내 룰렛에 붙고, 다음 런부터도 쓸 수 있습니다.";
+                endBodyText.text += "\n룰렛 형식 획득: 바깥 링 — 지금부터 이 런의 내 룰렛에 붙습니다.";
             }
 
             RefreshAllUi();
