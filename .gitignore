@@ -9,8 +9,6 @@
 .DS_Store
 **/.DS_Store
 
-# 노션으로 관리하는 기획 문서 (git으로 버전관리 안 함)
-/Docs/
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
@@ -109,3 +107,6 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Claude Code 개인 설정
+.claude/settings.local.json

@@ -22,6 +22,7 @@ namespace RouletteLike.Roulette
         private Color _borderColor;
         private Color _highlightColor;
         private bool _isHighlighted;
+        private bool _isDimmed;
         private bool _renderGeometry = true;
         private bool _snapVerticesToPixels;
         private int _labelFontSize;
@@ -131,12 +132,31 @@ namespace RouletteLike.Roulette
             }
 
             _isHighlighted = highlighted;
-            if (_labelText != null)
+            ApplyLabelColor();
+            SetVerticesDirty();
+        }
+
+        /// <summary>착지 고정 표시 중 착지·연쇄가 아닌 칸의 글자를 흐리게 한다.</summary>
+        public void SetDimmed(bool dimmed)
+        {
+            if (_isDimmed == dimmed)
             {
-                _labelText.color = highlighted ? _highlightColor : Color.white;
+                return;
             }
 
-            SetVerticesDirty();
+            _isDimmed = dimmed;
+            ApplyLabelColor();
+        }
+
+        private void ApplyLabelColor()
+        {
+            if (_labelText == null)
+            {
+                return;
+            }
+
+            Color baseColor = _isHighlighted ? _highlightColor : Color.white;
+            _labelText.color = _isDimmed ? new Color(baseColor.r, baseColor.g, baseColor.b, 0.35f) : baseColor;
         }
 
         protected override void OnPopulateMesh(VertexHelper vertexHelper)
@@ -299,6 +319,12 @@ namespace RouletteLike.Roulette
             string label = _data != null ? _data.displayText : string.Empty;
             _labelText.text = label ?? string.Empty;
             _labelText.fontSize = Mathf.Max(1, fontSize);
+            // 칸이 좁으면(까마귀 13칸 등) 긴 이름만 한 줄에 들어갈 때까지 줄인다. 기호 + 숫자는 대부분 원래 크기.
+            _labelText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _labelText.verticalOverflow = VerticalWrapMode.Truncate;
+            _labelText.resizeTextForBestFit = true;
+            _labelText.resizeTextMinSize = Mathf.Min(12, _labelText.fontSize);
+            _labelText.resizeTextMaxSize = _labelText.fontSize;
             _labelText.gameObject.SetActive(!string.IsNullOrEmpty(_labelText.text));
 
             float contentRadius = _radius * Mathf.Clamp01(radiusRatio);
