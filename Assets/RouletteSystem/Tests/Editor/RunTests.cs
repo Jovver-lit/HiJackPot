@@ -68,18 +68,21 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void ChipsAndHijackedSlotsCarryOver_WithWinnings()
+        public void ChipsCarryOver_UpToEntryChips_PlusWinnings()
         {
             Run run = NewRun();
+            int entry = run.Chips;
             PotBattle battle = run.EnterDoor(0);
-            // 첫 라운드에 HIJACK 기회를 강제로 만들 수 없으므로 룰렛 변화는 파산 승리 후 칩으로만 확인한다.
             WinByBankrupt(battle);
             int chipsAfterBattle = battle.Player.Chips;
+            Assert.AreEqual(Math.Min(chipsAfterBattle, entry) + run.WinningsFor(battle.Profile), run.PreviewChipsAfter(battle));
 
             run.CompleteBattle();
 
+            // 테이블 칩 회수(ADR 0007): 입장 칩을 넘게 딴 칩은 하우스가 가져가고, 상금만 더해진다.
             int winnings = (int)Math.Round(BattlePresets.CreateRabbitDealer().StartingChips * Run.WinningsRatio);
-            Assert.AreEqual(chipsAfterBattle + winnings, run.Chips);
+            Assert.AreEqual(Math.Min(chipsAfterBattle, entry) + winnings, run.Chips);
+            Assert.AreEqual(Math.Max(0, chipsAfterBattle - entry), run.LastTableChipsReturned);
         }
 
         [Test]

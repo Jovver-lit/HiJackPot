@@ -91,5 +91,12 @@ namespace RouletteLike.Battle
             BaseInsurance = baseInsurance;
             TableOuterRing = tableOuterRing ?? System.Array.Empty<Slot>();
         }
+
+        /// <summary>시작 칩·앤티를 바꾼 사본(층이 오를수록 딜러가 단단하고 아파진다).</summary>
+        public DealerProfile WithFloorScaling(int startingChips, int anteBonus)
+        {
+            return new DealerProfile(Name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt, HouseRule, Telegraphs, CounterHijacks,
+                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance, TableOuterRing);
+        }
     }
 }

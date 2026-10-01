@@ -220,11 +220,11 @@ namespace RouletteLike.Battle.Tests
             }
 
             Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
-            int chipsAfterBattle = battle.Player.Chips;
+            int kept = Math.Min(battle.Player.Chips, 20);
             run.CompleteBattle();
             Assert.AreEqual(prize, run.LastRelicGained);
             Assert.Contains(prize.Value, new List<RelicId>(run.Relics));
-            Assert.AreEqual(chipsAfterBattle + (int)Math.Round(2 * Run.WinningsRatio * RelicCatalog.VipWinningsMultiplier), run.Chips);
+            Assert.AreEqual(kept + (int)Math.Round(2 * Run.WinningsRatio * RelicCatalog.VipWinningsMultiplier), run.Chips);
         }
     }
 }

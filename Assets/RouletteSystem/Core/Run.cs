@@ -25,7 +25,10 @@ namespace RouletteLike.Battle
     public sealed class Run
     {
         /// <summary>파산 승리 상금 = 그 딜러 시작 칩 × 이 비율(임시값).</summary>
-        public const float WinningsRatio = 0.5f;
+        public const float WinningsRatio = 0.3f;
+
+        /// <summary>딜러층이 하나 오를 때마다 딜러 시작 칩에 더하는 비율(2층 ×1.0, 3층 ×1.3, 4층 ×1.6).</summary>
+        public const float DealerChipsPerFloor = 0.3f;
 
         private readonly Random _rng;
         private readonly List<Slot> _wheel;
@@ -39,6 +42,10 @@ namespace RouletteLike.Battle
         private readonly Random _relicRng;
         private readonly int _seed;
         private int _enteredDoor = -1;
+        private int _chipsAtEntry;
+
+        /// <summary>지금 전투에 들어갈 때의 칩. 전투가 끝나면 이만큼까지만 가지고 나간다(ADR 0007).</summary>
+        public int ChipsAtEntry => _chipsAtEntry;
 
         public int Chips { get; private set; }
         public IReadOnlyList<Slot> Wheel => _wheel;
@@ -70,6 +77,16 @@ namespace RouletteLike.Battle
 
         /// <summary>지금 들어간 문에 걸린 유물 상금(없으면 null). 이기면 CompleteBattle에서 받는다.</summary>
         public RelicId? CurrentPrize => _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
+
+        /// <summary>방금 끝낸 전투에서 하우스가 회수한 테이블 칩(입장 칩을 넘은 몫). 종료 화면 표시용.</summary>
+        public int LastTableChipsReturned { get; private set; }
+
+        /// <summary>전투를 끝내고 나갈 때 가지고 나갈 칩 미리보기(입장 칩까지 + 파산 승리 상금).</summary>
+        public int PreviewChipsAfter(PotBattle battle)
+        {
+            int kept = Math.Min(battle.Player.Chips, _chipsAtEntry);
+            return battle.Outcome == BattleOutcome.PlayerWinsByBankrupt ? kept + WinningsFor(battle.Profile) : kept;
+        }
 
         /// <summary>방금 끝낸 전투에서 받은 유물(없으면 null). 종료 화면 표시용.</summary>
         public RelicId? LastRelicGained { get; private set; }
@@ -109,6 +126,7 @@ namespace RouletteLike.Battle
             if (doorIndex < 0 || doorIndex >= _doors.Count) throw new ArgumentOutOfRangeException(nameof(doorIndex));
 
             _enteredDoor = doorIndex;
+            _chipsAtEntry = Chips;
             CurrentBattle = new PotBattle(_wheel, Chips, _doors[doorIndex], _seed * 31 + FloorIndex, _outerRing, _relics);
             return CurrentBattle;
         }
@@ -131,7 +149,10 @@ namespace RouletteLike.Battle
                 return;
             }
 
-            Chips = battle.Player.Chips;
+            // 테이블 칩 회수(ADR 0007): 전투 중 딜러에게서 딴 칩은 그 테이블의 칩이다. 입장할 때의 칩까지만 가지고 나가고,
+            // 잃은 칩은 그대로 잃는다. 대신 상금을 받는다. 제로섬 전투가 런 전체의 눈덩이가 되지 않게 한다.
+            LastTableChipsReturned = Math.Max(0, battle.Player.Chips - _chipsAtEntry);
+            Chips = Math.Min(battle.Player.Chips, _chipsAtEntry);
             _wheel.Clear();
             _wheel.AddRange(battle.Player.Wheel);
 
@@ -232,6 +253,16 @@ namespace RouletteLike.Battle
             }
         }
 
+        /// <summary>이 층(0부터)부터 딜러 앤티 +1.</summary>
+        public const int DealerAnteBonusFromFloor = 3;
+
+        private DealerProfile ScaleForFloor(DealerProfile dealer)
+        {
+            float scale = 1f + DealerChipsPerFloor * Math.Max(0, FloorIndex - 1);
+            int anteBonus = FloorIndex >= DealerAnteBonusFromFloor ? 1 : 0;
+            return scale <= 1f && anteBonus == 0 ? dealer : dealer.WithFloorScaling((int)Math.Round(dealer.StartingChips * scale), anteBonus);
+        }
+
         private void RollDealers()
         {
             if (FloorIndex == 0)
@@ -247,12 +278,12 @@ namespace RouletteLike.Battle
             }
 
             int first = _rng.Next(_dealerPool.Count);
-            _doors.Add(_dealerPool[first]());
+            _doors.Add(ScaleForFloor(_dealerPool[first]()));
             if (_dealerPool.Count > 1)
             {
                 int second = _rng.Next(_dealerPool.Count - 1);
                 if (second >= first) second++;
-                _doors.Add(_dealerPool[second]());
+                _doors.Add(ScaleForFloor(_dealerPool[second]()));
             }
         }
     }

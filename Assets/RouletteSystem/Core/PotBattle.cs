@@ -180,6 +180,10 @@ namespace RouletteLike.Battle
 
             ApplyRoundStartSlots(Player);
             ApplyRoundStartSlots(Dealer);
+            if (ApplyTableFee())
+            {
+                return Active;
+            }
 
             if (_guaranteedInitiative.HasValue)
             {
@@ -215,6 +219,27 @@ namespace RouletteLike.Battle
             Write($"라운드 {Round}: 코인플립 → {Name(Active)} 선공");
             ApplyInitiativeRelics();
             return Active;
+        }
+
+        /// <summary>테이블 마감: 이 라운드부터 매 라운드 시작에 양쪽이 테이블 사용료 1을 낸다(교착 방지, 한 전투 3~5분 목표).</summary>
+        public const int TableFeeStartRound = 10;
+
+        /// <summary>이 라운드부터 사용료가 2로 오른다.</summary>
+        public const int TableFeeSurgeRound = 15;
+
+        /// <summary>이번 라운드의 테이블 사용료(0 = 아직 마감 전).</summary>
+        public int TableFee => Round >= TableFeeSurgeRound ? 2 : Round >= TableFeeStartRound ? 1 : 0;
+
+        /// <summary>테이블 사용료를 걷는다. 누군가 파산해 전투가 끝나면 true.</summary>
+        private bool ApplyTableFee()
+        {
+            int fee = TableFee;
+            if (fee <= 0) return false;
+            Player.Chips = Math.Max(0, Player.Chips - fee);
+            Dealer.Chips = Math.Max(0, Dealer.Chips - fee);
+            Write($"테이블 마감: 사용료 양쪽 칩 −{fee}");
+            _roundStartEffects.Add($"테이블 마감: 사용료 양쪽 칩 −{fee}");
+            return CheckBankrupt();
         }
 
         /// <summary>[라운드 시작] 유물: 「뒷면만 나오는 동전」은 후공이 된 라운드에 칩 +1.</summary>

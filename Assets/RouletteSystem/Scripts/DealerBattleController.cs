@@ -1241,7 +1241,6 @@ namespace RouletteLike.Roulette
             spinInput?.ShowUnavailableState("전투 종료");
             endPanel?.SetActive(true);
             bool lastFloor = _run.FloorIndex >= _run.FloorCount - 1;
-            int winnings = _run.WinningsFor(_battle.Profile);
             string prize = _run.CurrentPrize.HasValue && _battle.Outcome != BattleOutcome.DealerWins
                 ? $"\n유물 획득: 「{RelicCatalog.Get(_run.CurrentPrize.Value).Name}」 {RelicCatalog.Get(_run.CurrentPrize.Value).Description}"
                 : "";
@@ -1249,12 +1248,12 @@ namespace RouletteLike.Roulette
             {
                 case BattleOutcome.PlayerWinsByCleanSweep:
                     endTitleText.text = "완전 강탈";
-                    endBodyText.text = $"{_battle.Profile.Name}의 룰렛을 전부 봉인했습니다.\n상금 대신 JACKPOT 칸을 가져갑니다." + prize;
+                    endBodyText.text = $"{_battle.Profile.Name}의 룰렛을 전부 봉인했습니다.\n상금 대신 JACKPOT 칸을 가져갑니다.\n{DescribeChipsCarried()}" + prize;
                     Say(Lines.CleanSwept, true);
                     break;
                 case BattleOutcome.PlayerWinsByBankrupt:
                     endTitleText.text = $"{_battle.Profile.Name} 파산";
-                    endBodyText.text = $"남은 칩 {_battle.Player.Chips} + 상금 {winnings}.\n빼앗은 칸은 손님의 룰렛에 영구히 남습니다." + prize;
+                    endBodyText.text = $"{DescribeChipsCarried()}\n빼앗은 칸은 손님의 룰렛에 영구히 남습니다." + prize;
                     Say(Lines.DealerLoses, true);
                     break;
                 default:
@@ -1300,9 +1299,12 @@ namespace RouletteLike.Roulette
             {
                 potChipImages[i].gameObject.SetActive(i < chipsShown);
             }
+            string closing = _battle.TableFee > 0
+                ? $"   ·   마감 사용료 −{_battle.TableFee}"
+                : _battle.Round >= PotBattle.TableFeeStartRound - 2 ? $"   ·   {PotBattle.TableFeeStartRound}R부터 마감" : "";
             roundText.text = _battle.Profile.Telegraphs
-                ? $"{_run.FloorIndex + 1}F · TUTORIAL TABLE   ·   ROUND {_battle.Round}"
-                : $"{_run.FloorIndex + 1}F · {_battle.Profile.Name}   ·   ROUND {_battle.Round}";
+                ? $"{_run.FloorIndex + 1}F · TUTORIAL TABLE   ·   ROUND {_battle.Round}{closing}"
+                : $"{_run.FloorIndex + 1}F · {_battle.Profile.Name}   ·   ROUND {_battle.Round}{closing}";
             RefreshBetControls();
             RefreshHouseRuleUi();
             RefreshChainPreview();
@@ -1704,6 +1706,19 @@ namespace RouletteLike.Roulette
 
             relicOverlayBody.text = string.Join("\n", lines);
             relicOverlay.SetActive(true);
+        }
+
+        /// <summary>종료 화면: 가지고 나가는 칩(입장 칩까지 + 상금)과 하우스가 회수하는 테이블 칩(ADR 0007).</summary>
+        private string DescribeChipsCarried()
+        {
+            int entry = _run.ChipsAtEntry;
+            int kept = Mathf.Min(_battle.Player.Chips, entry);
+            int returned = Mathf.Max(0, _battle.Player.Chips - entry);
+            int winnings = _battle.Outcome == BattleOutcome.PlayerWinsByBankrupt ? _run.WinningsFor(_battle.Profile) : 0;
+            string line = winnings > 0
+                ? $"가지고 나가는 칩: {kept} + 상금 {winnings} = {kept + winnings}"
+                : $"가지고 나가는 칩: {kept}";
+            return returned > 0 ? line + $"  (입장 칩 {entry}을 넘은 테이블 칩 {returned}은 하우스가 회수)" : line;
         }
 
         private static string DescribeRelicPrize(RelicId? prize)

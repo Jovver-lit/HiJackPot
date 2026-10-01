@@ -97,9 +97,9 @@ namespace RouletteLike.Battle
             };
 
             return new DealerProfile(
-                name: "매니저", startingChips: 26, tableLimit: 5, dealerAnte: 2, cashOutAt: 8,
+                name: "매니저", startingChips: 48, tableLimit: 5, dealerAnte: 2, cashOutAt: 10,
                 houseRule: HouseRule.JackpotLines, telegraphs: false, counterHijacks: true,
-                wheel: wheel, baseInsurance: 1, tableOuterRing: CreateOuterRing());
+                wheel: wheel, baseInsurance: 2, tableOuterRing: CreateOuterRing());
         }
 
         /// <summary>
@@ -186,7 +186,7 @@ namespace RouletteLike.Battle
             };
 
             return new DealerProfile(
-                name: "까마귀 딜러", startingChips: 22, tableLimit: 3, dealerAnte: 1, cashOutAt: 5,
+                name: "까마귀 딜러", startingChips: 22, tableLimit: 3, dealerAnte: 1, cashOutAt: 7,
                 houseRule: HouseRule.FirstStrike, telegraphs: false, counterHijacks: true,
                 wheel: wheel);
         }

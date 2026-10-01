@@ -12,3 +12,4 @@
 | [0004](0004-dealers-have-house-cut.md) | 일반 딜러의 룰렛에도 하우스 몫이 있다 (토끼 제외) |
 | [0005](0005-outer-ring-carries-house-cut.md) | 바깥 링에는 보호막 대신 하우스 몫이 있다 |
 | [0006](0006-relics-are-door-prizes.md) | 유물은 문 카드에 걸린 상금으로 얻는다 |
+| [0007](0007-table-chips-stay-at-the-table.md) | 전투에서 딴 칩은 테이블에 두고 나간다 (입장 칩까지 + 상금) |

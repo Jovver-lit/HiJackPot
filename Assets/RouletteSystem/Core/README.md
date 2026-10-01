@@ -11,6 +11,7 @@
 | `Run.cs` | 한 런: 1층 토끼 → 문 선택 → 보스, 칩·룰렛·유물 이어가기, 상금, 문 카드 유물 상금(ADR 0006), JACKPOT 칸 획득, 보스 격파 시 바깥 링 해금 |
 | `Relic.cs` | 유물 12개(이름·키워드·설명 데이터)와 수치 상수. 효과 계산은 `PotBattle`·`Run`이 한다 |
 | `BattlePresets.cs` | 시작 룰렛 8칸, 바깥 링 4칸, 토끼(튜토리얼)·여우·고양이·까마귀 딜러, 보스 「매니저」 수치(전부 임시값) |
+| `AssemblyInfo.cs` | 테스트 어셈블리(`HiJackPot.Core.Tests`)에 내부 상태 접근 허용 |
 | `HiJackPot.Core.asmdef` | 어셈블리 정의. `Assembly-CSharp`가 자동 참조한다 |
 
 수치 변경 근거와 시뮬레이션 결과는 `Docs/playtest/`에 남긴다.
