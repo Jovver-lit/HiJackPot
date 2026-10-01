@@ -173,6 +173,10 @@ namespace RouletteLike.Roulette
         [SerializeField, Min(0.1f)] private float chipFlightDuration = 0.45f;
         [SerializeField, Min(0.1f)] private float bannerDuration = 1.1f;
 
+        [Header("Tempo Toggle")]
+        [SerializeField] private UnityEngine.UI.Button tempoButton;
+        [SerializeField] private TMP_Text tempoLabel;
+
         [Header("Run · Doors")]
         [SerializeField] private GameObject doorPanel;
         [SerializeField] private TMP_Text doorFloorText;
@@ -206,6 +210,10 @@ namespace RouletteLike.Roulette
         private int _selectedHijackSourceIndex = -1;
         private int _pendingNudgeIndex = -1;
 
+        /// <summary>템포 배율(1 또는 2). 결과 확인 시간·딜러 턴·회전·연출 대기를 이만큼 빨리 감는다. 기기에 저장한다.</summary>
+        private float _tempo = 1f;
+        private const string TempoKey = "hijackpot.settings.tempo";
+
         public bool CanChooseSpinPower => _state == ViewState.PlayerTurn && !_playerSpinning;
         public UnityEvent OnDealerSpinRequested => onDealerSpinRequested;
 
@@ -237,6 +245,9 @@ namespace RouletteLike.Roulette
 
             endContinueButton?.onClick.AddListener(OnEndContinue);
             relicStripButton?.onClick.AddListener(OpenRelicOverlay);
+            _tempo = PlayerPrefs.GetFloat(TempoKey, 1f) >= 2f ? 2f : 1f;
+            tempoButton?.onClick.AddListener(ToggleTempo);
+            RefreshTempoLabel();
             relicOverlayClose?.onClick.AddListener(() => relicOverlay?.SetActive(false));
             nudgeLeftButton?.onClick.AddListener(() => ChooseNudge(-1));
             nudgeStayButton?.onClick.AddListener(() => ChooseNudge(0));
@@ -303,9 +314,10 @@ namespace RouletteLike.Roulette
             spinInput?.ShowUnavailableState("문 선택");
             if (doorFloorText != null)
             {
-                doorFloorText.text = _run.CurrentFloorKind == FloorKind.Boss
+                doorFloorText.text = (_run.CurrentFloorKind == FloorKind.Boss
                     ? $"{_run.FloorIndex + 1}층 · 보스 테이블  ·  칩 {_run.Chips}"
-                    : $"{_run.FloorIndex + 1}층 · 어느 딜러의 룰렛을 털까?  ·  칩 {_run.Chips}";
+                    : $"{_run.FloorIndex + 1}층 · 어느 딜러의 룰렛을 털까?  ·  칩 {_run.Chips}")
+                    + "\n" + DealerLines.FloorAnnouncement(_run.FloorIndex);
             }
 
             for (int i = 0; i < doorButtons.Length; i++)
@@ -449,9 +461,7 @@ namespace RouletteLike.Roulette
 
             presentationUi?.SetHouseRuleHighlighted(false);
             ApplyDealerIdentity();
-            dealerLineText.text = _battle.Profile.Telegraphs
-                ? "\"어서오세요, 첫 손님이시네요. 걸고, 돌리고, 적당할 때 터뜨리세요.\""
-                : $"\"{_battle.Profile.Name}입니다. 오늘의 하우스 룰은 게시판에 붙어 있습니다.\"";
+            Say(Lines.Opening);
             AddLog($"{_run.FloorIndex + 1}층: {_battle.Profile.Name} 전투 시작");
             StartCoroutine(HideOpeningSpeechBubbleAfterDelay());
             StartCoroutine(BeginRound());
@@ -470,7 +480,7 @@ namespace RouletteLike.Roulette
             calculationText.text = _battle.RoundStartEffects.Count > 0
                 ? "[라운드 시작] " + string.Join("  ·  ", _battle.RoundStartEffects)
                 : "선공은 매 라운드 동전으로 정합니다";
-            yield return new WaitForSecondsRealtime(resultPause);
+            yield return Wait(resultPause);
             yield return ContinueTurnFlow();
         }
 
@@ -572,7 +582,7 @@ namespace RouletteLike.Roulette
 
             _playerSpinning = true;
             _playerSpinsThisTurn++;
-            spinController.DurationScale = _playerSpinsThisTurn == 1 ? 1f : followUpSpinScale;
+            spinController.DurationScale = (_playerSpinsThisTurn == 1 ? 1f : followUpSpinScale) / _tempo;
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Spin);
             instructionText.text = "손을 떠났습니다. 이제 룰렛이 결정합니다.";
             resultText.text = "회전 중...";
@@ -655,6 +665,7 @@ namespace RouletteLike.Roulette
 
             int target = Neighbor(index, direction);
             FlushCoreLog();
+            Say(Lines.Nudged, true);
             if (spinController != null)
             {
                 spinController.NudgeToSegment(target, () => ResolvePlayerLanding(target));
@@ -675,10 +686,14 @@ namespace RouletteLike.Roulette
             resultText.text = DescribeLanding(landing, SlotTitle(_battle.Player.Wheel[index]));
             calculationText.text = landing.Formula;
             ShowLandingFeedback(Side.Player, landing);
+            if (!landing.EndedTurn && (landing.JackpotLine || landing.Group.Count >= 3 || landing.PotAfter - landing.PotBefore >= 6))
+            {
+                Say(Lines.BigCombo, true);
+            }
 
             if (landing.EndedTurn)
             {
-                dealerLineText.text = "\"하우스 몫입니다. 테이블 위의 칩은 저희가 정리하겠습니다.\"";
+                Say(Lines.PlayerHouseCut);
                 if (landing.HouseCutHit && landing.Amount > 0)
                 {
                     StartCoroutine(PlayBanner("하우스 몫!", $"판돈 {landing.Amount} 증발", new Color32(230, 84, 84, 255)));
@@ -711,9 +726,7 @@ namespace RouletteLike.Roulette
             calculationText.text = result.RelicBonus > 0
                 ? $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} + 유물 {result.RelicBonus} = {result.Damage}"
                 : $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} = {result.Damage}";
-            dealerLineText.text = result.Damage >= 8
-                ? "\"크게 가져가시네요. 장부에 기록해 두겠습니다.\""
-                : "\"정산 완료. 다음 판도 기대하겠습니다.\"";
+            Say(result.Damage >= 8 ? Lines.BigCashOut : Lines.SmallCashOut, result.Damage >= 8);
             StartCoroutine(CashOutThenEndTurn(result));
         }
 
@@ -759,7 +772,7 @@ namespace RouletteLike.Roulette
 
             Apply();
             RefreshAllUi();
-            yield return new WaitForSecondsRealtime(resultPause * 1.5f);
+            yield return Wait(resultPause * 1.5f);
             yield return ContinueTurnFlow();
         }
 
@@ -784,7 +797,7 @@ namespace RouletteLike.Roulette
             _state = ViewState.Busy;
             spinInput?.ShowUnavailableState("턴 종료");
             RefreshAllUi();
-            yield return new WaitForSecondsRealtime(resultPause);
+            yield return Wait(resultPause);
             yield return ContinueTurnFlow();
         }
 
@@ -803,9 +816,9 @@ namespace RouletteLike.Roulette
             _battle.PlaceAnte(_battle.Profile.DealerAnte);
             FlushCoreLog();
             RefreshAllUi();
-            if (enemySpinController != null) enemySpinController.DurationScale = dealerFastForwardScale;
+            if (enemySpinController != null) enemySpinController.DurationScale = dealerFastForwardScale / _tempo;
             float dealerPause = resultPause * dealerFastForwardScale;
-            yield return new WaitForSecondsRealtime(dealerSpinDelay);
+            yield return Wait(dealerSpinDelay);
 
             int spins = 0;
             while (_battle.Phase == BattlePhase.Spinning && _battle.Active == Side.Dealer)
@@ -816,9 +829,7 @@ namespace RouletteLike.Roulette
                     FlushCoreLog();
                     resultText.text = cashOut.FullCoverage ? "전액 보장!" : $"{DealerShortName} CASH OUT  피해 {cashOut.Damage}";
                     calculationText.text = $"판돈 {cashOut.Pot} − 내 보험 {cashOut.OpponentInsurance} = {cashOut.Damage}";
-                    dealerLineText.text = cashOut.FullCoverage
-                        ? "\"보험이 전액 보장했군요. 규정상 칸 하나를 양도하겠습니다.\""
-                        : "\"정산하겠습니다. 손님 칩에서 받아 두었어요.\"";
+                    Say(cashOut.FullCoverage ? "보험이 전액 보장했군요. 규정상 칸 하나를 양도하겠습니다." : Lines.DealerCashOut);
                     presentationUi?.SetHouseRuleHighlighted(cashOut.FullCoverage);
                     yield return PlayCashOutFlight(Side.Dealer, cashOut);
                     break;
@@ -835,16 +846,16 @@ namespace RouletteLike.Roulette
                     : DealerShortName + " " + DescribeLanding(landing, SlotTitle(_battle.Dealer.Wheel[_dealerLandingIndex]));
                 if (landing.HouseCutHit)
                 {
-                    dealerLineText.text = "\"...하우스는 원래 저희 편인데요.\"";
+                    Say(Lines.DealerHouseCut);
                     break;
                 }
                 calculationText.text = landing.Formula;
                 RefreshAllUi();
-                yield return new WaitForSecondsRealtime(dealerPause);
+                yield return Wait(dealerPause);
             }
 
             RefreshAllUi();
-            yield return new WaitForSecondsRealtime(resultPause);
+            yield return Wait(resultPause);
             // 딜러 차례가 끝나면 이름표를 거둬 성향 칸을 다시 보이게 한다.
             HideLandingFeedback(Side.Dealer);
         }
@@ -856,7 +867,7 @@ namespace RouletteLike.Roulette
             onDealerSpinRequested?.Invoke();
             if (dealerButtonPressLeadTime > 0f)
             {
-                yield return new WaitForSecondsRealtime(dealerButtonPressLeadTime);
+                yield return Wait(dealerButtonPressLeadTime);
             }
 
             enemyRoulette?.PixelWheelRenderer?.ClearHighlight();
@@ -1027,9 +1038,7 @@ namespace RouletteLike.Roulette
             presentationUi?.SetHouseRuleHighlighted(false);
             resultText.text = stolenSlot.IsJackpot ? $"JACKPOT HIJACK  {stolenSlot.Label}" : $"HIJACK  {stolenSlot.Label}";
             calculationText.text = $"{DealerShortName} {sourceIndex + 1}번 칸 → 내 {destinationIndex + 1}번 칸 (영구)";
-            dealerLineText.text = stolenSlot.IsJackpot
-                ? $"\"「{stolenSlot.Label}」까지요? 보안팀을 불러드리겠습니다.\""
-                : "\"양도 처리가 완료됐습니다. 반환은 불가능합니다.\"";
+            Say(stolenSlot.IsJackpot ? Lines.JackpotHijacked : Lines.Hijacked, true);
             _state = ViewState.Busy;
             if (stolenSlot.IsJackpot)
             {
@@ -1037,10 +1046,52 @@ namespace RouletteLike.Roulette
             }
             else
             {
-                yield return new WaitForSecondsRealtime(resultPause);
+                yield return Wait(resultPause);
             }
 
             yield return ContinueTurnFlow();
+        }
+
+        // ───────────── 템포 ─────────────
+
+        private WaitForSecondsRealtime Wait(float seconds) => new WaitForSecondsRealtime(seconds / _tempo);
+
+        private void ToggleTempo()
+        {
+            _tempo = _tempo >= 2f ? 1f : 2f;
+            PlayerPrefs.SetFloat(TempoKey, _tempo);
+            PlayerPrefs.Save();
+            RefreshTempoLabel();
+        }
+
+        private void RefreshTempoLabel()
+        {
+            if (tempoLabel != null) tempoLabel.text = _tempo >= 2f ? "속도 ×2" : "속도 ×1";
+        }
+
+        // ───────────── 딜러 반응 ─────────────
+
+        private DealerLines Lines => DealerLines.For(_battle != null ? _battle.Profile.Name : "");
+
+        /// <summary>딜러 한마디. react면 딜러 그림이 움찔한다(큰 연쇄·HIJACK·큰 CASH OUT에 즉시 반응, CLAUDE.md 4장).</summary>
+        private void Say(string line, bool react = false)
+        {
+            if (dealerLineText != null) dealerLineText.text = $"\"{line}\"";
+            if (react && dealerSprite != null) StartCoroutine(Flinch(dealerSprite.rectTransform));
+        }
+
+        private static IEnumerator Flinch(RectTransform target)
+        {
+            Vector2 origin = target.anchoredPosition;
+            const float duration = 0.32f;
+            for (float t = 0f; t < duration && target != null; t += Time.unscaledDeltaTime)
+            {
+                float k = 1f - t / duration;
+                target.anchoredPosition = origin + new Vector2(Mathf.Sin(t * 70f) * 9f * k, 0f);
+                yield return null;
+            }
+
+            if (target != null) target.anchoredPosition = origin;
         }
 
         // ───────────── 큰 순간 ─────────────
@@ -1069,7 +1120,7 @@ namespace RouletteLike.Roulette
 
             momentBanner.localScale = Vector3.one;
             momentBannerTitle.rectTransform.localScale = Vector3.one;
-            yield return new WaitForSecondsRealtime(bannerDuration);
+            yield return Wait(bannerDuration);
             momentBanner.gameObject.SetActive(false);
         }
 
@@ -1111,12 +1162,13 @@ namespace RouletteLike.Roulette
             for (int i = 0; i < chips.Count; i++) starts[i] = chips[i].position;
             Vector3 end = target.position;
             const float stagger = 0.03f;
-            float total = chipFlightDuration + stagger * chips.Count;
+            float flight = chipFlightDuration / _tempo;
+            float total = flight + stagger * chips.Count;
             for (float t = 0f; t < total; t += Time.unscaledDeltaTime)
             {
                 for (int i = 0; i < chips.Count; i++)
                 {
-                    float k = Mathf.Clamp01((t - i * stagger) / chipFlightDuration);
+                    float k = Mathf.Clamp01((t - i * stagger) / flight);
                     float eased = 1f - (1f - k) * (1f - k);
                     bool bounces = i >= chips.Count - blocked;
                     Vector3 position;
@@ -1153,7 +1205,7 @@ namespace RouletteLike.Roulette
                 StartCoroutine(FloatText(result.Damage > 0 ? $"보험 −{result.OpponentInsurance}" : "전액 보장!", wallPoint, new Color32(86, 206, 214, 255), 30));
             }
 
-            yield return new WaitForSecondsRealtime(0.35f);
+            yield return Wait(0.35f);
         }
 
         /// <summary>떠오르며 사라지는 숫자(피해·보험). 판돈 숫자 글꼴을 복제해 쓴다.</summary>
@@ -1198,12 +1250,12 @@ namespace RouletteLike.Roulette
                 case BattleOutcome.PlayerWinsByCleanSweep:
                     endTitleText.text = "완전 강탈";
                     endBodyText.text = $"{_battle.Profile.Name}의 룰렛을 전부 봉인했습니다.\n상금 대신 JACKPOT 칸을 가져갑니다." + prize;
-                    dealerLineText.text = "\"...제 룰렛이 텅 비었네요. 다음 테이블도 화이팅~\"";
+                    Say(Lines.CleanSwept, true);
                     break;
                 case BattleOutcome.PlayerWinsByBankrupt:
                     endTitleText.text = $"{_battle.Profile.Name} 파산";
                     endBodyText.text = $"남은 칩 {_battle.Player.Chips} + 상금 {winnings}.\n빼앗은 칸은 손님의 룰렛에 영구히 남습니다." + prize;
-                    dealerLineText.text = "\"축하드립니다. 다음 테이블도 화이팅~\"";
+                    Say(Lines.DealerLoses, true);
                     break;
                 default:
                     endTitleText.text = "계약 갱신";

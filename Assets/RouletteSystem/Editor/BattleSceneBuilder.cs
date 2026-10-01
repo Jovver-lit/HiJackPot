@@ -242,7 +242,8 @@ namespace RouletteLike.Roulette.Editor
             // ── 사건 띠: 방금 일어난 일 3개를 한 줄로(전체 기록 대신).
             RectTransform eventStrip = AddFramedPanel("EventStrip", mainGameArea, new Vector2(0f, -385f), new Vector2(1840f, 44f), Panel, DarkGold, out _, out _);
             AddText("Icon", eventStrip, "LOG", font, 14, Gold, TextAlignmentOptions.Center, new Vector2(-880f, 0f), new Vector2(60f, 30f));
-            TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(30f, 0f), new Vector2(1740f, 36f));
+            TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(-30f, 0f), new Vector2(1620f, 36f));
+            UnityEngine.UI.Button tempoButton = AddButton("TempoButton", eventStrip, new Vector2(860f, 0f), new Vector2(110f, 34f), PanelLight, font, "속도 ×1", 15, out TMP_Text tempoLabel);
             combatLogText.textWrappingMode = TextWrappingModes.NoWrap;
             combatLogText.overflowMode = TextOverflowModes.Ellipsis;
 
@@ -346,6 +347,8 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "nudgeRightButton", nudgeRightButton);
             SetObject(identitySo, "nudgeRightLabel", nudgeRightLabel);
             SetObject(identitySo, "nudgeCountText", nudgeCountText);
+            SetObject(identitySo, "tempoButton", tempoButton);
+            SetObject(identitySo, "tempoLabel", tempoLabel);
             SetObject(identitySo, "playerWheelClick", playerClickArea);
             SetObject(identitySo, "dealerWheelClick", dealerClickArea);
             SetObject(identitySo, "hijackBar", hijackBar.gameObject);
@@ -577,7 +580,7 @@ namespace RouletteLike.Roulette.Editor
             RectTransform overlay = AddPanel("DoorPanel", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(10, 8, 14, 235));
             overlay.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
             AddText("Title", overlay, "다음 테이블", font, 40, Gold, TextAlignmentOptions.Center, new Vector2(0f, 380f), new Vector2(1200f, 60f));
-            floorText = AddText("FloorText", overlay, "2층", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 325f), new Vector2(1200f, 36f));
+            floorText = AddText("FloorText", overlay, "2층", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 315f), new Vector2(1400f, 64f));
             doorButtons = new UnityEngine.UI.Button[2];
             doorTitles = new TMP_Text[2];
             doorBodies = new TMP_Text[2];
