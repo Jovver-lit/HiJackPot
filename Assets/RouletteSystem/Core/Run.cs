@@ -24,9 +24,6 @@ namespace RouletteLike.Battle
     /// </summary>
     public sealed class Run
     {
-        /// <summary>파산 승리 상금 = 그 딜러 시작 칩 × 이 비율(임시값).</summary>
-        public const float WinningsRatio = 0.3f;
-
         /// <summary>딜러층이 하나 오를 때마다 딜러 시작 칩에 더하는 비율(2층 ×1.0, 3층 ×1.3, 4층 ×1.6).</summary>
         public const float DealerChipsPerFloor = 0.3f;
 
@@ -78,15 +75,44 @@ namespace RouletteLike.Battle
         /// <summary>지금 들어간 문에 걸린 유물 상금(없으면 null). 이기면 CompleteBattle에서 받는다.</summary>
         public RelicId? CurrentPrize => _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
 
-        /// <summary>방금 끝낸 전투에서 하우스가 회수한 테이블 칩(입장 칩을 넘은 몫). 종료 화면 표시용.</summary>
-        public int LastTableChipsReturned { get; private set; }
+        /// <summary>환전 규칙(딴 칩 중 칩으로 남기는 비율, 현금 → 칩 환전 비율). 시뮬레이션은 다른 값을 넣어 비교한다.</summary>
+        public ChipExchangeRules Exchange { get; }
 
-        /// <summary>전투를 끝내고 나갈 때 가지고 나갈 칩 미리보기(입장 칩까지 + 파산 승리 상금).</summary>
-        public int PreviewChipsAfter(PotBattle battle)
+        /// <summary>현금: 전투에서 입장 칩보다 많이 딴 칩 중 칩으로 남기지 않은 몫을 카지노가 환전해 준 것. 문 선택 화면의 환전 창구에서 칩으로 바꿀 수 있다.</summary>
+        public int Cash { get; private set; }
+
+        /// <summary>방금 끝낸 전투의 딴 칩 정산 결과. 종료 화면 표시용.</summary>
+        public ChipSettlement LastSettlement { get; private set; }
+
+        /// <summary>전투를 끝내고 나갈 때의 정산 미리보기(칩으로 남는 몫, 현금으로 환전되는 몫, 상금).</summary>
+        public ChipSettlement PreviewSettlement(PotBattle battle)
         {
-            int kept = Math.Min(battle.Player.Chips, _chipsAtEntry);
-            return battle.Outcome == BattleOutcome.PlayerWinsByBankrupt ? kept + WinningsFor(battle.Profile) : kept;
+            int excess = Math.Max(0, battle.Player.Chips - _chipsAtEntry);
+            float keepShare = Math.Min(1f, Exchange.KeepShare + (_relics.Contains(RelicId.VipCard) ? RelicCatalog.VipKeepShareBonus : 0f));
+            int keptExcess = (int)Math.Floor(excess * keepShare);
+            return new ChipSettlement(
+                entryChips: _chipsAtEntry,
+                baseChips: Math.Min(battle.Player.Chips, _chipsAtEntry),
+                keptExcess: keptExcess,
+                cash: excess - keptExcess,
+                winnings: battle.Outcome == BattleOutcome.PlayerWinsByBankrupt ? WinningsFor(battle.Profile) : 0);
         }
+
+        /// <summary>환전 창구: 현금으로 칩을 산다(칩 1 = 현금 Exchange.CashPerChip). 살 수 있는 만큼만 사고 산 칩 수를 돌려준다.</summary>
+        public int BuyChips(int chips)
+        {
+            if (Outcome != RunOutcome.InProgress || CurrentBattle != null || chips <= 0) return 0;
+            int affordable = Math.Min(chips, Cash / Exchange.CashPerChip);
+            if (Exchange.MaxChipsPerVisit > 0) affordable = Math.Min(affordable, Exchange.MaxChipsPerVisit - ChipsBoughtThisVisit);
+            if (affordable <= 0) return 0;
+            Cash -= affordable * Exchange.CashPerChip;
+            Chips += affordable;
+            ChipsBoughtThisVisit += affordable;
+            return affordable;
+        }
+
+        /// <summary>이번 문 선택 화면에서 환전 창구로 산 칩 수(층마다 0으로 돌아간다).</summary>
+        public int ChipsBoughtThisVisit { get; private set; }
 
         /// <summary>방금 끝낸 전투에서 받은 유물(없으면 null). 종료 화면 표시용.</summary>
         public RelicId? LastRelicGained { get; private set; }
@@ -100,8 +126,10 @@ namespace RouletteLike.Battle
             Func<DealerProfile> boss,
             int floorCount = 5,
             IEnumerable<Slot> outerRing = null,
-            IEnumerable<RelicId> startingRelics = null)
+            IEnumerable<RelicId> startingRelics = null,
+            ChipExchangeRules exchange = null)
         {
+            Exchange = exchange ?? ChipExchangeRules.Default;
             _seed = seed;
             _rng = new Random(seed);
             // 유물 상금은 별도 RNG로 굴려 문(딜러) 순서가 유물 때문에 바뀌지 않게 한다.
@@ -149,16 +177,17 @@ namespace RouletteLike.Battle
                 return;
             }
 
-            // 테이블 칩 회수(ADR 0007): 전투 중 딜러에게서 딴 칩은 그 테이블의 칩이다. 입장할 때의 칩까지만 가지고 나가고,
-            // 잃은 칩은 그대로 잃는다. 대신 상금을 받는다. 제로섬 전투가 런 전체의 눈덩이가 되지 않게 한다.
-            LastTableChipsReturned = Math.Max(0, battle.Player.Chips - _chipsAtEntry);
-            Chips = Math.Min(battle.Player.Chips, _chipsAtEntry);
+            // 딴 칩 정산(ADR 0008): 잃은 칩은 그대로 잃는다. 입장 칩보다 많이 딴 칩은 일정 비율만 칩(목숨)으로 남고,
+            // 나머지는 카지노가 현금으로 환전해 준다. 제로섬 전투가 목숨의 눈덩이가 되지 않으면서도 딴 칩은 전부 내 것이다.
+            LastSettlement = PreviewSettlement(battle);
+            Chips = LastSettlement.ChipsAfter;
+            Cash += LastSettlement.Cash;
             _wheel.Clear();
             _wheel.AddRange(battle.Player.Wheel);
 
-            if (battle.Outcome == BattleOutcome.PlayerWinsByBankrupt)
+            if (battle.Outcome == BattleOutcome.PlayerWinsByCleanSweep)
             {
-                Chips += WinningsFor(battle.Profile);
+                PendingJackpot = FindUnclaimedJackpot(battle.Profile);
             }
 
             RelicId? prize = _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
@@ -166,10 +195,6 @@ namespace RouletteLike.Battle
             {
                 _relics.Add(prize.Value);
                 LastRelicGained = prize;
-            }
-            else if (battle.Outcome == BattleOutcome.PlayerWinsByCleanSweep)
-            {
-                PendingJackpot = FindUnclaimedJackpot(battle.Profile);
             }
 
             bool beatBoss = CurrentFloorKind == FloorKind.Boss;
@@ -188,11 +213,10 @@ namespace RouletteLike.Battle
             RollDoors();
         }
 
-        /// <summary>파산 승리 상금 = 딜러 시작 칩 × 비율. 유물 「VIP 회원증」이 ×1.5.</summary>
+        /// <summary>파산 승리 상금 = 딜러 시작 칩 × 비율(기본 0: 딴 칩 정산이 상금 역할을 한다).</summary>
         public int WinningsFor(DealerProfile dealer)
         {
-            float ratio = WinningsRatio * (_relics.Contains(RelicId.VipCard) ? RelicCatalog.VipWinningsMultiplier : 1f);
-            return (int)Math.Round(dealer.StartingChips * ratio);
+            return (int)Math.Round(dealer.StartingChips * Exchange.WinningsRatio);
         }
 
         /// <summary>확정 획득한 JACKPOT 칸으로 내 칸 하나를 덮어쓴다(하우스 몫 불가). -1이면 포기한다.</summary>
@@ -227,6 +251,7 @@ namespace RouletteLike.Battle
 
         private void RollDoors()
         {
+            ChipsBoughtThisVisit = 0;
             _doors.Clear();
             _doorRelics.Clear();
             _enteredDoor = -1;
