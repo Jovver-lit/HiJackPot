@@ -101,8 +101,30 @@ namespace RouletteLike.Battle
         /// <summary>이름·시작 칩·앤티·기본 보험·성향(CASH OUT 판돈)을 바꾼 사본. 2회차 보스 등.</summary>
         public DealerProfile WithStakes(string name, int startingChips, int anteBonus, int insuranceBonus, int cashOutAtBonus)
         {
-            return new DealerProfile(name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt + cashOutAtBonus, HouseRule, Telegraphs, CounterHijacks,
+            DealerProfile copy = new DealerProfile(name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt + cashOutAtBonus, HouseRule, Telegraphs, CounterHijacks,
                 Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance + insuranceBonus, TableOuterRing);
+            copy.Trick = Trick;
+            return copy;
+        }
+
+        /// <summary>딜러 특수 룰(실험). 기본 None.</summary>
+        public DealerTrick Trick { get; private set; }
+
+        /// <summary>특수 룰을 붙인 사본.</summary>
+        public DealerProfile WithTrick(DealerTrick trick)
+        {
+            DealerProfile copy = WithStakes(Name, StartingChips, 0, 0, 0);
+            copy.Trick = trick;
+            return copy;
+        }
+
+        /// <summary>테이블 규칙으로 양쪽에 바깥 링을 붙인 사본(2회차 딜러 실험).</summary>
+        public DealerProfile WithTableRing(IReadOnlyList<Slot> ring)
+        {
+            DealerProfile copy = new DealerProfile(Name, StartingChips, TableLimit, DealerAnte, CashOutAt, HouseRule, Telegraphs, CounterHijacks,
+                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance, ring);
+            copy.Trick = Trick;
+            return copy;
         }
     }
 }

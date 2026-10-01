@@ -110,6 +110,17 @@ namespace RouletteLike.Battle
         /// <summary>지금 들어간 문에 걸린 유물 상금(없으면 null). 이기면 CompleteBattle에서 받는다.</summary>
         public RelicId? CurrentPrize => _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
 
+        /// <summary>런 구성 실험 옵션(유물 획득처·2회차 바깥 링·딜러 특수 룰).</summary>
+        public RunRules Rules { get; }
+
+        private readonly List<DealerTrick> _tricks = new List<DealerTrick>();
+
+        /// <summary>빼앗아 온 딜러 특수 룰.</summary>
+        public IReadOnlyList<DealerTrick> Tricks => _tricks;
+
+        /// <summary>방금 끝낸 전투에서 빼앗은 특수 룰(없으면 None).</summary>
+        public DealerTrick LastTrickStolen { get; private set; }
+
         /// <summary>환전 규칙(딴 칩 중 칩으로 남기는 비율, 현금 → 칩 환전 비율). 시뮬레이션은 다른 값을 넣어 비교한다.</summary>
         public ChipExchangeRules Exchange { get; }
 
@@ -165,8 +176,10 @@ namespace RouletteLike.Battle
             int floorCount = 0,
             IEnumerable<Slot> outerRing = null,
             IEnumerable<RelicId> startingRelics = null,
-            ChipExchangeRules exchange = null)
+            ChipExchangeRules exchange = null,
+            RunRules rules = null)
         {
+            Rules = rules ?? RunRules.Default;
             Exchange = exchange ?? ChipExchangeRules.Default;
             _seed = seed;
             _rng = new Random(seed);
@@ -206,7 +219,7 @@ namespace RouletteLike.Battle
 
             _enteredDoor = doorIndex;
             _chipsAtEntry = Chips;
-            CurrentBattle = new PotBattle(_wheel, Chips, _doors[doorIndex], _seed * 31 + FloorIndex, _outerRing, _relics);
+            CurrentBattle = new PotBattle(_wheel, Chips, _doors[doorIndex], _seed * 31 + FloorIndex, _outerRing, _relics, _tricks);
             return CurrentBattle;
         }
 
@@ -220,6 +233,7 @@ namespace RouletteLike.Battle
             if (battle.Phase != BattlePhase.Ended) throw new InvalidOperationException("전투가 아직 끝나지 않았습니다.");
             CurrentBattle = null;
             LastRelicGained = null;
+            LastTrickStolen = DealerTrick.None;
 
             if (battle.Outcome == BattleOutcome.DealerWins)
             {
@@ -241,7 +255,16 @@ namespace RouletteLike.Battle
                 PendingJackpot = FindUnclaimedJackpot(battle.Profile);
             }
 
+            if (Rules.CanStealTricks && battle.Profile.Trick != DealerTrick.None && !_tricks.Contains(battle.Profile.Trick)
+                && (battle.Outcome == BattleOutcome.PlayerWinsByCleanSweep || battle.HouseRulesAchieved >= Rules.StealHouseRules))
+            {
+                _tricks.Add(battle.Profile.Trick);
+                LastTrickStolen = battle.Profile.Trick;
+            }
+
             RelicId? prize = _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
+            bool challengeMet = battle.Outcome == BattleOutcome.PlayerWinsByCleanSweep || battle.HouseRulesAchieved >= Rules.StealHouseRules;
+            if (Rules.Relics == RelicSource.DoorChallenge && !challengeMet) prize = null;
             if (prize.HasValue && !_relics.Contains(prize.Value))
             {
                 _relics.Add(prize.Value);
@@ -330,7 +353,7 @@ namespace RouletteLike.Battle
 
             for (int i = 0; i < _doors.Count; i++)
             {
-                if (CurrentFloorKind == FloorKind.Boss || pool.Count == 0)
+                if (CurrentFloorKind == FloorKind.Boss || pool.Count == 0 || Rules.Relics == RelicSource.ShopOnly)
                 {
                     _doorRelics.Add(null);
                     continue;
@@ -379,6 +402,23 @@ namespace RouletteLike.Battle
                 : dealer.WithStakes(dealer.Name, (int)Math.Round(dealer.StartingChips * scale), anteBonus, 0, cashOutBonus);
         }
 
+        /// <summary>실험 옵션에 따라 딜러에 특수 룰과 2회차 바깥 링을 붙인다.</summary>
+        private DealerProfile DressForStage(DealerProfile dealer)
+        {
+            if (Stage >= Rules.TricksFromStage)
+            {
+                DealerTrick trick = DealerTricks.For(dealer.Name, Rules.Tricks);
+                if (trick != DealerTrick.None) dealer = dealer.WithTrick(trick);
+            }
+
+            if (Stage > 0 && Rules.SecondStageOuterRing && dealer.TableOuterRing.Count == 0)
+            {
+                dealer = dealer.WithTableRing(BattlePresets.CreateOuterRing());
+            }
+
+            return dealer;
+        }
+
         private DealerProfile ScaleBoss(DealerProfile boss)
         {
             if (Stage == 0) return boss;
@@ -401,12 +441,12 @@ namespace RouletteLike.Battle
             }
 
             int first = _rng.Next(_dealerPool.Count);
-            _doors.Add(ScaleForFloor(_dealerPool[first]()));
+            _doors.Add(DressForStage(ScaleForFloor(_dealerPool[first]())));
             if (_dealerPool.Count > 1)
             {
                 int second = _rng.Next(_dealerPool.Count - 1);
                 if (second >= first) second++;
-                _doors.Add(ScaleForFloor(_dealerPool[second]()));
+                _doors.Add(DressForStage(ScaleForFloor(_dealerPool[second]())));
             }
         }
     }

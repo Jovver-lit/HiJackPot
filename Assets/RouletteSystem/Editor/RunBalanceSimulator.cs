@@ -35,6 +35,10 @@ namespace RouletteLike.Roulette.EditorTools
         };
 
         private const int MaxRoundsPerBattle = 40;
+        private static RunRules _rules;
+
+        /// <summary>상점에서 유물을 먼저 사는지(실험).</summary>
+        public static bool BuyShopRelic { get; set; }
 
         [MenuItem("Tools/HIJACKPOT/Simulate Runs (Balance Report)")]
         private static void RunFromMenu()
@@ -51,6 +55,13 @@ namespace RouletteLike.Roulette.EditorTools
         /// <param name="buyChipsWithCash">문 앞에서 현금을 전부 칩으로 바꾸는지(환전 창구를 최대한 쓰는 플레이어).</param>
         public static string Simulate(int runsPerPolicy, Policy[] policies, ChipExchangeRules exchange, bool buyChipsWithCash)
         {
+            return Simulate(runsPerPolicy, policies, exchange, buyChipsWithCash, null);
+        }
+
+        /// <param name="rules">런 구성 실험 옵션(유물 획득처·2회차 바깥 링·딜러 특수 룰). null이면 기본.</param>
+        public static string Simulate(int runsPerPolicy, Policy[] policies, ChipExchangeRules exchange, bool buyChipsWithCash, RunRules runRules)
+        {
+            _rules = runRules;
             StringBuilder report = new StringBuilder();
             ChipExchangeRules rules = exchange ?? ChipExchangeRules.Default;
             report.AppendLine($"[정산] 딴 칩 중 칩으로 {rules.KeepShare:P0}, 나머지 현금 · 환전 창구 현금 {rules.CashPerChip} = 칩 1 · 환전 창구 사용 {(buyChipsWithCash ? "함" : "안 함")}");
@@ -73,6 +84,7 @@ namespace RouletteLike.Roulette.EditorTools
         {
             int escaped = 0, stalls = 0;
             int[] diedAt = new int[11];
+            long relicCount = 0, trickCount = 0, finishedRuns = 0;
             long shopCash = 0, shopVisits = 0;
             int[] roundBuckets = new int[6]; // 0-2, 3-5, 6-8, 9-11, 12-14, 15+
             Dictionary<string, DealerStats> dealers = new Dictionary<string, DealerStats>();
@@ -82,7 +94,7 @@ namespace RouletteLike.Roulette.EditorTools
             {
                 Run run = new Run(1000 + r, BattlePresets.PlayerStartingChips, BattlePresets.CreateStarterWheel(),
                     BattlePresets.CreateRabbitDealer, BattlePresets.CreateDealerPool(), BattlePresets.CreateStageBoss,
-                    exchange: rules);
+                    exchange: rules, rules: _rules);
                 System.Random doorRng = new System.Random(r * 7 + 3);
                 bool abandoned = false;
                 while (run.Outcome == RunOutcome.InProgress)
@@ -100,10 +112,11 @@ namespace RouletteLike.Roulette.EditorTools
                     if (buyChipsWithCash) run.BuyChips(int.MaxValue);
                     int entryChips = run.Chips;
                     PotBattle battle = run.EnterDoor(doorRng.Next(run.Doors.Count));
-                    if (!dealers.TryGetValue(battle.Profile.Name, out DealerStats stats))
+                    string key = run.Stage > 0 && run.CurrentFloorKind == FloorKind.Dealer ? "2회차 " + battle.Profile.Name : battle.Profile.Name;
+                    if (!dealers.TryGetValue(key, out DealerStats stats))
                     {
                         stats = new DealerStats();
-                        dealers[battle.Profile.Name] = stats;
+                        dealers[key] = stats;
                     }
 
                     stats.Battles++;
@@ -127,6 +140,9 @@ namespace RouletteLike.Roulette.EditorTools
                 }
 
                 if (abandoned) continue;
+                finishedRuns++;
+                relicCount += run.Relics.Count;
+                trickCount += run.Tricks.Count;
                 bool escapedRun = run.Outcome == RunOutcome.Escaped;
                 if (escapedRun) escaped++;
                 foreach (RelicId relic in run.Relics)
@@ -139,6 +155,7 @@ namespace RouletteLike.Roulette.EditorTools
 
             StringBuilder text = new StringBuilder();
             text.AppendLine($"== {policy}: 탈출 {100.0 * escaped / runs:0.0}% · 층별 탈락(1~10층) {string.Join(",", Array.ConvertAll(diedAt, x => x.ToString()), 0, 10)} · 상점 도착 {100.0 * shopVisits / runs:0}%(현금 {(shopVisits > 0 ? shopCash / (double)shopVisits : 0):0}) · 교착({MaxRoundsPerBattle}라운드+) {stalls}");
+            text.AppendLine($"   런당 유물 {relicCount / (double)Math.Max(1, finishedRuns):0.0}개 · 빼앗은 특수 룰 {trickCount / (double)Math.Max(1, finishedRuns):0.00}개");
             text.AppendLine($"   전투 라운드 분포 0-2/3-5/6-8/9-11/12-14/15+: {string.Join(" / ", roundBuckets)}");
             foreach (KeyValuePair<string, DealerStats> pair in dealers)
             {
@@ -243,6 +260,7 @@ namespace RouletteLike.Roulette.EditorTools
         /// <summary>상점 휴리스틱: 칩을 살 수 있는 만큼 사고, 남은 현금으로 레이즈·배율 칸을 강화한다(슬롯머신은 하지 않음).</summary>
         private static void ShopPolicy(Run run, bool buyChips)
         {
+            if (BuyShopRelic) run.BuyShopRelic();
             if (buyChips) run.BuyChips(int.MaxValue);
             for (int guard = 0; guard < 20; guard++)
             {

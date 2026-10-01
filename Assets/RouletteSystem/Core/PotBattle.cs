@@ -145,10 +145,30 @@ namespace RouletteLike.Battle
 
         public bool HasRelic(RelicId id) => _playerRelics.Contains(id);
 
+        private readonly HashSet<DealerTrick> _playerTricks = new HashSet<DealerTrick>();
+
+        /// <summary>플레이어가 빼앗아 온 딜러 특수 룰(실험).</summary>
+        public IReadOnlyCollection<DealerTrick> PlayerTricks => _playerTricks;
+
+        /// <summary>이 좌석에 특수 룰이 적용되는지: 딜러는 자기 프로필의 룰, 플레이어는 빼앗아 온 룰.</summary>
+        public bool HasTrick(Side side, DealerTrick trick)
+        {
+            if (trick == DealerTrick.None) return false;
+            return side == Side.Dealer ? Profile.Trick == trick : _playerTricks.Contains(trick);
+        }
+
+        /// <summary>이번 전투에서 하우스 룰을 달성한 횟수.</summary>
+        public int HouseRulesAchieved { get; private set; }
+
         /// <param name="playerOuterRing">플레이어 자신의 바깥 링(해금된 경우). 없으면 딜러의 테이블 바깥 링을 빌려 쓴다.</param>
         /// <param name="playerRelics">플레이어 유물. 효과는 이 전투 규칙 곳곳에서 확인한다.</param>
-        public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null, IEnumerable<RelicId> playerRelics = null)
+        public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null, IEnumerable<RelicId> playerRelics = null, IEnumerable<DealerTrick> playerTricks = null)
         {
+            if (playerTricks != null)
+            {
+                foreach (DealerTrick trick in playerTricks) _playerTricks.Add(trick);
+            }
+
             if (playerRelics != null)
             {
                 foreach (RelicId relic in playerRelics) _playerRelics.Add(relic);
@@ -472,6 +492,16 @@ namespace RouletteLike.Battle
                 case SlotKind.Raise:
                 {
                     int sum = SumValues(seat.Wheel, group);
+                    if (HasTrick(Active, DealerTrick.FoxJab))
+                    {
+                        Seat target = Opponent(Active);
+                        int hit = Math.Min(target.Chips, sum);
+                        target.Chips -= hit;
+                        seat.Chips += hit;
+                        result.Amount += hit;
+                        return $"잽: 레이즈 {sum} → 상대 칩 −{hit} (판돈 그대로 {seat.Pot})";
+                    }
+
                     seat.Pot += sum;
                     result.Amount += sum;
                     return $"레이즈 {JoinValues(seat.Wheel, group, " + ")} → 판돈 {before} + {sum} = {seat.Pot}";
@@ -479,7 +509,14 @@ namespace RouletteLike.Battle
                 case SlotKind.Multiplier:
                 {
                     int product = 1;
-                    foreach (int i in group) product *= Math.Max(1, seat.Wheel[i].Value);
+                    int allIn = HasTrick(Active, DealerTrick.CatAllIn) ? 1 : 0;
+                    foreach (int i in group) product *= Math.Max(1, seat.Wheel[i].Value + allIn);
+                    if (HasTrick(Active, DealerTrick.CatCatnip))
+                    {
+                        seat.Pot += DealerTricks.CatnipBonus;
+                        before = seat.Pot;
+                    }
+
                     seat.Pot *= product;
                     result.Amount = Math.Max(result.Amount, 1) * product;
                     if (Active == Side.Player && product > 1) _playerMultipliedThisTurn = true;
@@ -488,13 +525,32 @@ namespace RouletteLike.Battle
                 case SlotKind.Insurance:
                 {
                     int sum = SumValues(seat.Wheel, group);
+                    if (HasTrick(Active, DealerTrick.CatAllIn))
+                    {
+                        return $"올인: 보험 {sum}을 쌓지 못함";
+                    }
+
                     seat.Insurance += sum;
                     result.Amount += sum;
+                    if (HasTrick(Active, DealerTrick.FoxInsuranceRebate))
+                    {
+                        seat.Chips += sum;
+                        return $"보험 {JoinValues(seat.Wheel, group, " + ")} → 보험 {seat.Insurance} · 보험 사기: 칩 +{sum}";
+                    }
+
                     return $"보험 {JoinValues(seat.Wheel, group, " + ")} → 보험 {seat.Insurance}";
                 }
                 case SlotKind.Dividend:
                 {
                     int sum = SumValues(seat.Wheel, group);
+                    if (HasTrick(Active, DealerTrick.CrowShiny))
+                    {
+                        Seat target = Opponent(Active);
+                        int stolen = Math.Min(target.Chips, sum);
+                        target.Chips -= stolen;
+                        seat.Chips += stolen;
+                    }
+
                     seat.Chips += sum;
                     result.Amount += sum;
                     return $"배당 {JoinValues(seat.Wheel, group, " + ")} → 칩 +{sum}";
@@ -528,6 +584,13 @@ namespace RouletteLike.Battle
 
         private LandingResult FinishLanding(LandingResult result, Seat seat, List<string> parts)
         {
+            if (!result.EndedTurn && Opponent(Active).Chips <= 0)
+            {
+                // 잽·반짝이 수집처럼 착지만으로 상대 칩을 다 깎으면 그 자리에서 턴을 끝내 승패를 가린다.
+                parts.Add("상대 칩 0");
+                result.EndedTurn = true;
+            }
+
             result.PotAfter = seat.Pot;
             result.Formula = string.Join(" · ", parts);
             Write($"{Name(Active)} 착지: {result.Formula}");
@@ -568,6 +631,11 @@ namespace RouletteLike.Battle
                         damage = Math.Max(damage, slot.Value);
                     }
                 }
+            }
+
+            if (seat.Pot > 0 && HasTrick(side, DealerTrick.CrowPrepay))
+            {
+                damage = FirstThisRound == side ? damage + DealerTricks.PrepayBonus : Math.Max(0, damage - DealerTricks.PrepayPenalty);
             }
 
             int bonus = 0;
@@ -918,6 +986,7 @@ namespace RouletteLike.Battle
 
             HouseRuleProgress = 0;
             HijackChances++;
+            HouseRulesAchieved++;
             Write($"하우스 룰 달성: {reason} → HIJACK 기회 +1");
         }
 
