@@ -79,6 +79,7 @@ namespace RouletteLike.Battle.Tests
                 for (int guard = 0; guard < 200 && battle.Phase != BattlePhase.Ended; guard++)
                 {
                     if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();
+                    if (battle.Phase == BattlePhase.Ended) break; // 테이블 마감 사용료로 끝날 수 있다
                     battle.PlaceAnte(battle.Active == Side.Player ? 4 : 1);
                     if (battle.Active == Side.Player) battle.Land(0);
                     if (battle.Phase == BattlePhase.Spinning) battle.CashOut();

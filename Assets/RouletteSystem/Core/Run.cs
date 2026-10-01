@@ -101,13 +101,22 @@ namespace RouletteLike.Battle
         public FloorKind? NextFloorKind => FloorIndex + 1 < _layout.Count ? _layout[FloorIndex + 1] : (FloorKind?)null;
         public IReadOnlyList<DealerProfile> Doors => _doors;
 
-        /// <summary>문마다 걸린 유물 상금(같은 순서). 그 딜러를 이기면 받는다. 보스 문에는 없다(null).</summary>
+        /// <summary>문마다 걸린 유물(같은 순서). 그 딜러의 하우스 룰을 달성하고 이기면 받는다. 보스 문에는 없다(null).</summary>
         public IReadOnlyList<RelicId?> DoorRelics => _doorRelics;
 
         /// <summary>이번 런에 모은 유물.</summary>
         public IReadOnlyList<RelicId> Relics => _relics;
 
-        /// <summary>지금 들어간 문에 걸린 유물 상금(없으면 null). 이기면 CompleteBattle에서 받는다.</summary>
+        /// <summary>문 카드 유물을 받으려면 그 전투에서 하우스 룰을 이만큼 달성하고 이겨야 한다(도전 유물, ADR 0010).</summary>
+        public const int RelicChallengeHouseRules = 1;
+
+        /// <summary>이 전투에서 유물 도전 조건(하우스 룰 달성)을 채웠는지. 이기기도 해야 받는다.</summary>
+        public static bool RelicChallengeMet(PotBattle battle) => battle.HouseRulesAchieved >= RelicChallengeHouseRules;
+
+        /// <summary>방금 끝낸 전투의 문에 유물이 걸려 있었지만 도전 조건을 못 채워 받지 못했다.</summary>
+        public RelicId? LastRelicMissed { get; private set; }
+
+        /// <summary>지금 들어간 문에 걸린 유물(없으면 null). 하우스 룰을 달성하고 이기면 CompleteBattle에서 받는다.</summary>
         public RelicId? CurrentPrize => _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
 
         /// <summary>환전 규칙(딴 칩 중 칩으로 남기는 비율, 현금 → 칩 환전 비율). 시뮬레이션은 다른 값을 넣어 비교한다.</summary>
@@ -220,6 +229,7 @@ namespace RouletteLike.Battle
             if (battle.Phase != BattlePhase.Ended) throw new InvalidOperationException("전투가 아직 끝나지 않았습니다.");
             CurrentBattle = null;
             LastRelicGained = null;
+            LastRelicMissed = null;
 
             if (battle.Outcome == BattleOutcome.DealerWins)
             {
@@ -242,6 +252,12 @@ namespace RouletteLike.Battle
             }
 
             RelicId? prize = _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
+            if (prize.HasValue && !RelicChallengeMet(battle))
+            {
+                LastRelicMissed = prize;
+                prize = null;
+            }
+
             if (prize.HasValue && !_relics.Contains(prize.Value))
             {
                 _relics.Add(prize.Value);
