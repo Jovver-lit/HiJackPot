@@ -1,0 +1,47 @@
+/* HIJACKPOT 문서 PDF 공용 인쇄 스타일. Chrome 헤드리스 --print-to-pdf로 A4 출력한다(build-pdf.sh). */
+@page { size: A4; margin: 16mm 14mm 18mm 14mm; }
+:root {
+  --ink: #1d1a24;
+  --muted: #5d5868;
+  --gold: #a8741a;
+  --red: #b23a3f;
+  --teal: #2b7f86;
+  --line: #d9d3c7;
+  --panel: #f6f2ea;
+}
+* { box-sizing: border-box; }
+html { font-family: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.55; }
+body { margin: 0; }
+h1 { font-size: 22pt; margin: 0 0 4mm; letter-spacing: -0.5px; }
+h2 { font-size: 15pt; margin: 9mm 0 3mm; padding-bottom: 1.5mm; border-bottom: 2px solid var(--gold); break-after: avoid; }
+h3 { font-size: 12pt; margin: 6mm 0 2mm; color: var(--gold); break-after: avoid; }
+h4 { font-size: 10.5pt; margin: 4mm 0 1.5mm; break-after: avoid; }
+p, li { margin: 0 0 1.6mm; }
+ul, ol { padding-left: 5.5mm; margin: 0 0 3mm; }
+code { font-family: "SF Mono", Menlo, monospace; font-size: 9pt; background: var(--panel); padding: 0 1mm; border-radius: 2px; }
+table { border-collapse: collapse; width: 100%; margin: 2mm 0 4mm; font-size: 9.2pt; break-inside: avoid; }
+th, td { border: 1px solid var(--line); padding: 1.4mm 2mm; text-align: left; vertical-align: top; }
+th { background: var(--panel); font-weight: 700; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+.cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; break-after: page; }
+.cover .kicker { color: var(--gold); font-weight: 700; letter-spacing: 2px; font-size: 11pt; }
+.cover h1 { font-size: 30pt; margin: 3mm 0 5mm; }
+.cover .sub { font-size: 13pt; color: var(--muted); margin-bottom: 12mm; }
+.cover .meta { font-size: 10pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 4mm; }
+.toc { break-after: page; }
+.toc ol { font-size: 11pt; line-height: 1.9; }
+.callout { background: var(--panel); border-left: 4px solid var(--gold); padding: 2.5mm 4mm; margin: 3mm 0; break-inside: avoid; }
+.callout.warn { border-left-color: var(--red); }
+.callout.info { border-left-color: var(--teal); }
+.figure { margin: 3mm 0 5mm; break-inside: avoid; text-align: center; }
+.figure img { width: 100%; border: 1px solid var(--line); border-radius: 2px; }
+.figure .cap { font-size: 8.8pt; color: var(--muted); margin-top: 1.5mm; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.mermaid { margin: 3mm auto 5mm; text-align: center; break-inside: avoid; }
+.mermaid svg { display: inline-block; }
+.page-break { break-before: page; }
+.tag { display: inline-block; font-size: 8pt; padding: 0 1.5mm; border-radius: 2px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); }
+.steps { counter-reset: step; list-style: none; padding-left: 0; }
+.steps > li { counter-increment: step; position: relative; padding-left: 9mm; margin-bottom: 2mm; }
+.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 6mm; height: 6mm; border-radius: 50%; background: var(--gold); color: white; font-weight: 700; font-size: 8.5pt; text-align: center; line-height: 6mm; }
+.footer-note { font-size: 8.5pt; color: var(--muted); margin-top: 8mm; border-top: 1px solid var(--line); padding-top: 2mm; }
