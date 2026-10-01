@@ -36,6 +36,14 @@ namespace RouletteLike.Roulette
         private Color32[] _pixels;
         private float _radiusRatio = 1f;
         private string _highlightedSegmentId;
+        private string _focusedSegmentId;
+        private readonly HashSet<string> _focusGroupIds = new HashSet<string>(StringComparer.Ordinal);
+
+        [Header("Landing Focus")]
+        [Tooltip("착지 고정 표시 중 착지 칸·연쇄 묶음이 아닌 칸의 밝기 배율.")]
+        [SerializeField, Range(0f, 1f)] private float unfocusedBrightness = 0.38f;
+        [Tooltip("착지 고정 표시 중 착지 칸이 강조색으로 섞이는 정도. 연쇄 묶음은 그 절반.")]
+        [SerializeField, Range(0f, 1f)] private float focusBlend = 0.4f;
 
         public int TextureResolution => textureResolution;
         public Texture2D RuntimeTexture => _runtimeTexture;
@@ -110,6 +118,8 @@ namespace RouletteLike.Roulette
 
             _radiusRatio = Mathf.Clamp(radiusRatio, 0.05f, 1f);
             _highlightedSegmentId = null;
+            _focusedSegmentId = null;
+            _focusGroupIds.Clear();
 
             if (_segments.Count == 0)
             {
@@ -141,6 +151,28 @@ namespace RouletteLike.Roulette
         public void ClearHighlight()
         {
             SetHighlightedSegment(null, false);
+        }
+
+        /// <summary>
+        /// 착지 고정 표시: 착지 칸은 밝게, 연쇄 묶음은 조금 밝게, 나머지는 어둡게 그린다. 다음 회전 전까지 유지.
+        /// landedId가 null이면 해제한다.
+        /// </summary>
+        public void SetLandingFocus(string landedId, IEnumerable<string> groupIds)
+        {
+            _focusedSegmentId = landedId;
+            _focusGroupIds.Clear();
+            if (landedId != null && groupIds != null)
+            {
+                foreach (string id in groupIds)
+                {
+                    if (id != null) _focusGroupIds.Add(id);
+                }
+            }
+
+            if (_segments.Count > 0)
+            {
+                RenderPixels();
+            }
         }
 
         public void ClearWheel()
@@ -281,6 +313,22 @@ namespace RouletteLike.Roulette
             if (highlighted)
             {
                 fill = Color.Lerp(fill, highlightColor, highlightBlend);
+            }
+
+            if (_focusedSegmentId != null && data != null)
+            {
+                if (string.Equals(data.id, _focusedSegmentId, StringComparison.Ordinal))
+                {
+                    fill = Color.Lerp(fill, highlightColor, focusBlend);
+                }
+                else if (_focusGroupIds.Contains(data.id))
+                {
+                    fill = Color.Lerp(fill, highlightColor, focusBlend * 0.5f);
+                }
+                else
+                {
+                    fill = MultiplyRgb(fill, unfocusedBrightness);
+                }
             }
 
             return fill;

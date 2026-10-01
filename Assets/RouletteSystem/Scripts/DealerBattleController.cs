@@ -132,6 +132,16 @@ namespace RouletteLike.Roulette
         [SerializeField] private UnityEngine.UI.Image[] dealerOuterBoxes = new UnityEngine.UI.Image[0];
         [SerializeField] private TMP_Text[] dealerOuterLabels = new TMP_Text[0];
 
+        [Header("Landing Tag (포인터 위 착지 이름표)")]
+        [SerializeField] private RectTransform playerLandingTag;
+        [SerializeField] private TMP_Text playerLandingTitle;
+        [SerializeField] private TMP_Text playerLandingEffect;
+        [SerializeField] private UnityEngine.UI.Image playerLandingBackground;
+        [SerializeField] private RectTransform dealerLandingTag;
+        [SerializeField] private TMP_Text dealerLandingTitle;
+        [SerializeField] private TMP_Text dealerLandingEffect;
+        [SerializeField] private UnityEngine.UI.Image dealerLandingBackground;
+
         [Header("Run · Doors")]
         [SerializeField] private GameObject doorPanel;
         [SerializeField] private TMP_Text doorFloorText;
@@ -377,6 +387,8 @@ namespace RouletteLike.Roulette
 
             hijackPanel?.SetActive(false);
             houseRuleInfoPanel?.SetActive(false);
+            HideLandingFeedback(Side.Player);
+            HideLandingFeedback(Side.Dealer);
             openingSpeechBubble?.SetActive(_battle.Profile.Telegraphs);
             endPanel?.SetActive(false);
             instructionText.text = $"{_battle.Profile.Name} 테이블에 앉았습니다. 코인플립으로 선공을 정합니다.";
@@ -407,6 +419,8 @@ namespace RouletteLike.Roulette
             _battle.StartRound();
             FlushCoreLog();
             SyncWheels();
+            HideLandingFeedback(Side.Player);
+            HideLandingFeedback(Side.Dealer);
             RefreshAllUi();
             resultText.text = _battle.Active == Side.Player ? "코인플립: 손님 선공" : $"코인플립: {DealerShortName} 선공";
             calculationText.text = _battle.RoundStartEffects.Count > 0
@@ -518,6 +532,7 @@ namespace RouletteLike.Roulette
             instructionText.text = "손을 떠났습니다. 이제 룰렛이 결정합니다.";
             resultText.text = "회전 중...";
             calculationText.text = $"판돈 {_battle.Player.Pot} · 착지 결과를 기다리는 중";
+            HideLandingFeedback(Side.Player);
             RefreshAllUi();
             spinController.Spin(power);
         }
@@ -540,8 +555,9 @@ namespace RouletteLike.Roulette
             LandingResult landing = _battle.Land(index, _lastPlayerOuter);
             FlushCoreLog();
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
-            resultText.text = DescribeLanding(landing, roulette.GetSegment(index).displayText);
+            resultText.text = DescribeLanding(landing, SlotTitle(_battle.Player.Wheel[index]));
             calculationText.text = landing.Formula;
+            ShowLandingFeedback(Side.Player, landing);
 
             if (landing.EndedTurn)
             {
@@ -647,6 +663,7 @@ namespace RouletteLike.Roulette
         {
             _state = ViewState.Busy;
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Dealer);
+            HideLandingFeedback(Side.Player);
             presentationUi?.SetPlayerRouletteActive(false);
             presentationUi?.SetDealerRouletteActive(true);
             spinInput?.ShowUnavailableState($"{DealerShortName} 차례");
@@ -680,9 +697,10 @@ namespace RouletteLike.Roulette
                 _lastDealerOuter = _battle.RollOuterIndex(Side.Dealer);
                 LandingResult landing = _battle.Land(_dealerLandingIndex, _lastDealerOuter);
                 FlushCoreLog();
+                ShowLandingFeedback(Side.Dealer, landing);
                 resultText.text = landing.HouseCutHit
                     ? $"{DealerShortName}의 하우스 몫! 판돈 증발"
-                    : DealerShortName + " " + DescribeLanding(landing, enemyRoulette.GetSegment(_dealerLandingIndex).displayText);
+                    : DealerShortName + " " + DescribeLanding(landing, SlotTitle(_battle.Dealer.Wheel[_dealerLandingIndex]));
                 if (landing.HouseCutHit)
                 {
                     dealerLineText.text = "\"...하우스는 원래 저희 편인데요.\"";
@@ -695,6 +713,8 @@ namespace RouletteLike.Roulette
 
             RefreshAllUi();
             yield return new WaitForSecondsRealtime(resultPause);
+            // 딜러 차례가 끝나면 이름표를 거둬 성향 칸을 다시 보이게 한다.
+            HideLandingFeedback(Side.Dealer);
         }
 
         private IEnumerator SpinDealerWheel()
@@ -708,6 +728,7 @@ namespace RouletteLike.Roulette
             }
 
             enemyRoulette?.PixelWheelRenderer?.ClearHighlight();
+            HideLandingFeedback(Side.Dealer);
             enemySpinController?.SpinToSegment(_dealerLandingIndex);
             yield return new WaitUntil(() => _dealerSpinFinished);
         }
@@ -1037,6 +1058,141 @@ namespace RouletteLike.Roulette
             }
         }
 
+        /// <summary>
+        /// 룰렛 칸 위 글자(그레이박스 아이콘): 일반 칸은 기호 + 숫자(▲레이즈 ×배율 ◆보험 ●배당, 몫=하우스 몫),
+        /// 특수·JACKPOT 칸은 고유 이름. 긴 이름은 착지 이름표와 설명이 맡는다. 기호 범례는 가운데 테이블 맨 위.
+        /// </summary>
+        private static string WheelLabel(Slot slot)
+        {
+            if (SlotDescriptions.IsSpecial(slot)) return slot.Label;
+            switch (slot.Kind)
+            {
+                case SlotKind.Raise: return $"▲{slot.Value}";
+                case SlotKind.Multiplier: return $"×{slot.Value}";
+                case SlotKind.Insurance: return $"◆{slot.Value}";
+                case SlotKind.Dividend: return $"●{slot.Value}";
+                case SlotKind.HouseCut: return "몫";
+                case SlotKind.Sealed: return "봉인";
+                default: return slot.Label;
+            }
+        }
+
+        private static string SlotTitle(Slot slot)
+        {
+            return slot.Label + (slot.IsJackpot ? " [JP]" : "");
+        }
+
+        /// <summary>
+        /// 착지 고정 표시: 멈춘 칸과 연쇄 묶음만 밝게 남기고, 포인터 위 이름표에 칸 이름과 실제로 일어난 효과를 띄운다.
+        /// 다음 SPIN(딜러는 딜러 차례가 끝날 때)까지 유지된다.
+        /// </summary>
+        private void ShowLandingFeedback(Side side, LandingResult landing)
+        {
+            bool player = side == Side.Player;
+            Seat seat = player ? _battle.Player : _battle.Dealer;
+            RouletteController wheel = player ? roulette : enemyRoulette;
+            if (landing.Index < 0 || landing.Index >= seat.Wheel.Count) return;
+
+            Slot slot = seat.Wheel[landing.Index];
+            List<string> groupIds = new List<string>();
+            foreach (int i in landing.Group)
+            {
+                if (i >= 0 && i < seat.Wheel.Count) groupIds.Add(seat.Wheel[i].Id);
+            }
+
+            wheel?.ShowLanding(slot.Id, groupIds);
+
+            RectTransform tag = player ? playerLandingTag : dealerLandingTag;
+            if (tag == null) return;
+            TMP_Text title = player ? playerLandingTitle : dealerLandingTitle;
+            TMP_Text effect = player ? playerLandingEffect : dealerLandingEffect;
+            UnityEngine.UI.Image background = player ? playerLandingBackground : dealerLandingBackground;
+
+            bool bad = landing.HouseCutHit;
+            string who = player ? "" : DealerShortName + " · ";
+            if (title != null) title.text = who + (landing.JackpotLine ? "잭팟 라인!  " : "") + SlotTitle(slot);
+            if (effect != null)
+            {
+                effect.text = SummarizeLandingEffect(landing, slot, seat);
+                effect.color = bad ? new Color32(255, 120, 120, 255) : new Color32(224, 168, 52, 255);
+            }
+
+            if (background != null)
+            {
+                Color kindColor = ToSegment(slot).color;
+                background.color = Color.Lerp(new Color32(43, 38, 58, 255), kindColor, bad ? 0.6f : 0.45f);
+            }
+
+            tag.gameObject.SetActive(true);
+            tag.SetAsLastSibling();
+            StartCoroutine(PopLandingTag(tag));
+        }
+
+        private void HideLandingFeedback(Side side)
+        {
+            bool player = side == Side.Player;
+            (player ? roulette : enemyRoulette)?.ClearLanding();
+            RectTransform tag = player ? playerLandingTag : dealerLandingTag;
+            if (tag != null) tag.gameObject.SetActive(false);
+        }
+
+        private static IEnumerator PopLandingTag(RectTransform tag)
+        {
+            const float duration = 0.16f;
+            for (float t = 0f; t < duration && tag != null; t += Time.unscaledDeltaTime)
+            {
+                tag.localScale = Vector3.one * Mathf.Lerp(1.25f, 1f, t / duration);
+                yield return null;
+            }
+
+            if (tag != null) tag.localScale = Vector3.one;
+        }
+
+        /// <summary>이름표 둘째 줄: 이 착지로 실제로 바뀐 것(판돈·보험·칩·특수 효과)과 연쇄·바깥 링.</summary>
+        private static string SummarizeLandingEffect(LandingResult landing, Slot slot, Seat seat)
+        {
+            if (landing.HouseCutHit)
+            {
+                return landing.Kind == SlotKind.HouseCut
+                    ? $"판돈 {landing.Amount} 증발 · 턴 종료"
+                    : $"바깥 하우스 몫 · 판돈 {landing.Amount} 증발 · 턴 종료";
+            }
+
+            if (landing.CutShielded) return "보호막이 하우스 몫을 막음 · 판돈 유지";
+
+            string main;
+            if (landing.KeywordTriggered)
+            {
+                main = slot.Kind switch
+                {
+                    SlotKind.Dividend => $"특수 칸 발동 · 즉시 칩 +{slot.Value}",
+                    SlotKind.Initiative => "특수 칸 발동 · 다음 라운드 선공 확정",
+                    SlotKind.MinimumPayout => "특수 칸 발동 · 이번 턴 상대 보험 무시",
+                    _ => "특수 칸 발동"
+                };
+            }
+            else
+            {
+                main = slot.Kind switch
+                {
+                    SlotKind.Raise or SlotKind.Multiplier => $"판돈 {landing.PotBefore} → {landing.PotAfter}",
+                    SlotKind.Insurance => $"보험 +{landing.Amount}",
+                    SlotKind.Dividend => $"칩 +{landing.Amount}",
+                    SlotKind.CutShield => "이번 턴 하우스 몫 1회 무효",
+                    SlotKind.Sealed => "봉인된 칸 · 효과 없음",
+                    _ => "효과 없음"
+                };
+            }
+
+            if (landing.Group.Count > 1) main += $" · 연쇄 {landing.Group.Count}칸";
+            if (landing.OuterIndex >= 0 && landing.OuterIndex < seat.OuterRing.Count)
+            {
+                main += $" · 바깥 {seat.OuterRing[landing.OuterIndex].Label}";
+            }
+
+            return main;
+        }
+
         private static string DescribeLanding(LandingResult landing, string innerLabel)
         {
             if (landing.CutShielded) return "보호막! 하우스 몫을 막았다";
@@ -1185,10 +1341,10 @@ namespace RouletteLike.Roulette
                 color = new Color32(222, 164, 48, 255);
             }
 
-            string label = slot.Label;
+            string label = WheelLabel(slot);
             if (slot.IsStolen)
             {
-                label = "H " + label;
+                label = "H" + label;
                 color = Color.Lerp(color, new Color32(224, 168, 52, 255), 0.35f);
             }
 

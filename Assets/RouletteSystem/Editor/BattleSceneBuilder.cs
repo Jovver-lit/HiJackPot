@@ -194,11 +194,12 @@ namespace RouletteLike.Roulette.Editor
 
             AddRect("EffectRoot", playerRouletteContainer, Vector2.zero, new Vector2(620f, 620f));
             // 룰렛 아래 안내: 특수 칸이 있으면 효과 설명, 없으면 연쇄 안내(두 줄까지).
-            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "이어진 같은 칸은 한 묶음", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -340f), new Vector2(600f, 60f));
+            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "이어진 같은 칸은 한 묶음", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
 
             // ── 가운데 "테이블": 판돈이 쌓이는 곳. 결과 → 계산식 → 칩 더미 → 판돈 → 보험 → 확률 → 앤티 → CASH OUT → 딜러 한마디.
             RectTransform centerPanel = AddFramedPanel("CenterPanel", mainGameArea, new Vector2(0f, 26f), new Vector2(480f, 760f), Panel, DarkGold, out _, out _);
-            AddText("TableTitle", centerPanel, "TABLE", font, 16, DarkGold, TextAlignmentOptions.Center, new Vector2(0f, 358f), new Vector2(440f, 24f));
+            // 룰렛 칸 기호 범례(그레이박스 아이콘): 칸에는 기호 + 숫자만, 긴 이름은 착지 이름표·설명에서 보여 준다.
+            AddText("SlotLegend", centerPanel, "▲레이즈  ×배율  ◆보험  ●배당  몫=하우스 몫", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, 356f), new Vector2(460f, 26f));
             TMP_Text instructionText = AddText("GuideText", centerPanel, "SPIN을 길게 눌렀다 놓으세요. 앤티가 걸리고 판돈이 쌓입니다.", font, 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, 322f), new Vector2(440f, 44f));
             TMP_Text powerPreviewText = AddText("PowerPreview", centerPanel, "SPIN 밖으로 끌어내면 취소", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 290f), new Vector2(440f, 22f));
             TMP_Text resultText = AddText("MainInstruction", centerPanel, "코인플립으로 선공을 정합니다", font, 26, Ink, TextAlignmentOptions.Center, new Vector2(0f, 252f), new Vector2(450f, 40f));
@@ -248,7 +249,7 @@ namespace RouletteLike.Roulette.Editor
 
             RectTransform houseRuleOverlay = BuildHouseRuleOverlay(canvasObject.transform, font, out UnityEngine.UI.Button houseRuleInfoCloseButton, out TMP_Text houseRuleDetailProgressText, out TMP_Text[] houseRuleDetailTexts);
             // 딜러 룰렛 아래 안내: 역탈취 경고 + 딜러 특수 칸 효과.
-            TMP_Text dealerNoteText = AddText("DealerNote", dealerPanel, "", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -330f), new Vector2(600f, 80f));
+            TMP_Text dealerNoteText = AddText("DealerNote", dealerPanel, "", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
             RectTransform hijackPanel = BuildHijackPanel(canvasObject.transform, font, out TMP_Text hijackInstruction, out TMP_Text hijackSourceTitle, out UnityEngine.UI.Button[] hijackSourceButtons, out TMP_Text[] hijackSourceLabels, out UnityEngine.UI.Button[] hijackDestinationButtons, out TMP_Text[] hijackDestinationLabels);
             RectTransform endPanel = BuildEndPanel(canvasObject.transform, font, out TMP_Text endTitle, out TMP_Text endBody, out UnityEngine.UI.Button endContinueButton, out TMP_Text endContinueLabel);
             RectTransform doorPanel = BuildDoorPanel(canvasObject.transform, font, out TMP_Text doorFloorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies);
@@ -284,15 +285,28 @@ namespace RouletteLike.Roulette.Editor
             SetObjectArray(identitySo.FindProperty("doorButtons"), doorButtons);
             SetObjectArray(identitySo.FindProperty("doorTitleTexts"), doorTitles);
             SetObjectArray(identitySo.FindProperty("doorBodyTexts"), doorBodies);
-            RectTransform playerOuter = BuildOuterRingStrip("OuterRingStrip", playerPanel, new Vector2(0f, 318f), 96f, font, out UnityEngine.UI.Image[] playerOuterBoxes, out TMP_Text[] playerOuterLabels);
-            RectTransform dealerOuter = BuildOuterRingStrip("OuterRingStrip", dealerPanel, new Vector2(0f, 258f), 92f, font, out UnityEngine.UI.Image[] dealerOuterBoxes, out TMP_Text[] dealerOuterLabels);
+            RectTransform playerOuter = BuildOuterRingStrip("OuterRingStrip", playerPanel, new Vector2(0f, -302f), 96f, font, out UnityEngine.UI.Image[] playerOuterBoxes, out TMP_Text[] playerOuterLabels);
+            RectTransform dealerOuter = BuildOuterRingStrip("OuterRingStrip", dealerPanel, new Vector2(0f, -302f), 92f, font, out UnityEngine.UI.Image[] dealerOuterBoxes, out TMP_Text[] dealerOuterLabels);
             SetObject(identitySo, "playerOuterRoot", playerOuter.gameObject);
             SetObjectArray(identitySo.FindProperty("playerOuterBoxes"), playerOuterBoxes);
             SetObjectArray(identitySo.FindProperty("playerOuterLabels"), playerOuterLabels);
             SetObject(identitySo, "dealerOuterRoot", dealerOuter.gameObject);
             SetObjectArray(identitySo.FindProperty("dealerOuterBoxes"), dealerOuterBoxes);
             SetObjectArray(identitySo.FindProperty("dealerOuterLabels"), dealerOuterLabels);
+            // 착지 이름표: 포인터 바로 위, 멈춘 칸의 이름과 실제로 일어난 효과. 다음 SPIN 전까지 남는다.
+            RectTransform playerTag = BuildLandingTag(playerPanel, new Vector2(0f, 340f), font, out TMP_Text playerTagTitle, out TMP_Text playerTagEffect, out UnityEngine.UI.Image playerTagBackground);
+            RectTransform dealerTag = BuildLandingTag(dealerPanel, new Vector2(0f, 300f), font, out TMP_Text dealerTagTitle, out TMP_Text dealerTagEffect, out UnityEngine.UI.Image dealerTagBackground);
+            SetObject(identitySo, "playerLandingTag", playerTag);
+            SetObject(identitySo, "playerLandingTitle", playerTagTitle);
+            SetObject(identitySo, "playerLandingEffect", playerTagEffect);
+            SetObject(identitySo, "playerLandingBackground", playerTagBackground);
+            SetObject(identitySo, "dealerLandingTag", dealerTag);
+            SetObject(identitySo, "dealerLandingTitle", dealerTagTitle);
+            SetObject(identitySo, "dealerLandingEffect", dealerTagEffect);
+            SetObject(identitySo, "dealerLandingBackground", dealerTagBackground);
             identitySo.ApplyModifiedPropertiesWithoutUndo();
+            playerTag.gameObject.SetActive(false);
+            dealerTag.gameObject.SetActive(false);
             doorPanel.gameObject.SetActive(false);
             playerOuter.gameObject.SetActive(false);
             dealerOuter.gameObject.SetActive(false);
@@ -336,11 +350,11 @@ namespace RouletteLike.Roulette.Editor
             controllerSo.FindProperty("dynamicSegmentRoot").objectReferenceValue = segments;
             controllerSo.FindProperty("pixelWheelRenderer").objectReferenceValue = renderer;
             controllerSo.FindProperty("labelFont").objectReferenceValue = legacyFont;
-            controllerSo.FindProperty("labelFontSize").intValue = enemy ? 19 : 21;
+            controllerSo.FindProperty("labelFontSize").intValue = enemy ? 26 : 30;
             controllerSo.FindProperty("iconRadiusRatio").floatValue = 0.5f;
-            controllerSo.FindProperty("labelRadiusRatio").floatValue = enemy ? 0.7f : 0.73f;
-            controllerSo.FindProperty("labelSize").vector2Value = enemy ? new Vector2(104f, 40f) : new Vector2(108f, 44f);
-            controllerSo.FindProperty("keepLabelsUpright").boolValue = enemy;
+            controllerSo.FindProperty("labelRadiusRatio").floatValue = 0.7f;
+            controllerSo.FindProperty("labelSize").vector2Value = enemy ? new Vector2(96f, 36f) : new Vector2(104f, 40f);
+            controllerSo.FindProperty("keepLabelsUpright").boolValue = true;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
             // 회전음은 칸 경계마다 틱을 내므로 회전 속도·칸 수와 항상 맞는다. 딜러 룰렛은 조금 작게.
@@ -445,6 +459,15 @@ namespace RouletteLike.Roulette.Editor
         /// 바깥 링(이중 룰렛)을 보여주는 그레이박스 띠: 칸 6개 자리, 멈춘 칸은 컨트롤러가 금색으로 강조한다.
         /// 원형 바깥 링 아트는 ArtStyleBible 확정 뒤에 교체한다.
         /// </summary>
+        /// <summary>착지 이름표: 칸 이름(크게)과 효과 한 줄. 배경색은 컨트롤러가 칸 종류에 맞춰 바꾼다.</summary>
+        private static RectTransform BuildLandingTag(Transform parent, Vector2 position, TMP_FontAsset font, out TMP_Text title, out TMP_Text effect, out UnityEngine.UI.Image background)
+        {
+            RectTransform tag = AddFramedPanel("LandingTag", parent, position, new Vector2(470f, 54f), PanelLight, Gold, out background, out _);
+            title = AddText("Title", tag, "레이즈 +2", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 11f), new Vector2(450f, 28f));
+            effect = AddText("Effect", tag, "판돈 1 → 3", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -13f), new Vector2(450f, 22f));
+            return tag;
+        }
+
         private static RectTransform BuildOuterRingStrip(string name, Transform parent, Vector2 position, float boxWidth, TMP_FontAsset font, out UnityEngine.UI.Image[] boxes, out TMP_Text[] labels)
         {
             const int Count = 6;
