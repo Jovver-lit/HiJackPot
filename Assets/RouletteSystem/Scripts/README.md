@@ -11,7 +11,7 @@
 | `HijackTransferPresenter.cs` | HIJACK 때 칸 토큰이 딜러 룰렛에서 내 룰렛으로 날아가는 연출 |
 | `NaturalBlinkAnimator.cs` | 플레이어 캐릭터 눈 깜빡임 스프라이트 애니메이션 |
 | `RouletteController.cs` | 룰렛 칸 목록과 각도 계산, 포인터 아래 칸 판정 |
-| `RouletteSpinController.cs` | 룰렛 회전·감속·착지(강도 구역 + 오차, 역전 보정 무게 반영), 시드 재현 |
+| `RouletteSpinController.cs` | 룰렛 회전·감속·착지(강도 구역 + 오차, 역전 보정 무게 반영), 시드 재현, 칸 경계 틱·멈춤 소리 |
 | `RoulettePixelWheelRenderer.cs` | 룰렛을 저해상도 텍스처에 픽셀 아트로 그림 |
 | `RouletteSegmentGraphic.cs` | 칸 위 아이콘·텍스트 배치 |
 | `RouletteSegmentData.cs`, `RouletteSegmentType.cs` | 룰렛 위젯이 쓰는 칸 표시 데이터(전투 규칙의 `Core.Slot`을 화면용으로 변환한 것) |

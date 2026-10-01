@@ -22,7 +22,8 @@ namespace RouletteLike.Roulette.Editor
         private const string RouletteSpriteSheetPath = "Assets/RouletteSystem/Art/roulette_ui_sheet.png";
         private const string BusinessmanSpriteSheetPath = "Assets/RouletteSystem/Art/Characters/Businessman/businessman-70px-sheet.png";
         private const string RabbitSpritePath = "Assets/RouletteSystem/Art/Characters/Rabbit/bunny-dealer-70px.png";
-        private const string RouletteSpinSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_fast.wav";
+        private const string RouletteTickSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_tick.wav";
+        private const string RouletteStopSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_stop.wav";
 
         private static readonly Color Background = new Color32(13, 12, 23, 255);
         private static readonly Color StageBackground = new Color32(20, 18, 34, 255);
@@ -57,7 +58,8 @@ namespace RouletteLike.Roulette.Editor
                 GetSprite(BusinessmanSpriteSheetPath, "businessman_blink_3")
             };
             Sprite rabbitSprite = AssetDatabase.LoadAssetAtPath<Sprite>(RabbitSpritePath);
-            AudioClip rouletteSpinSound = AssetDatabase.LoadAssetAtPath<AudioClip>(RouletteSpinSoundPath);
+            AudioClip rouletteTick = AssetDatabase.LoadAssetAtPath<AudioClip>(RouletteTickSoundPath);
+            AudioClip rouletteStop = AssetDatabase.LoadAssetAtPath<AudioClip>(RouletteStopSoundPath);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             scene.name = "SampleScene";
@@ -163,7 +165,7 @@ namespace RouletteLike.Roulette.Editor
             RectTransform rouletteRoot = AddRect("ExistingPlayerRoulette", playerRouletteContainer, Vector2.zero, new Vector2(580f, 580f));
             RouletteController roulette = rouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController spin = rouletteRoot.gameObject.AddComponent<RouletteSpinController>();
-            BuildRoulette(rouletteRoot, roulette, spin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteSpinSound, false);
+            BuildRoulette(rouletteRoot, roulette, spin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteTick, rouletteStop, false);
 
             // SPIN 버튼을 룰렛 중앙에 둔다. 회전하는 Wheel이 아니라 고정된 루트의 자식이라 함께 돌지 않는다.
             // 버튼 둘레의 원형 게이지가 누르고 있는 동안의 회전 강도를 보여준다.
@@ -226,7 +228,7 @@ namespace RouletteLike.Roulette.Editor
             RectTransform enemyRouletteRoot = AddRect("ExistingDealerRoulette", dealerRouletteContainer, Vector2.zero, new Vector2(530f, 530f));
             RouletteController enemyRoulette = enemyRouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController enemySpin = enemyRouletteRoot.gameObject.AddComponent<RouletteSpinController>();
-            BuildRoulette(enemyRouletteRoot, enemyRoulette, enemySpin, legacyFont, frameSprite, pointerSprite, centerCapSprite, null, true);
+            BuildRoulette(enemyRouletteRoot, enemyRoulette, enemySpin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteTick, rouletteStop, true);
             AddRect("EffectRoot", dealerRouletteContainer, Vector2.zero, new Vector2(560f, 560f));
 
             // ── 사건 띠: 방금 일어난 일 3개를 한 줄로(전체 기록 대신).
@@ -315,7 +317,7 @@ namespace RouletteLike.Roulette.Editor
             Debug.Log($"Battle scene built at {ScenePath}");
         }
 
-        private static void BuildRoulette(RectTransform root, RouletteController controller, RouletteSpinController spin, Font legacyFont, Sprite frameSprite, Sprite pointerSprite, Sprite centerCapSprite, AudioClip spinSound, bool enemy)
+        private static void BuildRoulette(RectTransform root, RouletteController controller, RouletteSpinController spin, Font legacyFont, Sprite frameSprite, Sprite pointerSprite, Sprite centerCapSprite, AudioClip tickSound, AudioClip stopSound, bool enemy)
         {
             float wheelSize = enemy ? 430f : 470f;
             float frameSize = enemy ? 530f : 578f;
@@ -341,16 +343,12 @@ namespace RouletteLike.Roulette.Editor
             controllerSo.FindProperty("keepLabelsUpright").boolValue = enemy;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
-            AudioSource spinAudioSource = null;
-            if (spinSound != null)
-            {
-                spinAudioSource = root.gameObject.AddComponent<AudioSource>();
-                spinAudioSource.clip = spinSound;
-                spinAudioSource.playOnAwake = false;
-                spinAudioSource.loop = false;
-                spinAudioSource.spatialBlend = 0f;
-                spinAudioSource.volume = 0.72f;
-            }
+            // 회전음은 칸 경계마다 틱을 내므로 회전 속도·칸 수와 항상 맞는다. 딜러 룰렛은 조금 작게.
+            AudioSource spinAudioSource = root.gameObject.AddComponent<AudioSource>();
+            spinAudioSource.playOnAwake = false;
+            spinAudioSource.loop = false;
+            spinAudioSource.spatialBlend = 0f;
+            spinAudioSource.volume = enemy ? 0.55f : 0.8f;
 
             SerializedObject spinSo = new SerializedObject(spin);
             spinSo.FindProperty("rouletteController").objectReferenceValue = controller;
@@ -363,6 +361,8 @@ namespace RouletteLike.Roulette.Editor
             spinSo.FindProperty("minimumFullRotations").intValue = 2;
             spinSo.FindProperty("selectedHighlightDuration").floatValue = 0.9f;
             spinSo.FindProperty("spinAudioSource").objectReferenceValue = spinAudioSource;
+            spinSo.FindProperty("tickClip").objectReferenceValue = tickSound;
+            spinSo.FindProperty("stopClip").objectReferenceValue = stopSound;
             spinSo.ApplyModifiedPropertiesWithoutUndo();
         }
 

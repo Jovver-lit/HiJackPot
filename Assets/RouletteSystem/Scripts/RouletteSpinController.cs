@@ -38,11 +38,15 @@ namespace RouletteLike.Roulette
         [SerializeField] private bool useUnscaledTime = true;
 
         [Header("Spin Sound")]
+        [Tooltip("틱·정지음을 재생할 소스. 녹음된 회전음 한 곡을 틀지 않고, 칸 경계가 포인터를 지날 때마다 틱을 낸다.")]
         [SerializeField] private AudioSource spinAudioSource;
-        [Tooltip("회전 시간에 맞춰 재생 속도를 조절해 감속과 효과음의 끝을 맞춥니다.")]
-        [SerializeField] private bool syncSpinSoundToDuration = true;
-        [SerializeField, Range(0.5f, 2f)] private float minimumSpinSoundPitch = 0.75f;
-        [SerializeField, Range(0.5f, 2f)] private float maximumSpinSoundPitch = 1.5f;
+        [Tooltip("칸 경계 하나가 포인터를 지날 때 나는 짧은 소리. 회전 속도·칸 수와 자동으로 맞는다.")]
+        [SerializeField] private AudioClip tickClip;
+        [Tooltip("룰렛이 멈춘 순간의 소리.")]
+        [SerializeField] private AudioClip stopClip;
+        [Tooltip("빠르게 돌 때 틱이 뭉개지지 않도록 두는 최소 간격(초).")]
+        [SerializeField, Min(0f)] private float minimumTickInterval = 0.03f;
+        [SerializeField, Range(0f, 1f)] private float tickVolume = 0.55f;
 
         [Header("Power Throw")]
         [Tooltip("강도 회전은 한 칸을 저격하지 못하도록 마지막 착지 각도에 이 범위의 오차를 더합니다.")]
@@ -156,8 +160,7 @@ namespace RouletteLike.Roulette
             minimumLandingUncertainty = Mathf.Max(0f, minimumLandingUncertainty);
             maximumLandingUncertainty = Mathf.Max(minimumLandingUncertainty, maximumLandingUncertainty);
             additionalFullRotationsAtMaxPower = Mathf.Max(0, additionalFullRotationsAtMaxPower);
-            minimumSpinSoundPitch = Mathf.Clamp(minimumSpinSoundPitch, 0.5f, 2f);
-            maximumSpinSoundPitch = Mathf.Clamp(maximumSpinSoundPitch, minimumSpinSoundPitch, 2f);
+            minimumTickInterval = Mathf.Max(0f, minimumTickInterval);
         }
 
         /// <summary>
@@ -249,7 +252,6 @@ namespace RouletteLike.Roulette
                 ? Mathf.Lerp(minSpinDuration, maxSpinDuration, normalizedPower.Value)
                 : NextRandomRange(minSpinDuration, maxSpinDuration);
             duration = Mathf.Max(0.1f, duration * Mathf.Clamp(DurationScale, 0.1f, 1f));
-            PlaySpinSound(duration);
 
             // 설정한 감속도가 클수록 감속 구간이 짧아집니다.
             // 전체 시간의 25~80% 범위로 제한해 빠른 유지/감속 두 구간을 항상 확보합니다.
@@ -298,6 +300,8 @@ namespace RouletteLike.Roulette
                                 + NextRandomRange(0f, randomExtraRotation);
             }
             float elapsed = 0f;
+            RouletteSegmentData segmentUnderPointer = rouletteController.GetSelectedSegment(pointerAngle);
+            float lastTickTime = float.NegativeInfinity;
 
             while (elapsed < duration)
             {
@@ -324,11 +328,14 @@ namespace RouletteLike.Roulette
                 float normalizedDistance = Mathf.Clamp01(travelledProfileDistance / profileDistance);
                 // UI Z의 음수 방향이 화면상 시계 방향입니다.
                 SetWheelAngle(startAngle - totalDistance * normalizedDistance);
+                TickIfSegmentChanged(ref segmentUnderPointer, ref lastTickTime, elapsed);
                 yield return null;
             }
 
             // 프레임 시간과 무관하게 마지막 각도를 정확히 고정합니다.
             SetWheelAngle(startAngle - totalDistance);
+            TickIfSegmentChanged(ref segmentUnderPointer, ref lastTickTime, float.PositiveInfinity);
+            PlayClip(stopClip, 1f);
 
             RouletteSegmentData result = rouletteController.GetSelectedSegment(pointerAngle);
 
@@ -352,21 +359,31 @@ namespace RouletteLike.Roulette
             }
         }
 
-        private void PlaySpinSound(float spinDuration)
+        /// <summary>포인터 아래 칸이 바뀌었으면 틱 한 번. 회전이 멈추면 소리도 함께 멈춘다.</summary>
+        private void TickIfSegmentChanged(ref RouletteSegmentData segmentUnderPointer, ref float lastTickTime, float now)
         {
-            if (spinAudioSource == null || spinAudioSource.clip == null)
+            RouletteSegmentData current = rouletteController.GetSelectedSegment(pointerAngle);
+            if (current == segmentUnderPointer)
             {
                 return;
             }
 
-            spinAudioSource.Stop();
-            spinAudioSource.pitch = syncSpinSoundToDuration
-                ? Mathf.Clamp(
-                    spinAudioSource.clip.length / Mathf.Max(0.1f, spinDuration),
-                    minimumSpinSoundPitch,
-                    maximumSpinSoundPitch)
-                : 1f;
-            spinAudioSource.Play();
+            segmentUnderPointer = current;
+            if (now - lastTickTime < minimumTickInterval)
+            {
+                return;
+            }
+
+            lastTickTime = now;
+            PlayClip(tickClip, tickVolume);
+        }
+
+        private void PlayClip(AudioClip clip, float volume)
+        {
+            if (spinAudioSource != null && clip != null)
+            {
+                spinAudioSource.PlayOneShot(clip, volume);
+            }
         }
 
         private void SetWheelAngle(float zAngle)
