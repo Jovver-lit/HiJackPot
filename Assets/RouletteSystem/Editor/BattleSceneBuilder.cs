@@ -110,6 +110,9 @@ namespace RouletteLike.Roulette.Editor
             relicStripText.alignment = TextAlignmentOptions.Left;
             relicStripText.rectTransform.sizeDelta = new Vector2(420f, 50f);
             relicStripText.text = "NUDGE 1  ·  유물 없음";
+            relicStripText.enableAutoSizing = true;
+            relicStripText.fontSizeMin = 10f;
+            relicStripText.fontSizeMax = 14f;
             RectTransform playerCharacter = AddRect("PlayerCharacter", playerArea, new Vector2(-200f, -8f), new Vector2(170f, 170f));
             UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(165f, 165f));
             businessmanImage.raycastTarget = false;
@@ -212,7 +215,7 @@ namespace RouletteLike.Roulette.Editor
             TMP_Text calculationText = AddText("Description", centerPanel, "레이즈는 판돈 +, 배율은 판돈 ×, 하우스 몫은 판돈 증발", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, 206f), new Vector2(450f, 50f));
             UnityEngine.UI.Image[] potChips = BuildPotChipStack(centerPanel, new Vector2(0f, 130f));
             TMP_Text potText = AddText("PotValue", centerPanel, "판돈 0", font, 36, Gold, TextAlignmentOptions.Center, new Vector2(0f, 62f), new Vector2(440f, 48f));
-            TMP_Text insuranceText = AddBadge("InsuranceStatus", centerPanel, "내 보험 0", Teal, font, new Vector2(0f, 14f));
+            TMP_Text insuranceText = AddBadge("InsuranceStatus", centerPanel, "내 보험 0", Teal, font, new Vector2(0f, 14f), 420f);
             TMP_Text riskSummaryText = AddText("RiskSummary", centerPanel, "다음 SPIN 하우스 몫 확률 12.5%", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -36f), new Vector2(450f, 44f));
             RectTransform betControls = AddRect("BetControls", centerPanel, new Vector2(0f, -94f), new Vector2(440f, 52f));
             UnityEngine.UI.Button anteDownButton = AddButton("AnteDown", betControls, new Vector2(-150f, 0f), new Vector2(52f, 48f), PanelLight, font, "−", 26, out _);
@@ -804,10 +807,15 @@ namespace RouletteLike.Roulette.Editor
             return fill;
         }
 
-        private static TMP_Text AddBadge(string name, Transform parent, string label, Color accent, TMP_FontAsset font, Vector2 position)
+        private static TMP_Text AddBadge(string name, Transform parent, string label, Color accent, TMP_FontAsset font, Vector2 position, float width = 240f)
         {
-            RectTransform badge = AddFramedPanel(name, parent, position, new Vector2(240f, 44f), PanelLight, accent, out _, out _);
-            return AddText("Label", badge, label, font, 16, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(220f, 30f));
+            RectTransform badge = AddFramedPanel(name, parent, position, new Vector2(width, 44f), PanelLight, accent, out _, out _);
+            TMP_Text text = AddText("Label", badge, label, font, 16, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(width - 20f, 30f));
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 11f;
+            text.fontSizeMax = 16f;
+            return text;
         }
 
         private static UnityEngine.UI.Image AddGlow(string name, Transform parent, Color color, Vector2 size)

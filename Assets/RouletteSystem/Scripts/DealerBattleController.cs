@@ -195,6 +195,15 @@ namespace RouletteLike.Roulette
         [Header("Tuning")]
         [SerializeField] private int battleSeed = 46021;
 
+        [Header("Debug")]
+        [Tooltip("개발용 자동 진행: 타이틀·문·SPIN·CASH OUT·NUDGE·HIJACK·종료를 스스로 눌러 런 전체를 회귀 점검한다. 출시 빌드에서는 끈다.")]
+        [SerializeField] private bool debugAutoplay;
+        [SerializeField, Min(0.05f)] private float debugAutoplayInterval = 0.25f;
+        private float _nextAutoplayAt;
+
+        /// <summary>자동 진행으로 끝낸 런 수(탈출, 파산).</summary>
+        public Vector2Int DebugAutoplayRuns { get; private set; }
+
         private readonly Queue<string> _combatLog = new Queue<string>();
         private readonly List<string> _fullLog = new List<string>();
         private Run _run;
@@ -285,6 +294,83 @@ namespace RouletteLike.Roulette
             StartNewRun();
         }
 
+        // ───────────── 개발용 자동 진행 ─────────────
+
+        [ContextMenu("Debug/Toggle Autoplay")]
+        private void ToggleAutoplay() => debugAutoplay = !debugAutoplay;
+
+        private void Update()
+        {
+            if (!debugAutoplay || Time.unscaledTime < _nextAutoplayAt) return;
+            _nextAutoplayAt = Time.unscaledTime + debugAutoplayInterval;
+            AutoplayStep();
+        }
+
+        private void AutoplayStep()
+        {
+            if (relicOverlay != null && relicOverlay.activeSelf) { relicOverlay.SetActive(false); return; }
+            if (titlePanel != null && titlePanel.activeSelf) { OnTitleStart(); return; }
+            if (doorPanel != null && doorPanel.activeSelf) { EnterDoor(0); return; }
+            if (endPanel != null && endPanel.activeSelf)
+            {
+                if (_run != null && _run.Outcome == RunOutcome.Escaped) DebugAutoplayRuns += new Vector2Int(1, 0);
+                else if (_battle != null && _battle.Outcome == BattleOutcome.DealerWins) DebugAutoplayRuns += new Vector2Int(0, 1);
+                Debug.Log($"[Autoplay] {_run?.FloorIndex + 1}층 {_battle?.Profile.Name} {_battle?.Outcome} R{_battle?.Round} · 런 {_run?.Outcome} · 칩 {_battle?.Player.Chips}/{_run?.Chips} · 유물 {_run?.Relics.Count}");
+                OnEndContinue();
+                return;
+            }
+
+            if (_placingJackpot)
+            {
+                for (int i = 0; i < _run.Wheel.Count; i++)
+                {
+                    if (_run.Wheel[i].Kind != SlotKind.HouseCut) { OnDestinationChosen(i); return; }
+                }
+
+                return;
+            }
+
+            if (_battle == null) return;
+            if (_pendingNudgeIndex >= 0)
+            {
+                ChooseNudge(_battle.Player.Pot >= 4 ? (nudgeRightButton != null && nudgeRightButton.interactable ? 1 : -1) : 0);
+                return;
+            }
+
+            if (_state == ViewState.ChoosingHijack && !_hijackTransferInProgress)
+            {
+                if (_selectedHijackSourceIndex < 0)
+                {
+                    for (int i = 0; i < _battle.Dealer.Wheel.Count; i++)
+                    {
+                        Slot slot = _battle.Dealer.Wheel[i];
+                        if (slot.Kind != SlotKind.Sealed && slot.Kind != SlotKind.HouseCut) { SelectHijackSource(i); return; }
+                    }
+
+                    return;
+                }
+
+                for (int i = 0; i < _battle.Player.Wheel.Count; i++)
+                {
+                    if (_battle.CanHijack(_selectedHijackSourceIndex, i) == HijackError.None) { PlaceHijackedSegment(i); return; }
+                }
+
+                return;
+            }
+
+            if (_state == ViewState.PlayerTurn && !_playerSpinning)
+            {
+                if (_battle.Phase == BattlePhase.Spinning && (_battle.Player.Pot >= 10 || _battle.PreviewCashOutDamage(Side.Player) >= _battle.Dealer.Chips))
+                {
+                    PlayerCashOut();
+                }
+                else
+                {
+                    ThrowRoulette(Random.value);
+                }
+            }
+        }
+
         // ───────────── 타이틀 ─────────────
 
         private void ShowTitle()
@@ -336,6 +422,7 @@ namespace RouletteLike.Roulette
         private void StartNewRun()
         {
             StopAllCoroutines();
+            ClearFx();
             _runCount++;
             _run = new Run(
                 battleSeed + _runCount * 1000,
@@ -492,6 +579,7 @@ namespace RouletteLike.Roulette
             HideLandingFeedback(Side.Player);
             HideLandingFeedback(Side.Dealer);
             SetWheelPicking(false);
+            ClearFx();
             momentBanner?.gameObject.SetActive(false);
             nudgeBar?.SetActive(false);
             relicOverlay?.SetActive(false);
@@ -1257,6 +1345,18 @@ namespace RouletteLike.Roulette
             }
 
             yield return Wait(0.35f);
+        }
+
+        /// <summary>
+        /// 연출 층에 남은 칩·숫자를 지운다. 새 전투·새 런은 StopAllCoroutines로 시작하므로, 날아가던 연출이 멈춘 채 남지 않게 한다.
+        /// </summary>
+        private void ClearFx()
+        {
+            if (fxLayer == null) return;
+            for (int i = fxLayer.childCount - 1; i >= 0; i--)
+            {
+                Destroy(fxLayer.GetChild(i).gameObject);
+            }
         }
 
         /// <summary>떠오르며 사라지는 숫자(피해·보험). 판돈 숫자 글꼴을 복제해 쓴다.</summary>

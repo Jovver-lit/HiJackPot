@@ -6,8 +6,8 @@
 
 ## 지금 상태
 
-- 플레이 가능: **5층 런** — 1층 토끼 튜토리얼 → 2~4층 문 두 개 중 딜러 선택(여우·고양이·까마귀) → 5층 보스 「매니저」(바깥 링 테이블). 판돈 모델, 딜러별 하우스 룰·HIJACK, 역탈취, 역전 보정, 보스 격파 시 다음 런부터 바깥 링 해금
-- 다음: 직접 플레이테스트로 전체 런 검증(`Docs/playtest/`에 기록)
+- **1차 MVP 기능 완성**(그레이박스): 타이틀 → **5층 런** — 1층 토끼 튜토리얼 → 2~4층 문 두 개 중 딜러 선택(여우·고양이·까마귀, 문마다 유물 상금) → 5층 보스 「매니저」(바깥 링 테이블). 판돈 모델, 딜러별 하우스 룰·룰렛 위에서 직접 HIJACK, 역탈취, NUDGE, 유물 12개, 테이블 칩 회수·테이블 마감, 역전 보정, 보스 격파 시 다음 런부터 바깥 링 해금. 범위 점검표: [`Docs/design/mvp-status.md`](Docs/design/mvp-status.md)
+- 다음: 사람 플레이테스트로 CLAUDE.md 8장 완료 기준 검증(`Docs/playtest/`에 기록) → ArtStyleBible과 아트·사운드
 
 ## 실행
 
@@ -15,7 +15,7 @@
 2. `Assets/Scenes/SampleScene.unity`(기준 씬)를 열고 Play.
 3. 룰렛 가운데 **SPIN**을 길게 눌렀다 놓고, 판돈이 충분하면 **CASH OUT**.
 
-씬은 코드로 생성된다. 구조를 바꿨다면 메뉴 `Tools > HIJACKPOT > Build Battle Scene (SampleScene)`으로 다시 만든다.
+씬은 코드로 생성된다. 구조를 바꿨다면 메뉴 `Tools > HIJACKPOT > Build Battle Scene (SampleScene)`으로 다시 만든다. 런 밸런스는 `Tools > HIJACKPOT > Simulate Runs (Balance Report)`로 확인한다. 회귀 점검용 자동 진행은 `DealerBattle` 오브젝트의 `Debug Autoplay`를 켠다.
 
 ## 폴더 지도
 

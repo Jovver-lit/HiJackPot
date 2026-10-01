@@ -4,4 +4,5 @@
 
 | 파일 | 내용 |
 |---|---|
-| [feature-decisions.md](feature-decisions.md) | 2026-09-30 컨셉 인터뷰 결정, 미정(룰렛 형식 후보), Later(딜러 특수 규칙 후보 등) |
+| [feature-decisions.md](feature-decisions.md) | 2026-09-30 컨셉 인터뷰 결정, 2026-10-01 MVP 마무리 결정(NUDGE·유물·칩 경제·테이블 마감), 미정, Later |
+| [mvp-status.md](mvp-status.md) | 1차 MVP 범위 점검표: CLAUDE.md 5·6·8장 항목별 구현 위치와 검증 방법 |
