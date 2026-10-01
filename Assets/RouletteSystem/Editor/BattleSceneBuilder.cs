@@ -166,6 +166,7 @@ namespace RouletteLike.Roulette.Editor
             RouletteController roulette = rouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController spin = rouletteRoot.gameObject.AddComponent<RouletteSpinController>();
             BuildRoulette(rouletteRoot, roulette, spin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteTick, rouletteStop, false);
+            RouletteClickArea playerClickArea = AddClickArea(rouletteRoot, roulette, 470f);
 
             // SPIN 버튼을 룰렛 중앙에 둔다. 회전하는 Wheel이 아니라 고정된 루트의 자식이라 함께 돌지 않는다.
             // 버튼 둘레의 원형 게이지가 누르고 있는 동안의 회전 강도를 보여준다.
@@ -230,6 +231,7 @@ namespace RouletteLike.Roulette.Editor
             RouletteController enemyRoulette = enemyRouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController enemySpin = enemyRouletteRoot.gameObject.AddComponent<RouletteSpinController>();
             BuildRoulette(enemyRouletteRoot, enemyRoulette, enemySpin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteTick, rouletteStop, true);
+            RouletteClickArea dealerClickArea = AddClickArea(enemyRouletteRoot, enemyRoulette, 430f);
             AddRect("EffectRoot", dealerRouletteContainer, Vector2.zero, new Vector2(560f, 560f));
 
             // ── 사건 띠: 방금 일어난 일 3개를 한 줄로(전체 기록 대신).
@@ -238,6 +240,18 @@ namespace RouletteLike.Roulette.Editor
             TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(30f, 0f), new Vector2(1740f, 36f));
             combatLogText.textWrappingMode = TextWrappingModes.NoWrap;
             combatLogText.overflowMode = TextOverflowModes.Ellipsis;
+
+            // HIJACK 안내 띠: 룰렛 위에서 직접 칸을 고르는 동안 테이블 위쪽을 덮는다.
+            RectTransform hijackBar = AddFramedPanel("HijackBar", centerPanel, new Vector2(0f, 250f), new Vector2(460f, 200f), new Color32(30, 25, 39, 255), Gold, out _, out _);
+            TMP_Text hijackBarTitle = AddText("Title", hijackBar, "HOUSE RULE CLEAR · HIJACK", font, 22, Gold, TextAlignmentOptions.Center, new Vector2(0f, 72f), new Vector2(440f, 32f));
+            TMP_Text hijackBarText = AddText("Instruction", hijackBar, "딜러 룰렛에서 빼앗을 칸을 클릭하세요", font, 16, Ink, TextAlignmentOptions.Center, new Vector2(0f, -12f), new Vector2(440f, 140f));
+
+            // 연출 층: CASH OUT 칩·피해 숫자가 패널 위로 날아다닌다. 큰 순간 배너는 그 위.
+            RectTransform fxLayer = AddRect("FxLayer", canvasObject.transform, Vector2.zero, new Vector2(1920f, 1080f));
+            RectTransform momentBanner = AddFramedPanel("MomentBanner", canvasObject.transform, new Vector2(0f, 60f), new Vector2(1920f, 150f), new Color32(30, 25, 39, 240), Gold, out UnityEngine.UI.Image momentBannerBackground, out _);
+            TMP_Text momentBannerTitle = AddText("Title", momentBanner, "하우스 룰 달성!", font, 54, Gold, TextAlignmentOptions.Center, new Vector2(0f, 18f), new Vector2(1800f, 70f));
+            TMP_Text momentBannerSubtitle = AddText("Subtitle", momentBanner, "HIJACK 기회 +1", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, -40f), new Vector2(1800f, 34f));
+            foreach (UnityEngine.UI.Graphic graphic in momentBanner.GetComponentsInChildren<UnityEngine.UI.Graphic>()) graphic.raycastTarget = false;
 
             GameObject battleObject = new GameObject("DealerBattle", typeof(RectTransform));
             battleObject.transform.SetParent(canvasObject.transform, false);
@@ -304,7 +318,21 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "dealerLandingTitle", dealerTagTitle);
             SetObject(identitySo, "dealerLandingEffect", dealerTagEffect);
             SetObject(identitySo, "dealerLandingBackground", dealerTagBackground);
+            SetObject(identitySo, "playerWheelClick", playerClickArea);
+            SetObject(identitySo, "dealerWheelClick", dealerClickArea);
+            SetObject(identitySo, "hijackBar", hijackBar.gameObject);
+            SetObject(identitySo, "hijackBarTitle", hijackBarTitle);
+            SetObject(identitySo, "hijackBarText", hijackBarText);
+            SetObject(identitySo, "fxLayer", fxLayer);
+            SetObject(identitySo, "momentBanner", momentBanner);
+            SetObject(identitySo, "momentBannerTitle", momentBannerTitle);
+            SetObject(identitySo, "momentBannerSubtitle", momentBannerSubtitle);
+            SetObject(identitySo, "momentBannerBackground", momentBannerBackground);
             identitySo.ApplyModifiedPropertiesWithoutUndo();
+            hijackBar.gameObject.SetActive(false);
+            momentBanner.gameObject.SetActive(false);
+            playerClickArea.gameObject.SetActive(false);
+            dealerClickArea.gameObject.SetActive(false);
             playerTag.gameObject.SetActive(false);
             dealerTag.gameObject.SetActive(false);
             doorPanel.gameObject.SetActive(false);
@@ -459,6 +487,21 @@ namespace RouletteLike.Roulette.Editor
         /// 바깥 링(이중 룰렛)을 보여주는 그레이박스 띠: 칸 6개 자리, 멈춘 칸은 컨트롤러가 금색으로 강조한다.
         /// 원형 바깥 링 아트는 ArtStyleBible 확정 뒤에 교체한다.
         /// </summary>
+        /// <summary>룰렛 위 클릭 영역(투명). HIJACK·JACKPOT 배치 때만 켜서 칸을 직접 고르게 한다. SPIN 버튼보다 아래에 둔다.</summary>
+        private static RouletteClickArea AddClickArea(RectTransform rouletteRoot, RouletteController controller, float size)
+        {
+            UnityEngine.UI.Image area = AddImage("ClickArea", rouletteRoot, new Color(0f, 0f, 0f, 0f));
+            area.rectTransform.sizeDelta = new Vector2(size, size);
+            area.raycastTarget = true;
+            Transform spinCenter = rouletteRoot.Find("SpinCenter");
+            if (spinCenter != null) area.transform.SetSiblingIndex(spinCenter.GetSiblingIndex());
+            RouletteClickArea click = area.gameObject.AddComponent<RouletteClickArea>();
+            SerializedObject so = new SerializedObject(click);
+            so.FindProperty("roulette").objectReferenceValue = controller;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return click;
+        }
+
         /// <summary>착지 이름표: 칸 이름(크게)과 효과 한 줄. 배경색은 컨트롤러가 칸 종류에 맞춰 바꾼다.</summary>
         private static RectTransform BuildLandingTag(Transform parent, Vector2 position, TMP_FontAsset font, out TMP_Text title, out TMP_Text effect, out UnityEngine.UI.Image background)
         {

@@ -142,6 +142,22 @@ namespace RouletteLike.Roulette
         [SerializeField] private TMP_Text dealerLandingEffect;
         [SerializeField] private UnityEngine.UI.Image dealerLandingBackground;
 
+        [Header("Hijack On Wheels (룰렛 위에서 직접 고르기)")]
+        [SerializeField] private RouletteClickArea playerWheelClick;
+        [SerializeField] private RouletteClickArea dealerWheelClick;
+        [SerializeField] private GameObject hijackBar;
+        [SerializeField] private TMP_Text hijackBarTitle;
+        [SerializeField] private TMP_Text hijackBarText;
+
+        [Header("Moments (CASH OUT 칩·큰 순간 배너)")]
+        [SerializeField] private RectTransform fxLayer;
+        [SerializeField] private RectTransform momentBanner;
+        [SerializeField] private TMP_Text momentBannerTitle;
+        [SerializeField] private TMP_Text momentBannerSubtitle;
+        [SerializeField] private UnityEngine.UI.Image momentBannerBackground;
+        [SerializeField, Min(0.1f)] private float chipFlightDuration = 0.45f;
+        [SerializeField, Min(0.1f)] private float bannerDuration = 1.1f;
+
         [Header("Run · Doors")]
         [SerializeField] private GameObject doorPanel;
         [SerializeField] private TMP_Text doorFloorText;
@@ -204,6 +220,8 @@ namespace RouletteLike.Roulette
             }
 
             endContinueButton?.onClick.AddListener(OnEndContinue);
+            if (playerWheelClick != null) playerWheelClick.SegmentClicked += OnPlayerWheelClicked;
+            if (dealerWheelClick != null) dealerWheelClick.SegmentClicked += SelectHijackSource;
         }
 
         private void OnEnable()
@@ -389,6 +407,8 @@ namespace RouletteLike.Roulette
             houseRuleInfoPanel?.SetActive(false);
             HideLandingFeedback(Side.Player);
             HideLandingFeedback(Side.Dealer);
+            SetWheelPicking(false);
+            momentBanner?.gameObject.SetActive(false);
             openingSpeechBubble?.SetActive(_battle.Profile.Telegraphs);
             endPanel?.SetActive(false);
             instructionText.text = $"{_battle.Profile.Name} 테이블에 앉았습니다. 코인플립으로 선공을 정합니다.";
@@ -443,6 +463,7 @@ namespace RouletteLike.Roulette
 
             if (_battle.HijackChances > 0 && !_battle.HijackUsedThisRound)
             {
+                yield return PlayBanner("하우스 룰 달성!", $"{houseRuleTitleText?.text}  →  HIJACK 기회", new Color32(224, 168, 52, 255));
                 OpenHijackSelection();
                 yield break;
             }
@@ -562,6 +583,10 @@ namespace RouletteLike.Roulette
             if (landing.EndedTurn)
             {
                 dealerLineText.text = "\"하우스 몫입니다. 테이블 위의 칩은 저희가 정리하겠습니다.\"";
+                if (landing.HouseCutHit && landing.Amount > 0)
+                {
+                    StartCoroutine(PlayBanner("하우스 몫!", $"판돈 {landing.Amount} 증발", new Color32(230, 84, 84, 255)));
+                }
                 if (_battle.CounterHijackPending)
                 {
                     StartCoroutine(PlayCounterHijackThenContinue());
@@ -591,7 +616,15 @@ namespace RouletteLike.Roulette
             dealerLineText.text = result.Damage >= 8
                 ? "\"크게 가져가시네요. 장부에 기록해 두겠습니다.\""
                 : "\"정산 완료. 다음 판도 기대하겠습니다.\"";
-            StartCoroutine(AfterPlayerTurnEnded());
+            StartCoroutine(CashOutThenEndTurn(result));
+        }
+
+        private IEnumerator CashOutThenEndTurn(CashOutResult result)
+        {
+            _state = ViewState.Busy;
+            spinInput?.ShowUnavailableState("정산 중");
+            yield return PlayCashOutFlight(Side.Player, result);
+            yield return AfterPlayerTurnEnded();
         }
 
         /// <summary>
@@ -689,6 +722,7 @@ namespace RouletteLike.Roulette
                         ? "\"보험이 전액 보장했군요. 규정상 칸 하나를 양도하겠습니다.\""
                         : "\"정산하겠습니다. 손님 칩에서 받아 두었어요.\"";
                     presentationUi?.SetHouseRuleHighlighted(cashOut.FullCoverage);
+                    yield return PlayCashOutFlight(Side.Dealer, cashOut);
                     break;
                 }
 
@@ -746,7 +780,19 @@ namespace RouletteLike.Roulette
             spinInput?.ShowUnavailableState("칸 선택 중");
             presentationUi?.SetHouseRuleHighlighted(true);
             _selectedHijackSourceIndex = -1;
-            hijackPanel?.SetActive(true);
+            // 룰렛 위에서 직접 고른다. 안내 띠가 없는 옛 씬이면 버튼 패널로 대신한다.
+            bool onWheels = hijackBar != null && dealerWheelClick != null && playerWheelClick != null;
+            hijackPanel?.SetActive(!onWheels);
+            if (onWheels)
+            {
+                SetWheelPicking(true);
+                hijackBarTitle.text = "HOUSE RULE CLEAR · HIJACK";
+                hijackBarText.text = $"1. {DealerShortName} 룰렛에서 빼앗을 칸을 클릭하세요\n밝은 칸만 가능 · 하우스 몫·봉인 칸 불가";
+                HideLandingFeedback(Side.Player);
+                HideLandingFeedback(Side.Dealer);
+                enemyRoulette?.ShowLanding(null, StealableDealerSlotIds(), false);
+            }
+
             hijackInstructionText.text = $"1. 빼앗을 {DealerShortName}의 칸을 고르세요 ([JP] = JACKPOT, 하우스 몫 불가)";
             if (hijackSourceTitleText != null) hijackSourceTitleText.text = $"{_battle.Profile.Name} 룰렛 · 빼앗을 칸";
 
@@ -786,11 +832,56 @@ namespace RouletteLike.Roulette
             _selectedHijackSourceIndex = sourceIndex;
             Slot chosen = _battle.Dealer.Wheel[sourceIndex];
             hijackInstructionText.text = $"2. 「{chosen.Label}」 {SlotDescriptions.Describe(chosen)}\n   이 칸으로 덮어쓸 내 칸을 고르세요 (하우스 몫은 불가)";
-            for (int i = 0; i < hijackDestinationButtons.Length && i < _battle.Player.Wheel.Count; i++)
+            List<string> destinations = new List<string>();
+            for (int i = 0; i < _battle.Player.Wheel.Count; i++)
             {
-                hijackDestinationButtons[i].interactable =
-                    _battle.CanHijack(sourceIndex, i) == HijackError.None;
+                bool valid = _battle.CanHijack(sourceIndex, i) == HijackError.None;
+                if (valid) destinations.Add(_battle.Player.Wheel[i].Id);
+                if (i < hijackDestinationButtons.Length) hijackDestinationButtons[i].interactable = valid;
             }
+
+            if (hijackBarText != null)
+            {
+                hijackBarText.text = $"「{SlotTitle(chosen)}」\n{SlotDescriptions.Describe(chosen)}\n\n2. 내 룰렛에서 덮어쓸 칸을 클릭하세요\n(다른 딜러 칸을 눌러 바꿀 수 있음)";
+            }
+
+            enemyRoulette?.ShowLanding(chosen.Id, StealableDealerSlotIds(), false);
+            roulette?.ShowLanding(null, destinations, false);
+        }
+
+        private void OnPlayerWheelClicked(int index)
+        {
+            if (_placingJackpot)
+            {
+                OnDestinationChosen(index);
+                return;
+            }
+
+            PlaceHijackedSegment(index);
+        }
+
+        /// <summary>룰렛 위 클릭으로 칸 고르기를 켜고 끈다(안내 띠·클릭 영역).</summary>
+        private void SetWheelPicking(bool on)
+        {
+            hijackBar?.SetActive(on);
+            if (playerWheelClick != null) playerWheelClick.gameObject.SetActive(on);
+            if (dealerWheelClick != null) dealerWheelClick.gameObject.SetActive(on);
+            if (!on)
+            {
+                roulette?.ClearLanding();
+                enemyRoulette?.ClearLanding();
+            }
+        }
+
+        private List<string> StealableDealerSlotIds()
+        {
+            List<string> ids = new List<string>();
+            foreach (Slot slot in _battle.Dealer.Wheel)
+            {
+                if (slot.Kind != SlotKind.Sealed && slot.Kind != SlotKind.HouseCut) ids.Add(slot.Id);
+            }
+
+            return ids;
         }
 
         private void PlaceHijackedSegment(int destinationIndex)
@@ -815,6 +906,7 @@ namespace RouletteLike.Roulette
             Slot stolenSlot = _battle.Dealer.Wheel[sourceIndex];
             RouletteSegmentData stolenView = ToSegment(stolenSlot.AsStolen("preview"));
             hijackPanel?.SetActive(false);
+            SetWheelPicking(false);
 
             bool applied = false;
             void ApplyTransfer()
@@ -841,8 +933,154 @@ namespace RouletteLike.Roulette
                 ? $"\"「{stolenSlot.Label}」까지요? 보안팀을 불러드리겠습니다.\""
                 : "\"양도 처리가 완료됐습니다. 반환은 불가능합니다.\"";
             _state = ViewState.Busy;
-            yield return new WaitForSecondsRealtime(resultPause);
+            if (stolenSlot.IsJackpot)
+            {
+                yield return PlayBanner("JACKPOT HIJACK!", $"「{stolenSlot.Label}」 {SlotDescriptions.Describe(stolenSlot)}", new Color32(224, 168, 52, 255));
+            }
+            else
+            {
+                yield return new WaitForSecondsRealtime(resultPause);
+            }
+
             yield return ContinueTurnFlow();
+        }
+
+        // ───────────── 큰 순간 ─────────────
+
+        /// <summary>화면 가운데 띠 배너(하우스 룰 달성·JACKPOT HIJACK·하우스 몫). 크게 튀어나왔다가 사라진다.</summary>
+        private IEnumerator PlayBanner(string title, string subtitle, Color accent)
+        {
+            if (momentBanner == null) yield break;
+            momentBannerTitle.text = title;
+            momentBannerTitle.color = accent;
+            momentBannerSubtitle.text = subtitle;
+            if (momentBannerBackground != null)
+            {
+                momentBannerBackground.color = Color.Lerp(new Color32(30, 25, 39, 240), accent, 0.18f);
+            }
+
+            momentBanner.gameObject.SetActive(true);
+            momentBanner.SetAsLastSibling();
+            const float pop = 0.15f;
+            for (float t = 0f; t < pop; t += Time.unscaledDeltaTime)
+            {
+                momentBanner.localScale = new Vector3(1f, Mathf.Lerp(0.2f, 1f, t / pop), 1f);
+                momentBannerTitle.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.6f, 1f, t / pop);
+                yield return null;
+            }
+
+            momentBanner.localScale = Vector3.one;
+            momentBannerTitle.rectTransform.localScale = Vector3.one;
+            yield return new WaitForSecondsRealtime(bannerDuration);
+            momentBanner.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// CASH OUT 연출: 판돈 칩 더미가 상대 칩 바로 날아가고, 보험만큼은 튕겨 나온다. 도착하면 칩 바가 줄고 피해 숫자가 터진다.
+        /// 코어는 이미 정산을 끝낸 상태이며 이건 보여 주기만 한다.
+        /// </summary>
+        private IEnumerator PlayCashOutFlight(Side cashingSide, CashOutResult result)
+        {
+            RectTransform target = (cashingSide == Side.Player ? dealerChipsFill : playerChipsFill)?.rectTransform;
+            if (fxLayer == null || target == null || potChipImages.Length == 0)
+            {
+                RefreshAllUi();
+                yield break;
+            }
+
+            List<RectTransform> chips = new List<RectTransform>();
+            foreach (UnityEngine.UI.Image chip in potChipImages)
+            {
+                if (!chip.gameObject.activeSelf) continue;
+                GameObject copy = Instantiate(chip.gameObject, fxLayer);
+                RectTransform rect = (RectTransform)copy.transform;
+                rect.position = chip.rectTransform.position;
+                chips.Add(rect);
+                chip.gameObject.SetActive(false);
+            }
+
+            if (chips.Count == 0)
+            {
+                GameObject copy = Instantiate(potChipImages[0].gameObject, fxLayer);
+                copy.SetActive(true);
+                ((RectTransform)copy.transform).position = potChipImages[0].rectTransform.position;
+                chips.Add((RectTransform)copy.transform);
+            }
+
+            int blocked = result.Pot <= 0 ? chips.Count : Mathf.RoundToInt(chips.Count * Mathf.Clamp01((float)(result.Pot - result.Damage) / result.Pot));
+            if (result.Damage > 0) blocked = Mathf.Min(blocked, chips.Count - 1);
+            Vector3[] starts = new Vector3[chips.Count];
+            for (int i = 0; i < chips.Count; i++) starts[i] = chips[i].position;
+            Vector3 end = target.position;
+            const float stagger = 0.03f;
+            float total = chipFlightDuration + stagger * chips.Count;
+            for (float t = 0f; t < total; t += Time.unscaledDeltaTime)
+            {
+                for (int i = 0; i < chips.Count; i++)
+                {
+                    float k = Mathf.Clamp01((t - i * stagger) / chipFlightDuration);
+                    float eased = 1f - (1f - k) * (1f - k);
+                    bool bounces = i >= chips.Count - blocked;
+                    Vector3 position;
+                    if (!bounces)
+                    {
+                        position = Vector3.Lerp(starts[i], end, eased) + Vector3.up * Mathf.Sin(k * Mathf.PI) * 80f;
+                    }
+                    else
+                    {
+                        // 보험: 상대 앞 70% 지점에서 튕겨 아래로 떨어진다.
+                        Vector3 wall = Vector3.Lerp(starts[i], end, 0.7f);
+                        position = k < 0.6f
+                            ? Vector3.Lerp(starts[i], wall, k / 0.6f) + Vector3.up * Mathf.Sin(k / 0.6f * Mathf.PI) * 60f
+                            : wall + new Vector3(0f, -160f * ((k - 0.6f) / 0.4f), 0f);
+                    }
+
+                    chips[i].position = position;
+                    chips[i].localScale = Vector3.one * (bounces && k > 0.6f ? Mathf.Lerp(1f, 0.4f, (k - 0.6f) / 0.4f) : 1f);
+                }
+
+                yield return null;
+            }
+
+            foreach (RectTransform chip in chips) Destroy(chip.gameObject);
+            RefreshAllUi();
+            if (result.Damage > 0)
+            {
+                StartCoroutine(FloatText($"−{result.Damage}", target.position + Vector3.up * 30f, new Color32(255, 96, 96, 255), 54));
+            }
+
+            if (result.OpponentInsurance > 0)
+            {
+                Vector3 wallPoint = Vector3.Lerp(starts[0], end, 0.7f);
+                StartCoroutine(FloatText(result.Damage > 0 ? $"보험 −{result.OpponentInsurance}" : "전액 보장!", wallPoint, new Color32(86, 206, 214, 255), 30));
+            }
+
+            yield return new WaitForSecondsRealtime(0.35f);
+        }
+
+        /// <summary>떠오르며 사라지는 숫자(피해·보험). 판돈 숫자 글꼴을 복제해 쓴다.</summary>
+        private IEnumerator FloatText(string text, Vector3 position, Color color, float size)
+        {
+            if (fxLayer == null || potText == null) yield break;
+            TMP_Text label = Instantiate(potText, fxLayer);
+            label.text = text;
+            label.color = color;
+            label.fontSize = size;
+            label.raycastTarget = false;
+            RectTransform rect = label.rectTransform;
+            rect.sizeDelta = new Vector2(400f, 70f);
+            rect.position = position;
+            const float duration = 0.9f;
+            for (float t = 0f; t < duration && label != null; t += Time.unscaledDeltaTime)
+            {
+                float k = t / duration;
+                rect.position = position + Vector3.up * (50f * k);
+                rect.localScale = Vector3.one * (k < 0.15f ? Mathf.Lerp(1.6f, 1f, k / 0.15f) : 1f);
+                label.alpha = k < 0.6f ? 1f : Mathf.Lerp(1f, 0f, (k - 0.6f) / 0.4f);
+                yield return null;
+            }
+
+            if (label != null) Destroy(label.gameObject);
         }
 
         // ───────────── 종료 ─────────────

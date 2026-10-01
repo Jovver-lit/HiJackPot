@@ -38,6 +38,7 @@ namespace RouletteLike.Roulette
         private string _highlightedSegmentId;
         private string _focusedSegmentId;
         private readonly HashSet<string> _focusGroupIds = new HashSet<string>(StringComparer.Ordinal);
+        private bool _tintFocusGroup = true;
 
         [Header("Landing Focus")]
         [Tooltip("착지 고정 표시 중 착지 칸·연쇄 묶음이 아닌 칸의 밝기 배율.")]
@@ -155,13 +156,14 @@ namespace RouletteLike.Roulette
 
         /// <summary>
         /// 착지 고정 표시: 착지 칸은 밝게, 연쇄 묶음은 조금 밝게, 나머지는 어둡게 그린다. 다음 회전 전까지 유지.
-        /// landedId가 null이면 해제한다.
+        /// HIJACK 선택처럼 고른 칸이 없을 때는 landedId 없이 groupIds만 밝게 남길 수 있다. 둘 다 비면 해제.
         /// </summary>
-        public void SetLandingFocus(string landedId, IEnumerable<string> groupIds)
+        public void SetLandingFocus(string landedId, IEnumerable<string> groupIds, bool tintGroup = true)
         {
             _focusedSegmentId = landedId;
+            _tintFocusGroup = tintGroup;
             _focusGroupIds.Clear();
-            if (landedId != null && groupIds != null)
+            if (groupIds != null)
             {
                 foreach (string id in groupIds)
                 {
@@ -315,7 +317,7 @@ namespace RouletteLike.Roulette
                 fill = Color.Lerp(fill, highlightColor, highlightBlend);
             }
 
-            if (_focusedSegmentId != null && data != null)
+            if ((_focusedSegmentId != null || _focusGroupIds.Count > 0) && data != null)
             {
                 if (string.Equals(data.id, _focusedSegmentId, StringComparison.Ordinal))
                 {
@@ -323,7 +325,7 @@ namespace RouletteLike.Roulette
                 }
                 else if (_focusGroupIds.Contains(data.id))
                 {
-                    fill = Color.Lerp(fill, highlightColor, focusBlend * 0.5f);
+                    if (_tintFocusGroup) fill = Color.Lerp(fill, highlightColor, focusBlend * 0.5f);
                 }
                 else
                 {
