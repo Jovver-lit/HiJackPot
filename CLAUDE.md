@@ -64,7 +64,7 @@
 - `Library/`, `Temp/`, `Logs/`, `UserSettings/`는 수정하지 않는다.
 
 ### 기록
-- 이 파일(CLAUDE.md)이 프로젝트 지침의 원본이다. 지침을 바꾸면 claude.ai HIJACKPOT 프로젝트 문서의 사본(`claude/CLAUDE.md`)도 함께 갱신한다.
+- 이 파일(CLAUDE.md)이 프로젝트 지침의 유일한 원본이다. 작업 대화는 Claude Code에서만 하므로 claude.ai 프로젝트의 사본(`claude/CLAUDE.md`)은 따로 갱신하지 않는다(2026-10-01부터).
 - 기능 결정은 `Docs/design/feature-decisions.md`, 플레이테스트 결과는 `Docs/playtest/`에 저장한다. 저장소에 두어 Claude Code와 Cowork, 팀원이 모두 본다. 폴더 안내는 `Docs/README.md`.
 - 게임 용어는 루트 `CONTEXT.md`가 기준이다. 코드·UI·문서에서 `_Avoid_`에 적힌 옛 이름(HP, 방어력, 전리품 칸 등)을 쓰지 않는다.
 - 되돌리기 어려운 설계 결정은 `Docs/adr/`에 남긴다.

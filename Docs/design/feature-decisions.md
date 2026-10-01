@@ -86,4 +86,4 @@
 
 ## CLAUDE.md 갱신
 
-- 2026-09-30 컨셉 인터뷰 결정을 CLAUDE.md §1·§2·§3·§5·§6·§7·§8에 반영 완료. claude.ai 프로젝트의 `claude/CLAUDE.md` 사본은 사용자가 직접 갱신한다.
+- 2026-09-30 컨셉 인터뷰 결정을 CLAUDE.md §1·§2·§3·§5·§6·§7·§8에 반영 완료. claude.ai 프로젝트의 `claude/CLAUDE.md` 사본은 2026-10-01부터 갱신하지 않는다(대화는 Claude Code에서만).
