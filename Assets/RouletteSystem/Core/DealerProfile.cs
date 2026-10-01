@@ -95,8 +95,14 @@ namespace RouletteLike.Battle
         /// <summary>시작 칩·앤티를 바꾼 사본(층이 오를수록 딜러가 단단하고 아파진다).</summary>
         public DealerProfile WithFloorScaling(int startingChips, int anteBonus)
         {
-            return new DealerProfile(Name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt, HouseRule, Telegraphs, CounterHijacks,
-                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance, TableOuterRing);
+            return WithStakes(Name, startingChips, anteBonus, 0, 0);
+        }
+
+        /// <summary>이름·시작 칩·앤티·기본 보험·성향(CASH OUT 판돈)을 바꾼 사본. 2회차 보스 등.</summary>
+        public DealerProfile WithStakes(string name, int startingChips, int anteBonus, int insuranceBonus, int cashOutAtBonus)
+        {
+            return new DealerProfile(name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt + cashOutAtBonus, HouseRule, Telegraphs, CounterHijacks,
+                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance + insuranceBonus, TableOuterRing);
         }
     }
 }

@@ -3,12 +3,15 @@ using System.Collections.Generic;
 
 namespace RouletteLike.Battle
 {
-    /// <summary>층의 종류. MVP에는 딜러층과 보스층만 있다(상점층은 정식판).</summary>
+    /// <summary>층의 종류.</summary>
     public enum FloorKind
     {
         /// <summary>문 앞에서 딜러를 고른다(후보가 하나면 고정).</summary>
         Dealer,
-        Boss
+        Boss,
+
+        /// <summary>전투 없이 현금으로 룰렛을 다듬고 칩을 사고 슬롯머신을 하는 층(ADR 0009).</summary>
+        Shop
     }
 
     public enum RunOutcome
@@ -19,11 +22,40 @@ namespace RouletteLike.Battle
     }
 
     /// <summary>
-    /// 한 번의 도전(런). 칩과 플레이어 룰렛이 전투를 넘어 이어진다.
-    /// MVP 스테이지: 1층 토끼(고정) → 2~4층 딜러(문 두 개 중 선택) → 5층 보스.
+    /// 한 번의 도전(런). 칩·현금·룰렛·유물이 전투를 넘어 이어진다.
+    /// 기본 구성(ADR 0009): 1층 토끼 → 2~4층 딜러(문 선택) → 5층 보스 → 6층 상점 → 7~9층 딜러(2회차, 더 강함) → 10층 강화 보스.
+    /// 상점 기능은 RunShop.cs(같은 클래스의 나머지 절반).
     /// </summary>
-    public sealed class Run
+    public sealed partial class Run
     {
+        /// <summary>기본 런의 층 구성.</summary>
+        public static readonly IReadOnlyList<FloorKind> StandardLayout = new[]
+        {
+            FloorKind.Dealer, FloorKind.Dealer, FloorKind.Dealer, FloorKind.Dealer, FloorKind.Boss,
+            FloorKind.Shop,
+            FloorKind.Dealer, FloorKind.Dealer, FloorKind.Dealer, FloorKind.Boss
+        };
+
+        private readonly List<FloorKind> _layout = new List<FloorKind>();
+        private readonly List<Slot> _startingWheel;
+
+        /// <summary>층 구성(0부터). 0층은 언제나 튜토리얼 딜러.</summary>
+        public IReadOnlyList<FloorKind> Layout => _layout;
+
+        /// <summary>지금 층이 몇 회차(스테이지)인지. 보스를 하나 넘을 때마다 +1(0부터).</summary>
+        public int Stage
+        {
+            get
+            {
+                int bosses = 0;
+                for (int i = 0; i < FloorIndex && i < _layout.Count; i++)
+                {
+                    if (_layout[i] == FloorKind.Boss) bosses++;
+                }
+
+                return bosses;
+            }
+        }
         /// <summary>딜러층이 하나 오를 때마다 딜러 시작 칩에 더하는 비율(2층 ×1.0, 3층 ×1.3, 4층 ×1.6).</summary>
         public const float DealerChipsPerFloor = 0.3f;
 
@@ -63,7 +95,10 @@ namespace RouletteLike.Battle
         /// <summary>완전 강탈로 확정 획득한, 아직 룰렛에 넣지 않은 JACKPOT 칸.</summary>
         public Slot PendingJackpot { get; private set; }
 
-        public FloorKind CurrentFloorKind => FloorIndex == FloorCount - 1 ? FloorKind.Boss : FloorKind.Dealer;
+        public FloorKind CurrentFloorKind => FloorIndex < _layout.Count ? _layout[FloorIndex] : FloorKind.Boss;
+
+        /// <summary>다음 층의 종류(마지막 층이면 null). 종료 화면의 "다음으로" 문구용.</summary>
+        public FloorKind? NextFloorKind => FloorIndex + 1 < _layout.Count ? _layout[FloorIndex + 1] : (FloorKind?)null;
         public IReadOnlyList<DealerProfile> Doors => _doors;
 
         /// <summary>문마다 걸린 유물 상금(같은 순서). 그 딜러를 이기면 받는다. 보스 문에는 없다(null).</summary>
@@ -114,6 +149,9 @@ namespace RouletteLike.Battle
         /// <summary>이번 문 선택 화면에서 환전 창구로 산 칩 수(층마다 0으로 돌아간다).</summary>
         public int ChipsBoughtThisVisit { get; private set; }
 
+        /// <summary>방금 끝낸 전투(보스)에서 룰렛 형식(바깥 링)을 이 런 안에서 얻었다.</summary>
+        public bool GainedWheelFormThisBattle { get; private set; }
+
         /// <summary>방금 끝낸 전투에서 받은 유물(없으면 null). 종료 화면 표시용.</summary>
         public RelicId? LastRelicGained { get; private set; }
 
@@ -124,7 +162,7 @@ namespace RouletteLike.Battle
             Func<DealerProfile> tutorialDealer,
             IReadOnlyList<Func<DealerProfile>> dealerPool,
             Func<DealerProfile> boss,
-            int floorCount = 5,
+            int floorCount = 0,
             IEnumerable<Slot> outerRing = null,
             IEnumerable<RelicId> startingRelics = null,
             ChipExchangeRules exchange = null)
@@ -137,11 +175,23 @@ namespace RouletteLike.Battle
             if (startingRelics != null) _relics.AddRange(startingRelics);
             Chips = startingChips;
             _wheel = new List<Slot>(startingWheel);
+            _startingWheel = new List<Slot>(_wheel);
+            _shopRng = new Random(seed ^ 0x5409);
             _outerRing = outerRing == null ? new List<Slot>() : new List<Slot>(outerRing);
             _tutorialDealer = tutorialDealer;
             _dealerPool = dealerPool;
             _boss = boss;
-            FloorCount = floorCount;
+            // floorCount를 주면 예전 구성(딜러 … 마지막 보스, 상점 없음)을 쓴다. 테스트·시뮬레이션용.
+            if (floorCount > 0)
+            {
+                for (int i = 0; i < floorCount; i++) _layout.Add(i == floorCount - 1 ? FloorKind.Boss : FloorKind.Dealer);
+            }
+            else
+            {
+                _layout.AddRange(StandardLayout);
+            }
+
+            FloorCount = _layout.Count;
             RollDoors();
         }
 
@@ -149,6 +199,7 @@ namespace RouletteLike.Battle
         public PotBattle EnterDoor(int doorIndex)
         {
             if (Outcome != RunOutcome.InProgress) throw new InvalidOperationException("런이 끝났습니다.");
+            if (CurrentFloorKind == FloorKind.Shop) throw new InvalidOperationException("상점층에는 문이 없습니다. LeaveShop으로 다음 층에 갑니다.");
             if (CurrentBattle != null) throw new InvalidOperationException("진행 중인 전투가 있습니다.");
             if (PendingJackpot != null) throw new InvalidOperationException("획득한 JACKPOT 칸을 먼저 배치하세요.");
             if (doorIndex < 0 || doorIndex >= _doors.Count) throw new ArgumentOutOfRangeException(nameof(doorIndex));
@@ -198,14 +249,21 @@ namespace RouletteLike.Battle
             }
 
             bool beatBoss = CurrentFloorKind == FloorKind.Boss;
+            if (beatBoss && _outerRing.Count == 0 && battle.Profile.TableOuterRing.Count > 0)
+            {
+                // 보스를 이기면 그 보스의 룰렛 형식(바깥 링)을 이 런 안에서 바로 얻는다. 다음 런 해금도 함께(화면이 저장).
+                _outerRing.AddRange(battle.Profile.TableOuterRing);
+                UnlockedOuterRingThisRun = true;
+                GainedWheelFormThisBattle = true;
+            }
+            else
+            {
+                GainedWheelFormThisBattle = false;
+            }
+
             FloorIndex++;
             if (FloorIndex >= FloorCount)
             {
-                if (beatBoss && _outerRing.Count == 0 && battle.Profile.TableOuterRing.Count > 0)
-                {
-                    UnlockedOuterRingThisRun = true;
-                }
-
                 Outcome = RunOutcome.Escaped;
                 return;
             }
@@ -255,6 +313,12 @@ namespace RouletteLike.Battle
             _doors.Clear();
             _doorRelics.Clear();
             _enteredDoor = -1;
+            if (CurrentFloorKind == FloorKind.Shop)
+            {
+                StockShop();
+                return;
+            }
+
             RollDealers();
 
             // 유물은 딜러층 문에만 걸린다. 같은 층의 두 문에는 서로 다른, 아직 없는 유물을 건다.
@@ -278,14 +342,48 @@ namespace RouletteLike.Battle
             }
         }
 
-        /// <summary>이 층(0부터)부터 딜러 앤티 +1.</summary>
-        public const int DealerAnteBonusFromFloor = 3;
+        /// <summary>회차(스테이지) 안에서 3번째 딜러층부터 딜러 앤티 +1.</summary>
+        public const int DealerAnteBonusFromPosition = 3;
+
+        /// <summary>
+        /// 2회차 딜러: 칩은 조금만 늘리고(딴 칩이 눈덩이가 되지 않게) 대신 더 아프게 친다 — 기본 칩 배율, 추가 앤티, CASH OUT 판돈 가산.
+        /// </summary>
+        public const float SecondStageChipBase = 1.2f;
+        public const int SecondStageAnteBonus = 2;
+        public const int SecondStageCashOutBonus = 4;
+
+        /// <summary>2회차 보스: 칩 배율·앤티·보험·성향 가산과 이름(시뮬레이션으로 정한 임시값).</summary>
+        public const float SecondStageBossChipScale = 1.6f;
+        public const int SecondStageBossAnteBonus = 3;
+        public const int SecondStageBossInsuranceBonus = 2;
+        public const int SecondStageBossCashOutBonus = 6;
+        public const string SecondStageBossSuffix = " · 야간 근무";
+
+        /// <summary>회차 안에서 이 층이 몇 번째 딜러층인지(1부터). 1층 토끼는 0.</summary>
+        private int DealerPositionInStage()
+        {
+            int position = 0;
+            for (int i = FloorIndex; i >= 1 && _layout[i] == FloorKind.Dealer; i--) position++;
+            return position;
+        }
 
         private DealerProfile ScaleForFloor(DealerProfile dealer)
         {
-            float scale = 1f + DealerChipsPerFloor * Math.Max(0, FloorIndex - 1);
-            int anteBonus = FloorIndex >= DealerAnteBonusFromFloor ? 1 : 0;
-            return scale <= 1f && anteBonus == 0 ? dealer : dealer.WithFloorScaling((int)Math.Round(dealer.StartingChips * scale), anteBonus);
+            int position = DealerPositionInStage();
+            float baseScale = Stage == 0 ? 1f : SecondStageChipBase;
+            float scale = baseScale + DealerChipsPerFloor * Math.Max(0, position - 1);
+            int anteBonus = (position >= DealerAnteBonusFromPosition ? 1 : 0) + (Stage > 0 ? SecondStageAnteBonus : 0);
+            int cashOutBonus = Stage > 0 ? SecondStageCashOutBonus : 0;
+            return Math.Abs(scale - 1f) < 0.001f && anteBonus == 0 && cashOutBonus == 0
+                ? dealer
+                : dealer.WithStakes(dealer.Name, (int)Math.Round(dealer.StartingChips * scale), anteBonus, 0, cashOutBonus);
+        }
+
+        private DealerProfile ScaleBoss(DealerProfile boss)
+        {
+            if (Stage == 0) return boss;
+            return boss.WithStakes(boss.Name + SecondStageBossSuffix, (int)Math.Round(boss.StartingChips * SecondStageBossChipScale),
+                SecondStageBossAnteBonus, SecondStageBossInsuranceBonus, SecondStageBossCashOutBonus);
         }
 
         private void RollDealers()
@@ -298,7 +396,7 @@ namespace RouletteLike.Battle
 
             if (CurrentFloorKind == FloorKind.Boss)
             {
-                _doors.Add(_boss());
+                _doors.Add(ScaleBoss(_boss()));
                 return;
             }
 

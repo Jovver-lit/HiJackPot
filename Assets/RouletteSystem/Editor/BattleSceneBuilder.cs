@@ -352,6 +352,20 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "titleStartButton", titleStartButton);
             SetObject(identitySo, "titleResetButton", titleResetButton);
             SetObject(identitySo, "titleMetaText", titleMetaText);
+            ShopView shop = BuildShopPanel(canvasObject.transform, font);
+            SetObject(identitySo, "shopPanel", shop.Panel.gameObject);
+            SetObject(identitySo, "shopStatusText", shop.Status);
+            SetObject(identitySo, "shopMessageText", shop.Message);
+            SetObjectArray(identitySo.FindProperty("shopServiceButtons"), shop.ServiceButtons);
+            SetObjectArray(identitySo.FindProperty("shopServiceLabels"), shop.ServiceLabels);
+            SetObjectArray(identitySo.FindProperty("shopSlotButtons"), shop.SlotButtons);
+            SetObjectArray(identitySo.FindProperty("shopSlotLabels"), shop.SlotLabels);
+            SetObjectArray(identitySo.FindProperty("slotReelTexts"), shop.Reels);
+            SetObject(identitySo, "slotResultText", shop.SlotResult);
+            SetObjectArray(identitySo.FindProperty("slotBetButtons"), shop.BetButtons);
+            SetObject(identitySo, "slotPullButton", shop.PullButton);
+            SetObject(identitySo, "slotPayTableText", shop.PayTable);
+            SetObject(identitySo, "shopLeaveButton", shop.LeaveButton);
             SetObject(identitySo, "relicStripButton", relicStripButton);
             SetObject(identitySo, "relicStripText", relicStripText);
             SetObject(identitySo, "relicOverlay", relicOverlay.gameObject);
@@ -381,6 +395,7 @@ namespace RouletteLike.Roulette.Editor
             hijackBar.gameObject.SetActive(false);
             nudgeBar.gameObject.SetActive(false);
             relicOverlay.gameObject.SetActive(false);
+            shop.Panel.gameObject.SetActive(false);
             titlePanel.SetAsLastSibling();
             momentBanner.gameObject.SetActive(false);
             playerClickArea.gameObject.SetActive(false);
@@ -539,6 +554,77 @@ namespace RouletteLike.Roulette.Editor
         /// 바깥 링(이중 룰렛)을 보여주는 그레이박스 띠: 칸 6개 자리, 멈춘 칸은 컨트롤러가 금색으로 강조한다.
         /// 원형 바깥 링 아트는 ArtStyleBible 확정 뒤에 교체한다.
         /// </summary>
+        /// <summary>상점 화면에서 컨트롤러에 넘길 참조 묶음.</summary>
+        private sealed class ShopView
+        {
+            public RectTransform Panel;
+            public TMP_Text Status, Message, SlotResult, PayTable;
+            public UnityEngine.UI.Button[] ServiceButtons, SlotButtons, BetButtons;
+            public TMP_Text[] ServiceLabels, SlotLabels, Reels;
+            public UnityEngine.UI.Button PullButton, LeaveButton;
+        }
+
+        /// <summary>
+        /// 상점층(ADR 0009): 왼쪽 서비스(위치 바꾸기·칸 강화·HIJACK 되돌리기·유물·칩 사기), 오른쪽 슬롯머신, 아래 내 룰렛 칸 고르기, 다음 층 버튼.
+        /// 문구·가격·활성화는 컨트롤러가 채운다.
+        /// </summary>
+        private static ShopView BuildShopPanel(Transform parent, TMP_FontAsset font)
+        {
+            ShopView view = new ShopView();
+            view.Panel = AddPanel("ShopPanel", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(18, 12, 24, 255));
+            view.Panel.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
+            AddText("Title", view.Panel, "캐셔 라운지 · 상점", font, 40, Gold, TextAlignmentOptions.Center, new Vector2(0f, 470f), new Vector2(1400f, 56f));
+            view.Status = AddText("Status", view.Panel, "현금 0 · 칩 0", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 420f), new Vector2(1600f, 34f));
+
+            // 왼쪽: 서비스
+            RectTransform services = AddFramedPanel("Services", view.Panel, new Vector2(-470f, 110f), new Vector2(880f, 560f), Panel, DarkGold, out _, out _);
+            AddText("Header", services, "룰렛 손보기 · 새 칸은 팔지 않습니다(새 칸은 HIJACK으로)", font, 18, Gold, TextAlignmentOptions.Center, new Vector2(0f, 248f), new Vector2(840f, 30f));
+            view.ServiceButtons = new UnityEngine.UI.Button[5];
+            view.ServiceLabels = new TMP_Text[5];
+            for (int i = 0; i < 5; i++)
+            {
+                view.ServiceButtons[i] = AddButton($"Service{i + 1}", services, new Vector2(0f, 175f - i * 98f), new Vector2(820f, 86f), PanelLight, font, "", 17, out view.ServiceLabels[i]);
+                view.ServiceLabels[i].alignment = TextAlignmentOptions.Left;
+                view.ServiceLabels[i].rectTransform.sizeDelta = new Vector2(790f, 80f);
+            }
+
+            // 오른쪽: 슬롯머신
+            RectTransform machine = AddFramedPanel("SlotMachine", view.Panel, new Vector2(480f, 110f), new Vector2(860f, 560f), new Color32(40, 22, 30, 255), Gold, out _, out _);
+            AddText("Header", machine, "슬롯머신 · 현금을 걸고 당기기", font, 22, Gold, TextAlignmentOptions.Center, new Vector2(0f, 245f), new Vector2(820f, 34f));
+            view.Reels = new TMP_Text[3];
+            for (int i = 0; i < 3; i++)
+            {
+                RectTransform reel = AddFramedPanel($"Reel{i + 1}", machine, new Vector2((i - 1) * 210f, 115f), new Vector2(190f, 170f), new Color32(245, 240, 226, 255), DarkGold, out _, out _);
+                view.Reels[i] = AddText("Symbol", reel, "7", font, 80, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(180f, 160f));
+            }
+
+            view.SlotResult = AddText("Result", machine, "얼마를 걸까요?", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 2f), new Vector2(820f, 40f));
+            view.BetButtons = new UnityEngine.UI.Button[3];
+            string[] bets = { "1 걸기", "5 걸기", "10 걸기" };
+            for (int i = 0; i < 3; i++)
+            {
+                view.BetButtons[i] = AddButton($"Bet{i + 1}", machine, new Vector2((i - 1) * 180f, -68f), new Vector2(160f, 56f), PanelLight, font, bets[i], 18, out _);
+            }
+
+            view.PullButton = AddButton("Pull", machine, new Vector2(0f, -145f), new Vector2(320f, 70f), Red, font, "당기기", 26, out TMP_Text pullLabel);
+            pullLabel.color = Ink;
+            view.PayTable = AddText("PayTable", machine, "", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -232f), new Vector2(820f, 70f));
+
+            // 아래: 내 룰렛 칸 고르기
+            view.Message = AddText("Message", view.Panel, "서비스를 고르세요", font, 20, Ink, TextAlignmentOptions.Center, new Vector2(0f, -210f), new Vector2(1700f, 34f));
+            view.SlotButtons = new UnityEngine.UI.Button[8];
+            view.SlotLabels = new TMP_Text[8];
+            for (int i = 0; i < 8; i++)
+            {
+                view.SlotButtons[i] = AddButton($"MySlot{i + 1}", view.Panel, new Vector2(-787.5f + i * 225f, -300f), new Vector2(210f, 100f), new Color32(38, 91, 96, 255), font, $"{i + 1}", 17, out view.SlotLabels[i]);
+            }
+
+            view.LeaveButton = AddButton("Leave", view.Panel, new Vector2(720f, -440f), new Vector2(380f, 70f), Gold, font, "다음 층으로 (2회차)", 22, out TMP_Text leaveLabel);
+            leaveLabel.color = Background;
+            AddText("Hint", view.Panel, "칸 번호는 룰렛을 시계 방향으로 돈 순서이고, 8번 다음은 다시 1번입니다. 바로 옆 칸끼리 이어져 연쇄가 됩니다.", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(-300f, -440f), new Vector2(1200f, 30f));
+            return view;
+        }
+
         /// <summary>타이틀: 게임 이름·한 줄 소개·계약하기(시작)·해금 상태·해금 초기화. 게임을 켜면 가장 먼저 보인다.</summary>
         private static RectTransform BuildTitlePanel(Transform parent, TMP_FontAsset font, out UnityEngine.UI.Button startButton, out UnityEngine.UI.Button resetButton, out TMP_Text metaText)
         {
@@ -634,12 +720,12 @@ namespace RouletteLike.Roulette.Editor
 
             // 환전 창구: 딴 칩 중 현금으로 환전된 몫을 다시 칩(목숨)으로 바꾼다(ADR 0008). 현금이 없으면 컨트롤러가 숨긴다.
             RectTransform window = AddFramedPanel("ExchangeWindow", overlay, new Vector2(0f, -380f), new Vector2(1220f, 92f), new Color32(30, 25, 39, 255), Gold, out _, out _);
-            exchangeText = AddText("Text", window, "환전 창구 · 현금 0", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(-230f, 0f), new Vector2(720f, 80f));
+            exchangeText = AddText("Text", window, "환전 창구 · 현금 0", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(-255f, 0f), new Vector2(680f, 80f));
             exchangeButtons = new UnityEngine.UI.Button[3];
             string[] labels = { "칩 +1", "칩 +5", "전부 환전" };
             for (int i = 0; i < exchangeButtons.Length; i++)
             {
-                exchangeButtons[i] = AddButton($"Buy{i + 1}", window, new Vector2(250f + i * 160f, 0f), new Vector2(148f, 60f), Gold, font, labels[i], 18, out TMP_Text label);
+                exchangeButtons[i] = AddButton($"Buy{i + 1}", window, new Vector2(200f + i * 160f, 0f), new Vector2(148f, 60f), Gold, font, labels[i], 18, out TMP_Text label);
                 label.color = Background;
             }
 
