@@ -32,7 +32,7 @@
 
 ## 작업 규칙 요약
 
-- `main`은 2인 공용 브랜치다. 작업은 `feature/…` 브랜치에서 하고 PR로 합친다.
+- **Git 워크플로우(팀 약속)**: `main` + `feature/기능명`만 쓴다. `main`에 직접 커밋하지 않고, 작업 하나당 브랜치 하나 → PR → 상대가 diff 확인 → Squash and merge. 커밋은 `feat:`/`fix:`/`docs:`/`chore:` 접두어. 전문: [`Docs/git-workflow.md`](Docs/git-workflow.md)
 - 스크립트를 고친 뒤에는 Unity 새로고침 → 콘솔 에러 0 → EditMode 테스트 통과를 확인한다.
 - git에 올리는 모든 파일은 목적이 한눈에 보여야 한다: 폴더마다 `README.md`, 스크립트마다 머리 설명. 자세한 규칙은 `CLAUDE.md` "git에 올리는 파일 규칙".
 - 큰 파일(이미지·사운드·폰트 등)은 Git LFS로 관리된다. 처음 한 번 `git lfs install`이 필요하다.

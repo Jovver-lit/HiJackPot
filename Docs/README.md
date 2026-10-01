@@ -9,6 +9,10 @@
 | [`playtest/`](playtest/) | 플레이테스트와 밸런스 시뮬레이션 결과 | 테스트·시뮬레이션을 돌렸을 때(날짜별 한 파일) |
 | [`pdf/`](pdf/) | 공유용 PDF(1차 MVP 개발·검증 보고서, 전투 단계·순서도)와 원본 HTML | 마일스톤을 정리해 전달할 때 |
 
+## 이 폴더 바로 아래 문서
+
+- [`git-workflow.md`](git-workflow.md) — Git 워크플로우 팀 약속(브랜치·PR·Squash merge·충돌 방지·커밋 접두어)
+
 ## 이 폴더 밖의 기준 문서
 
 - [`../CLAUDE.md`](../CLAUDE.md) — 프로젝트 지침 원본(원칙·MVP 범위·작업 규칙)

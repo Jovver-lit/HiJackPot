@@ -31,8 +31,10 @@ description: Use when changing HIJACKPOT's Unity project (scripts, scenes, prefa
 4. 씬을 바꿨다면 `manage_scene(action=save)`.
 
 ## 4. git
-- 작업 단위로 커밋한다. 메시지는 한국어 한 줄 요약 + 필요 시 본문.
-- `main`에 바로 푸시하기 전에 사용자에게 확인한다(2인 팀 공용 브랜치).
+- `Docs/git-workflow.md`(팀 약속)를 따른다: `main`에서 `feature/기능명`(영어 케밥 케이스) 브랜치를 만들어 작업하고, `main`에는 직접 커밋·푸시하지 않는다.
+- 의미 단위로 자주 커밋한다. 메시지는 `feat:`/`fix:`/`docs:`/`chore:` 접두어 + 한국어 한 줄 요약 + 필요 시 본문.
+- 작업이 끝나면 `feature/…` → `main` PR을 만든다. merge(Squash and merge)는 사용자·팀원 확인 뒤에만 한다.
+- 씬·프리팹을 건드리는 작업은 시작 전에 사용자에게 알린다(동시 수정 금지).
 
 ## 5. 보고
 - 바꾼 파일, 검증 결과(콘솔 에러 수, Play 확인 여부), 사용자가 직접 손으로 확인할 것을 짧게 적는다.

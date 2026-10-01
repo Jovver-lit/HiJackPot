@@ -57,7 +57,7 @@
   - Cowork의 맥 쪽 셸에서 git은 읽기 명령만, 항상 `GIT_OPTIONAL_LOCKS=0`을 붙인다. 그 셸은 파일 삭제가 안 돼서 `.git/index.lock`이 남으면 git이 잠긴다.
 
 ### 공통 규칙
-- GitHub: 저장소 `Jovver-lit/HiJackPot`, 기본 브랜치 `main`. 2인 팀 공용 브랜치이므로 `main` 푸시 전에 사용자에게 확인한다.
+- GitHub: 저장소 `Jovver-lit/HiJackPot`, 기본 브랜치 `main`. 아래 "Git 워크플로우(팀 약속)"를 따른다.
 - **기준 씬은 `Assets/Scenes/SampleScene.unity`(룰렛 배틀 데모)로 고정한다.** 모든 게임 화면 변경은 이 씬에 적용하고 확인한다. `HijackpotMainSceneLock.cs`가 Play 시작 씬과 Build Settings 0번을 이 씬으로 유지한다. `RabbitBattlePrototype.unity`는 이전 사본이며 더 이상 수정하지 않는다.
 - 씬은 Editor 빌더 스크립트로 생성된다(`Tools/HIJACKPOT/Build Battle Scene (SampleScene)` → SampleScene에 저장, `Tools/HIJACKPOT/Create Roulette Demo Scene`). 빌더를 다시 실행하면 씬을 새로 만들어 덮어쓰므로, 씬 구조 변경은 빌더 코드에 반영한다. 씬만 직접 고칠 때는 그 사실을 사용자에게 알린다.
 - 스크립트 수정 후에는 항상 Unity 새로고침 → 콘솔 에러 확인까지 마친 뒤 완료를 보고한다.
@@ -69,13 +69,23 @@
 - 게임 용어는 루트 `CONTEXT.md`가 기준이다. 코드·UI·문서에서 `_Avoid_`에 적힌 옛 이름(HP, 방어력, 전리품 칸 등)을 쓰지 않는다.
 - 되돌리기 어려운 설계 결정은 `Docs/adr/`에 남긴다.
 
+### Git 워크플로우 (팀 약속, 필수)
+전문은 `Docs/git-workflow.md`. 요약:
+- 브랜치는 `main` + `feature/기능명`(영어 케밥 케이스, 예: `feature/roulette-core`) 두 종류만 쓴다.
+- `main`은 항상 실행 가능한 상태. **직접 커밋·푸시하지 않는다.** PR의 Squash and merge로만 바뀐다.
+- 작업 하나 = 브랜치 하나. 시작 전 `main`을 pull하고 거기서 브랜치를 만든다. 의미 단위로 자주 커밋하고, 하루 끝에는 최소 한 번 push한다.
+- 작업이 끝나면 `feature/기능명` → `main` PR. 상대방이 diff와 씬·에셋 충돌만 훑어보고 merge(Squash and merge). 머지 후 `main` pull, 로컬 브랜치 삭제.
+- Claude Code는 PR까지 만들고, merge는 사용자(또는 팀원)의 확인 뒤에만 한다.
+- 같은 씬·프리팹을 동시에 건드리지 않는다(작업 전 서로 알림). 기준 씬은 빌더 코드로 다시 만들 수 있으므로 씬 충돌은 빌더 재실행으로 푼다. `.unity`·`.prefab` 충돌은 텍스트로 병합하지 않는다(UnityYAMLMerge).
+- `main`이 바뀌면 feature 브랜치에 자주 `git merge main`(또는 rebase)으로 반영한다.
+
 ### git에 올리는 파일 규칙 (필수)
 - git에 올라가는 모든 파일은 **한눈에 "무엇을 위해 존재하는지"** 알 수 있어야 한다.
 - 폴더를 새로 만들면 그 폴더에 `README.md`를 두어 목적, 들어 있는 파일, 추가 규칙을 적는다. 파일을 추가·삭제하면 해당 README 목록도 함께 고친다.
 - C# 스크립트는 첫 타입 선언 위에 `/// <summary>`로 역할(무엇을 맡고, 무엇은 맡지 않는지)을 적는다.
 - 문서는 첫 제목과 첫 문단에 무엇에 관한 문서인지 적는다. 날짜가 중요한 기록은 `YYYY-MM-DD-주제.md`.
 - 더 이상 쓰지 않는 파일(Legacy)은 README에 그렇다고 표시하고, 삭제는 사용자 확인 후에 한다.
-- 커밋 메시지는 한국어 한 줄 요약 + 필요하면 본문으로 무엇을 왜 바꿨는지 적는다.
+- 커밋 메시지는 접두어(`feat:` 기능 / `fix:` 버그 / `docs:` 문서 / `chore:` 정리) + 한국어 한 줄 요약. 필요하면 본문으로 무엇을 왜 바꿨는지 적는다. 예: `feat: 룰렛 스핀 로직 추가`
 
 ## 1. 프로젝트 정의
 
