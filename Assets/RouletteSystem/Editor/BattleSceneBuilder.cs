@@ -106,13 +106,30 @@ namespace RouletteLike.Roulette.Editor
             TMP_Text playerChipsText;
             UnityEngine.UI.Image playerChipsFill = AddChipsWidget("PlayerChips", playerArea, new Vector2(70f, 30f), "손님", Teal, font, out playerChipsText, out _);
             // 유물·NUDGE 띠: 칩 바 아래. 누르면 유물 설명이 펼쳐진다(전체 설명은 필요할 때만, CLAUDE.md 6장).
+            // 유물 띠: 왼쪽 현금·NUDGE 숫자, 오른쪽 유물 아이콘 8칸. 아이콘에 올리면 설명 카드, 누르면 전체 설명(글은 필요할 때만).
             UnityEngine.UI.Button relicStripButton = AddButton("RelicStrip", playerArea, new Vector2(70f, -42f), new Vector2(440f, 56f), PanelLight, font, "", 14, out TMP_Text relicStripText);
             relicStripText.alignment = TextAlignmentOptions.Left;
-            relicStripText.rectTransform.sizeDelta = new Vector2(420f, 50f);
-            relicStripText.text = "NUDGE 1  ·  유물 없음";
+            relicStripText.rectTransform.anchoredPosition = new Vector2(-142f, 0f);
+            relicStripText.rectTransform.sizeDelta = new Vector2(140f, 50f);
+            relicStripText.text = "NUDGE 1";
             relicStripText.enableAutoSizing = true;
             relicStripText.fontSizeMin = 10f;
             relicStripText.fontSizeMax = 14f;
+            RelicIconHover[] relicIcons = new RelicIconHover[8];
+            TMP_Text[] relicIconLabels = new TMP_Text[8];
+            UnityEngine.UI.Image[] relicIconImages = new UnityEngine.UI.Image[8];
+            for (int i = 0; i < relicIcons.Length; i++)
+            {
+                relicIconImages[i] = AddImage($"RelicIcon{i + 1}", relicStripButton.transform, new Color32(80, 70, 100, 255));
+                relicIconImages[i].rectTransform.anchoredPosition = new Vector2(-50f + i * 37f, 0f);
+                relicIconImages[i].rectTransform.sizeDelta = new Vector2(34f, 34f);
+                relicIconImages[i].raycastTarget = true;
+                relicIconLabels[i] = AddText("Glyph", relicIconImages[i].transform, "", font, 12, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(34f, 34f));
+                relicIconLabels[i].enableAutoSizing = true;
+                relicIconLabels[i].fontSizeMin = 8f;
+                relicIconLabels[i].fontSizeMax = 13f;
+                relicIcons[i] = relicIconImages[i].gameObject.AddComponent<RelicIconHover>();
+            }
             RectTransform playerCharacter = AddRect("PlayerCharacter", playerArea, new Vector2(-200f, -8f), new Vector2(170f, 170f));
             UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(165f, 165f));
             businessmanImage.raycastTarget = false;
@@ -209,12 +226,20 @@ namespace RouletteLike.Roulette.Editor
             RectTransform centerPanel = AddFramedPanel("CenterPanel", mainGameArea, new Vector2(0f, 26f), new Vector2(480f, 760f), Panel, DarkGold, out _, out _);
             // 룰렛 칸 기호 범례(그레이박스 아이콘): 칸에는 기호 + 숫자만, 긴 이름은 착지 이름표·설명에서 보여 준다.
             AddText("SlotLegend", centerPanel, "▲레이즈  ×배율  ◆보험  ●배당  몫=하우스 몫", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, 356f), new Vector2(460f, 26f));
-            TMP_Text instructionText = AddText("GuideText", centerPanel, "SPIN을 길게 눌렀다 놓으세요. 앤티가 걸리고 판돈이 쌓입니다.", font, 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, 322f), new Vector2(440f, 44f));
-            TMP_Text powerPreviewText = AddText("PowerPreview", centerPanel, "SPIN 밖으로 끌어내면 취소", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 290f), new Vector2(440f, 22f));
-            TMP_Text resultText = AddText("MainInstruction", centerPanel, "코인플립으로 선공을 정합니다", font, 26, Ink, TextAlignmentOptions.Center, new Vector2(0f, 252f), new Vector2(450f, 40f));
-            TMP_Text calculationText = AddText("Description", centerPanel, "레이즈는 판돈 +, 배율은 판돈 ×, 하우스 몫은 판돈 증발", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, 206f), new Vector2(450f, 50f));
+            // 테이블은 숫자 위주로: 한 줄 결과 → 판돈 흐름(이번 턴에 판돈이 어떻게 커졌는지) → 칩 더미·큰 판돈. 긴 계산식은 전체 기록에만 남긴다.
+            TMP_Text instructionText = AddText("GuideText", centerPanel, "", font, 14, Ink, TextAlignmentOptions.Center, new Vector2(0f, -350f), new Vector2(440f, 30f));
+            TMP_Text powerPreviewText = AddText("PowerPreview", centerPanel, "", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 290f), new Vector2(440f, 22f));
+            powerPreviewText.gameObject.SetActive(false);
+            TMP_Text resultText = AddText("MainInstruction", centerPanel, "코인플립으로 선공을 정합니다", font, 24, Ink, TextAlignmentOptions.Center, new Vector2(0f, 306f), new Vector2(450f, 36f));
+            TMP_Text potTrailText = AddText("PotTrail", centerPanel, "", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 240f), new Vector2(456f, 84f));
+            potTrailText.richText = true;
+            potTrailText.enableAutoSizing = true;
+            potTrailText.fontSizeMin = 15f;
+            potTrailText.fontSizeMax = 22f;
+            TMP_Text calculationText = AddText("Description", centerPanel, "", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, 206f), new Vector2(450f, 50f));
+            calculationText.gameObject.SetActive(false);
             UnityEngine.UI.Image[] potChips = BuildPotChipStack(centerPanel, new Vector2(0f, 130f));
-            TMP_Text potText = AddText("PotValue", centerPanel, "판돈 0", font, 36, Gold, TextAlignmentOptions.Center, new Vector2(0f, 62f), new Vector2(440f, 48f));
+            TMP_Text potText = AddText("PotValue", centerPanel, "판돈 0", font, 44, Gold, TextAlignmentOptions.Center, new Vector2(0f, 62f), new Vector2(440f, 56f));
             TMP_Text insuranceText = AddBadge("InsuranceStatus", centerPanel, "내 보험 0", Teal, font, new Vector2(0f, 14f), 420f);
             TMP_Text riskSummaryText = AddText("RiskSummary", centerPanel, "다음 SPIN 하우스 몫 확률 12.5%", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -36f), new Vector2(450f, 44f));
             RectTransform betControls = AddRect("BetControls", centerPanel, new Vector2(0f, -94f), new Vector2(440f, 52f));
@@ -226,7 +251,7 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image divider = AddImage("Divider", centerPanel, DarkGold);
             divider.rectTransform.anchoredPosition = new Vector2(0f, -232f);
             divider.rectTransform.sizeDelta = new Vector2(420f, 2f);
-            TMP_Text dealerLineText = AddText("DealerLine", centerPanel, "어서오세요, 첫 손님이시네요.", font, 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, -290f), new Vector2(440f, 90f));
+            TMP_Text dealerLineText = AddText("DealerLine", centerPanel, "어서오세요, 첫 손님이시네요.", font, 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, -280f), new Vector2(440f, 70f));
 
             RectTransform dealerPanel = AddFramedPanel("DealerRoulettePanel", mainGameArea, new Vector2(600f, 26f), new Vector2(640f, 760f), Panel, DarkGold, out _, out _);
             TMP_Text dealerHeaderText = AddText("Header", dealerPanel, "◆  상대 룰렛 · 토끼 딜러  ◆", font, 21, Red, TextAlignmentOptions.Center, new Vector2(0f, 352f), new Vector2(580f, 36f));
@@ -367,6 +392,16 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "slotPayTableText", shop.PayTable);
             SetObject(identitySo, "shopLeaveButton", shop.LeaveButton);
             SetObject(identitySo, "relicStripButton", relicStripButton);
+            SetObject(identitySo, "potTrailText", potTrailText);
+            SetObjectArray(identitySo.FindProperty("relicIcons"), relicIcons);
+            SetObjectArray(identitySo.FindProperty("relicIconLabels"), relicIconLabels);
+            SetObjectArray(identitySo.FindProperty("relicIconImages"), relicIconImages);
+            RectTransform relicTooltip = AddFramedPanel("RelicTooltip", canvasObject.transform, new Vector2(-560f, 300f), new Vector2(460f, 96f), new Color32(30, 25, 39, 250), Gold, out _, out _);
+            TMP_Text relicTooltipText = AddText("Text", relicTooltip, "", font, 16, Ink, TextAlignmentOptions.Left, Vector2.zero, new Vector2(436f, 84f));
+            foreach (UnityEngine.UI.Graphic graphic in relicTooltip.GetComponentsInChildren<UnityEngine.UI.Graphic>()) graphic.raycastTarget = false;
+            relicTooltip.gameObject.SetActive(false);
+            SetObject(identitySo, "relicTooltip", relicTooltip.gameObject);
+            SetObject(identitySo, "relicTooltipText", relicTooltipText);
             SetObject(identitySo, "relicStripText", relicStripText);
             SetObject(identitySo, "relicOverlay", relicOverlay.gameObject);
             SetObject(identitySo, "relicOverlayBody", relicOverlayBody);
