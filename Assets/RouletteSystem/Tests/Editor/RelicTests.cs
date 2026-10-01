@@ -197,7 +197,7 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void Run_WinningGrantsDoorRelic_AndVipCardBoostsWinnings()
+        public void Run_WinningGrantsDoorRelic_AndVipCardKeepsMoreWonChips()
         {
             Func<DealerProfile> weak = () =>
             {
@@ -220,11 +220,12 @@ namespace RouletteLike.Battle.Tests
             }
 
             Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
-            int kept = Math.Min(battle.Player.Chips, 20);
+            int excess = Math.Max(0, battle.Player.Chips - 20);
+            int kept = Math.Min(battle.Player.Chips, 20) + (int)Math.Floor(excess * (ChipExchangeRules.Default.KeepShare + RelicCatalog.VipKeepShareBonus));
             run.CompleteBattle();
             Assert.AreEqual(prize, run.LastRelicGained);
             Assert.Contains(prize.Value, new List<RelicId>(run.Relics));
-            Assert.AreEqual(kept + (int)Math.Round(2 * Run.WinningsRatio * RelicCatalog.VipWinningsMultiplier), run.Chips);
+            Assert.AreEqual(kept, run.Chips);
         }
     }
 }

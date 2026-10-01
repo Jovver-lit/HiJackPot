@@ -44,10 +44,19 @@ namespace RouletteLike.Roulette.EditorTools
 
         public static string Simulate(int runsPerPolicy, Policy[] policies = null)
         {
+            return Simulate(runsPerPolicy, policies, null, true);
+        }
+
+        /// <param name="exchange">딴 칩 정산 규칙(null이면 기본값).</param>
+        /// <param name="buyChipsWithCash">문 앞에서 현금을 전부 칩으로 바꾸는지(환전 창구를 최대한 쓰는 플레이어).</param>
+        public static string Simulate(int runsPerPolicy, Policy[] policies, ChipExchangeRules exchange, bool buyChipsWithCash)
+        {
             StringBuilder report = new StringBuilder();
+            ChipExchangeRules rules = exchange ?? ChipExchangeRules.Default;
+            report.AppendLine($"[정산] 딴 칩 중 칩으로 {rules.KeepShare:P0}, 나머지 현금 · 환전 창구 현금 {rules.CashPerChip} = 칩 1 · 환전 창구 사용 {(buyChipsWithCash ? "함" : "안 함")}");
             foreach (Policy policy in policies ?? DefaultPolicies)
             {
-                report.Append(SimulatePolicy(policy, runsPerPolicy));
+                report.Append(SimulatePolicy(policy, runsPerPolicy, rules, buyChipsWithCash));
             }
 
             return report.ToString();
@@ -57,9 +66,10 @@ namespace RouletteLike.Roulette.EditorTools
         {
             public int Battles, Wins, Hijacks, Rounds, HouseCuts, BigEvaporations, Nudges, LongBattles;
             public long EntryChips;
+            public long EntryCash;
         }
 
-        private static string SimulatePolicy(Policy policy, int runs)
+        private static string SimulatePolicy(Policy policy, int runs, ChipExchangeRules rules, bool buyChipsWithCash)
         {
             int escaped = 0, stalls = 0;
             int[] diedAt = new int[6];
@@ -70,12 +80,14 @@ namespace RouletteLike.Roulette.EditorTools
             for (int r = 0; r < runs; r++)
             {
                 Run run = new Run(1000 + r, BattlePresets.PlayerStartingChips, BattlePresets.CreateStarterWheel(),
-                    BattlePresets.CreateRabbitDealer, BattlePresets.CreateDealerPool(), BattlePresets.CreateStageBoss);
+                    BattlePresets.CreateRabbitDealer, BattlePresets.CreateDealerPool(), BattlePresets.CreateStageBoss,
+                    exchange: rules);
                 System.Random doorRng = new System.Random(r * 7 + 3);
                 bool abandoned = false;
                 while (run.Outcome == RunOutcome.InProgress)
                 {
                     if (run.PendingJackpot != null) run.PlacePendingJackpot(WeakestSlot(run.Wheel));
+                    if (buyChipsWithCash) run.BuyChips(int.MaxValue);
                     int entryChips = run.Chips;
                     PotBattle battle = run.EnterDoor(doorRng.Next(run.Doors.Count));
                     if (!dealers.TryGetValue(battle.Profile.Name, out DealerStats stats))
@@ -86,6 +98,7 @@ namespace RouletteLike.Roulette.EditorTools
 
                     stats.Battles++;
                     stats.EntryChips += entryChips;
+                    stats.EntryCash += run.Cash;
                     PlayBattle(battle, policy, stats);
                     if (battle.Phase != BattlePhase.Ended)
                     {
@@ -121,7 +134,7 @@ namespace RouletteLike.Roulette.EditorTools
             {
                 DealerStats s = pair.Value;
                 double n = Math.Max(1, s.Battles);
-                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · HIJACK {s.Hijacks / n:0.00} · 하우스 몫 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
+                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 현금 {s.EntryCash / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · HIJACK {s.Hijacks / n:0.00} · 하우스 몫 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
             }
 
             List<string> relicLines = new List<string>();

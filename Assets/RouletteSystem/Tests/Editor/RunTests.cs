@@ -68,21 +68,75 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void ChipsCarryOver_UpToEntryChips_PlusWinnings()
+        public void WonChips_SplitIntoChipsAndCash_PlusWinnings()
         {
             Run run = NewRun();
             int entry = run.Chips;
             PotBattle battle = run.EnterDoor(0);
             WinByBankrupt(battle);
             int chipsAfterBattle = battle.Player.Chips;
-            Assert.AreEqual(Math.Min(chipsAfterBattle, entry) + run.WinningsFor(battle.Profile), run.PreviewChipsAfter(battle));
+            int excess = Math.Max(0, chipsAfterBattle - entry);
+            Assert.Greater(excess, 0, "이 테스트는 입장 칩보다 많이 딴 경우를 본다");
 
             run.CompleteBattle();
 
-            // 테이블 칩 회수(ADR 0007): 입장 칩을 넘게 딴 칩은 하우스가 가져가고, 상금만 더해진다.
-            int winnings = (int)Math.Round(BattlePresets.CreateRabbitDealer().StartingChips * Run.WinningsRatio);
-            Assert.AreEqual(Math.Min(chipsAfterBattle, entry) + winnings, run.Chips);
-            Assert.AreEqual(Math.Max(0, chipsAfterBattle - entry), run.LastTableChipsReturned);
+            // 딴 칩 정산(ADR 0008): 입장 칩까지 + 딴 칩의 일정 비율은 칩, 나머지는 현금(기본 상금 없음).
+            int kept = (int)Math.Floor(excess * ChipExchangeRules.Default.KeepShare);
+            int winnings = (int)Math.Round(BattlePresets.CreateRabbitDealer().StartingChips * ChipExchangeRules.Default.WinningsRatio);
+            Assert.AreEqual(entry + kept + winnings, run.Chips);
+            Assert.AreEqual(excess - kept, run.Cash);
+            Assert.AreEqual(run.Chips, run.LastSettlement.ChipsAfter);
+        }
+
+        [Test]
+        public void LosingChips_KeepsWhatIsLeft_AndNoCash()
+        {
+            Run run = NewRun();
+            PotBattle battle = run.EnterDoor(0);
+            battle.StartRound();
+            if (battle.Active == Side.Dealer) { battle.PlaceAnte(1); battle.CashOut(); }
+            battle.PlaceAnte(3);
+            battle.Land(5); // 하우스 몫: 앤티 3 증발
+            int left = battle.Player.Chips;
+            Assert.Less(left, 20);
+
+            ChipSettlement settlement = run.PreviewSettlement(battle);
+            Assert.AreEqual(left, settlement.BaseChips);
+            Assert.AreEqual(0, settlement.KeptExcess);
+            Assert.AreEqual(0, settlement.Cash);
+        }
+
+        [Test]
+        public void ExchangeWindow_BuysChipsWithCash_AtTheRate()
+        {
+            ChipExchangeRules rules = new ChipExchangeRules(0f, 2, 0f, 0);
+            Run run = new Run(5, 20, BattlePresets.CreateStarterWheel(), BattlePresets.CreateRabbitDealer,
+                BattlePresets.CreateDealerPool(), BattlePresets.CreateStageBoss, exchange: rules);
+            PotBattle battle = run.EnterDoor(0);
+            WinByBankrupt(battle);
+            int excess = Math.Max(0, battle.Player.Chips - 20);
+            run.CompleteBattle();
+            Assert.AreEqual(excess, run.Cash);
+
+            int chips = run.Chips;
+            int bought = run.BuyChips(int.MaxValue);
+            Assert.AreEqual(excess / 2, bought);
+            Assert.AreEqual(chips + bought, run.Chips);
+            Assert.AreEqual(excess % 2, run.Cash);
+        }
+
+        [Test]
+        public void ExchangeWindow_CapsChipsPerVisit()
+        {
+            Run run = new Run(5, 20, BattlePresets.CreateStarterWheel(), BattlePresets.CreateRabbitDealer,
+                BattlePresets.CreateDealerPool(), BattlePresets.CreateStageBoss, exchange: new ChipExchangeRules(0f, 1, 0f, 3));
+            PotBattle battle = run.EnterDoor(0);
+            WinByBankrupt(battle);
+            run.CompleteBattle();
+            Assume.That(run.Cash, Is.GreaterThanOrEqualTo(4));
+
+            Assert.AreEqual(3, run.BuyChips(int.MaxValue));
+            Assert.AreEqual(0, run.BuyChips(1));
         }
 
         [Test]

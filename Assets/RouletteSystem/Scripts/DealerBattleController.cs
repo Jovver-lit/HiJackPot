@@ -191,6 +191,9 @@ namespace RouletteLike.Roulette
         [SerializeField] private UnityEngine.UI.Button[] doorButtons = new UnityEngine.UI.Button[0];
         [SerializeField] private TMP_Text[] doorTitleTexts = new TMP_Text[0];
         [SerializeField] private TMP_Text[] doorBodyTexts = new TMP_Text[0];
+        [Tooltip("문 선택 화면의 환전 창구(현금 → 칩). 0: 칩 +1, 1: 칩 +5, 2: 전부")]
+        [SerializeField] private TMP_Text exchangeText;
+        [SerializeField] private UnityEngine.UI.Button[] exchangeButtons = new UnityEngine.UI.Button[0];
 
         [Header("Tuning")]
         [SerializeField] private int battleSeed = 46021;
@@ -262,6 +265,12 @@ namespace RouletteLike.Roulette
             }
 
             endContinueButton?.onClick.AddListener(OnEndContinue);
+            int[] buyAmounts = { 1, 5, int.MaxValue };
+            for (int i = 0; i < exchangeButtons.Length && i < buyAmounts.Length; i++)
+            {
+                int amount = buyAmounts[i];
+                exchangeButtons[i]?.onClick.AddListener(() => BuyChipsAtWindow(amount));
+            }
             relicStripButton?.onClick.AddListener(OpenRelicOverlay);
             logButton?.onClick.AddListener(OpenLogOverlay);
             titleStartButton?.onClick.AddListener(OnTitleStart);
@@ -310,7 +319,7 @@ namespace RouletteLike.Roulette
         {
             if (relicOverlay != null && relicOverlay.activeSelf) { relicOverlay.SetActive(false); return; }
             if (titlePanel != null && titlePanel.activeSelf) { OnTitleStart(); return; }
-            if (doorPanel != null && doorPanel.activeSelf) { EnterDoor(0); return; }
+            if (doorPanel != null && doorPanel.activeSelf) { BuyChipsAtWindow(int.MaxValue); EnterDoor(0); return; }
             if (endPanel != null && endPanel.activeSelf)
             {
                 if (_run != null && _run.Outcome == RunOutcome.Escaped) DebugAutoplayRuns += new Vector2Int(1, 0);
@@ -440,7 +449,8 @@ namespace RouletteLike.Roulette
         /// <summary>1층(토끼)처럼 문이 하나뿐이면 바로 들어가고, 둘이면 문 선택 화면을 연다.</summary>
         private void ShowDoorsOrEnter()
         {
-            if (_run.Doors.Count == 1)
+            // 문이 하나여도(보스층) 바꿀 현금이 있으면 환전 창구를 들르게 한다.
+            if (_run.Doors.Count == 1 && _run.Cash < _run.Exchange.CashPerChip)
             {
                 EnterDoor(0);
                 return;
@@ -457,14 +467,48 @@ namespace RouletteLike.Roulette
                     + "\n" + DealerLines.FloorAnnouncement(_run.FloorIndex);
             }
 
+            RefreshExchangeWindow();
             for (int i = 0; i < doorButtons.Length; i++)
             {
                 bool exists = i < _run.Doors.Count;
                 doorButtons[i].gameObject.SetActive(exists);
                 if (!exists) continue;
+                RectTransform doorRect = (RectTransform)doorButtons[i].transform;
+                doorRect.anchoredPosition = new Vector2(_run.Doors.Count == 1 ? 0f : (i == 0 ? -330f : 330f), doorRect.anchoredPosition.y);
                 DealerProfile dealer = _run.Doors[i];
                 doorTitleTexts[i].text = dealer.Name;
                 doorBodyTexts[i].text = DescribeDealer(dealer) + DescribeRelicPrize(i < _run.DoorRelics.Count ? _run.DoorRelics[i] : null);
+            }
+        }
+
+        /// <summary>환전 창구: 현금으로 칩을 산다. 문 선택 화면에서만.</summary>
+        private void BuyChipsAtWindow(int chips)
+        {
+            if (_run == null || doorPanel == null || !doorPanel.activeSelf) return;
+            _run.BuyChips(chips);
+            RefreshExchangeWindow();
+            if (doorFloorText != null)
+            {
+                string[] lines = doorFloorText.text.Split('\n');
+                lines[0] = System.Text.RegularExpressions.Regex.Replace(lines[0], @"칩 \d+$", $"칩 {_run.Chips}");
+                doorFloorText.text = string.Join("\n", lines);
+            }
+        }
+
+        private void RefreshExchangeWindow()
+        {
+            if (exchangeText == null) return;
+            GameObject window = exchangeText.transform.parent.gameObject;
+            window.SetActive(_run.Cash > 0);
+            int rate = _run.Exchange.CashPerChip;
+            int cap = _run.Exchange.MaxChipsPerVisit;
+            string capText = cap > 0 ? $" · 이번 층 {_run.ChipsBoughtThisVisit}/{cap}칩" : "";
+            exchangeText.text = $"환전 창구  ·  현금 {_run.Cash}  ·  칩 {_run.Chips}{capText}\n현금 {rate} = 칩 1개. 딴 칩 중 카지노가 현금으로 바꿔 준 몫입니다.";
+            int affordable = _run.Cash / rate;
+            if (cap > 0) affordable = Mathf.Min(affordable, cap - _run.ChipsBoughtThisVisit);
+            for (int i = 0; i < exchangeButtons.Length; i++)
+            {
+                if (exchangeButtons[i] != null) exchangeButtons[i].interactable = affordable >= (i == 1 ? 5 : 1);
             }
         }
 
@@ -510,7 +554,7 @@ namespace RouletteLike.Roulette
             _state = ViewState.Ended;
             endPanel?.SetActive(true);
             endTitleText.text = "탈출 성공";
-            endBodyText.text = $"남은 칩 {_run.Chips}.\n빼앗은 규칙을 들고 카지노 문을 나섰습니다.";
+            endBodyText.text = $"남은 칩 {_run.Chips} · 현금 {_run.Cash}.\n빼앗은 규칙을 들고 카지노 문을 나섰습니다.";
             if (_run.UnlockedOuterRingThisRun)
             {
                 PlayerPrefs.SetInt(OuterRingUnlockedKey, 1);
@@ -1866,9 +1910,10 @@ namespace RouletteLike.Roulette
             int nudges = _battle != null ? _battle.NudgesRemaining : PotBattle.BaseNudgesPerBattle;
             List<string> names = new List<string>();
             foreach (RelicId id in OwnedRelics) names.Add(RelicCatalog.Get(id).Name);
+            string cash = _run != null && _run.Cash > 0 ? $"현금 {_run.Cash}  ·  " : "";
             relicStripText.text = names.Count == 0
-                ? $"NUDGE {nudges}  ·  유물 없음 (문 카드의 유물을 이겨서 얻기)"
-                : $"NUDGE {nudges}  ·  유물 {names.Count}: {string.Join(" · ", names)}";
+                ? $"{cash}NUDGE {nudges}  ·  유물 없음 (문 카드의 유물을 이겨서 얻기)"
+                : $"{cash}NUDGE {nudges}  ·  유물 {names.Count}: {string.Join(" · ", names)}";
         }
 
         private void OpenRelicOverlay()
@@ -1910,14 +1955,14 @@ namespace RouletteLike.Roulette
         /// <summary>종료 화면: 가지고 나가는 칩(입장 칩까지 + 상금)과 하우스가 회수하는 테이블 칩(ADR 0007).</summary>
         private string DescribeChipsCarried()
         {
-            int entry = _run.ChipsAtEntry;
-            int kept = Mathf.Min(_battle.Player.Chips, entry);
-            int returned = Mathf.Max(0, _battle.Player.Chips - entry);
-            int winnings = _battle.Outcome == BattleOutcome.PlayerWinsByBankrupt ? _run.WinningsFor(_battle.Profile) : 0;
-            string line = winnings > 0
-                ? $"가지고 나가는 칩: {kept} + 상금 {winnings} = {kept + winnings}"
-                : $"가지고 나가는 칩: {kept}";
-            return returned > 0 ? line + $"  (입장 칩 {entry}을 넘은 테이블 칩 {returned}은 하우스가 회수)" : line;
+            ChipSettlement s = _run.PreviewSettlement(_battle);
+            string chips = $"칩 {s.BaseChips}";
+            if (s.KeptExcess > 0) chips += $" + 딴 칩 {s.KeptExcess}";
+            if (s.Winnings > 0) chips += $" + 상금 {s.Winnings}";
+            string line = $"가지고 나가는 {chips} = {s.ChipsAfter}";
+            return s.Cash > 0
+                ? line + $"\n딴 칩 {s.KeptExcess + s.Cash} 중 {s.Cash}은 카지노가 현금으로 환전 (현금 {_run.Cash + s.Cash}, 문 앞 환전 창구에서 칩으로)"
+                : line;
         }
 
         private static string DescribeRelicPrize(RelicId? prize)
