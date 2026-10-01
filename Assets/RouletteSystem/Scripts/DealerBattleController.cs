@@ -173,6 +173,14 @@ namespace RouletteLike.Roulette
         [SerializeField, Min(0.1f)] private float chipFlightDuration = 0.45f;
         [SerializeField, Min(0.1f)] private float bannerDuration = 1.1f;
 
+        [Header("Overlays · Title")]
+        [SerializeField] private TMP_Text relicOverlayTitle;
+        [SerializeField] private UnityEngine.UI.Button logButton;
+        [SerializeField] private GameObject titlePanel;
+        [SerializeField] private UnityEngine.UI.Button titleStartButton;
+        [SerializeField] private UnityEngine.UI.Button titleResetButton;
+        [SerializeField] private TMP_Text titleMetaText;
+
         [Header("Tempo Toggle")]
         [SerializeField] private UnityEngine.UI.Button tempoButton;
         [SerializeField] private TMP_Text tempoLabel;
@@ -188,6 +196,7 @@ namespace RouletteLike.Roulette
         [SerializeField] private int battleSeed = 46021;
 
         private readonly Queue<string> _combatLog = new Queue<string>();
+        private readonly List<string> _fullLog = new List<string>();
         private Run _run;
         private int _runCount;
         private bool _placingJackpot;
@@ -245,6 +254,9 @@ namespace RouletteLike.Roulette
 
             endContinueButton?.onClick.AddListener(OnEndContinue);
             relicStripButton?.onClick.AddListener(OpenRelicOverlay);
+            logButton?.onClick.AddListener(OpenLogOverlay);
+            titleStartButton?.onClick.AddListener(OnTitleStart);
+            titleResetButton?.onClick.AddListener(OnTitleReset);
             _tempo = PlayerPrefs.GetFloat(TempoKey, 1f) >= 2f ? 2f : 1f;
             tempoButton?.onClick.AddListener(ToggleTempo);
             RefreshTempoLabel();
@@ -264,7 +276,45 @@ namespace RouletteLike.Roulette
 
         private void Start()
         {
+            if (titlePanel != null)
+            {
+                ShowTitle();
+                return;
+            }
+
             StartNewRun();
+        }
+
+        // ───────────── 타이틀 ─────────────
+
+        private void ShowTitle()
+        {
+            titlePanel.SetActive(true);
+            titlePanel.transform.SetAsLastSibling();
+            spinInput?.ShowUnavailableState("대기");
+            bool outer = PlayerPrefs.GetInt(OuterRingUnlockedKey, 0) == 1;
+            if (titleMetaText != null)
+            {
+                titleMetaText.text = outer
+                    ? "해금된 룰렛 형식: 바깥 링 (보스 「매니저」 격파)"
+                    : "보스를 이기면 다음 계약부터 룰렛 형식을 얻습니다";
+            }
+
+            if (titleResetButton != null) titleResetButton.gameObject.SetActive(outer);
+        }
+
+        private void OnTitleStart()
+        {
+            titlePanel?.SetActive(false);
+            StartNewRun();
+        }
+
+        /// <summary>해금 기록(바깥 링)을 지운다. 처음부터 다시 시험하고 싶을 때.</summary>
+        private void OnTitleReset()
+        {
+            PlayerPrefs.DeleteKey(OuterRingUnlockedKey);
+            PlayerPrefs.Save();
+            ShowTitle();
         }
 
         private void OnDisable()
@@ -430,6 +480,7 @@ namespace RouletteLike.Roulette
             _playerChipsBaseline = Mathf.Max(1, _battle.Player.Chips);
             _dealerChipsBaseline = Mathf.Max(1, _battle.Dealer.Chips);
             _combatLog.Clear();
+            _fullLog.Clear();
             _loggedLines = 0;
             _chosenAnte = 1;
             _playerSpinning = false;
@@ -1288,9 +1339,10 @@ namespace RouletteLike.Roulette
             dealerChipsText.text = $"칩 {_battle.Dealer.Chips}";
             playerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Player.Chips / playerStart);
             dealerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Dealer.Chips / dealerStart);
+            string dealerInsurance = $"{DealerShortName} 보험 {_battle.Dealer.Insurance}";
             insuranceText.text = _battle.HasRelic(RelicId.DopamineShot)
-                ? $"내 보험 {_battle.Player.Insurance} · 도파민 {_battle.Dopamine}"
-                : $"내 보험 {_battle.Player.Insurance}";
+                ? $"내 보험 {_battle.Player.Insurance} · 도파민 {_battle.Dopamine} · {dealerInsurance}"
+                : $"내 보험 {_battle.Player.Insurance}  ·  {dealerInsurance}";
             RefreshRelicStrip();
             Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
             potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {potSeat.Pot}" : $"판돈 {potSeat.Pot}";
@@ -1354,15 +1406,51 @@ namespace RouletteLike.Roulette
             float houseCutChance = 100f * houseCuts / Mathf.Max(1, _battle.Player.Wheel.Count);
             if (_battle.Active == Side.Player && _battle.Phase == BattlePhase.Spinning)
             {
+                (int low, int high) = NextSpinPotRange(_battle.Player.Wheel, _battle.Player.Pot);
                 riskSummaryText.text =
-                    $"판돈 {_battle.Player.Pot} − {DealerShortName} 보험 {_battle.Dealer.Insurance} = 피해 {_battle.PreviewCashOutDamage(Side.Player)}  ·  하우스 몫 {houseCutChance:0.#}%";
+                    $"지금 CASH OUT 피해 {_battle.PreviewCashOutDamage(Side.Player)}  ·  다음 SPIN 판돈 {low}~{high}  ·  하우스 몫 {houseCutChance:0.#}%";
                 riskSummaryText.color = new Color32(242, 194, 110, 255);
             }
             else
             {
-                riskSummaryText.text = $"다음 SPIN 하우스 몫 확률 {houseCutChance:0.#}%  ·  {DealerShortName} 판돈 {_battle.Dealer.Pot}";
+                int ante = _battle.Active == Side.Player && _battle.Phase == BattlePhase.AwaitingAnte ? _chosenAnte : 1;
+                (int low, int high) = NextSpinPotRange(_battle.Player.Wheel, ante);
+                riskSummaryText.text = $"첫 SPIN 판돈 {low}~{high}  ·  하우스 몫 {houseCutChance:0.#}%  ·  {DealerShortName} 판돈 {_battle.Dealer.Pot}";
                 riskSummaryText.color = new Color32(202, 196, 212, 255);
             }
+        }
+
+        /// <summary>
+        /// 확률판: 다음 SPIN 한 번 뒤 판돈의 범위(하우스 몫이면 0, 레이즈·배율 연쇄면 최대). 바깥 링·유물 보너스는 넣지 않은 어림값.
+        /// </summary>
+        private static (int low, int high) NextSpinPotRange(IReadOnlyList<Slot> wheel, int pot)
+        {
+            int low = int.MaxValue, high = 0;
+            for (int i = 0; i < wheel.Count; i++)
+            {
+                Slot slot = wheel[i];
+                int after = pot;
+                if (slot.Kind == SlotKind.HouseCut)
+                {
+                    after = 0;
+                }
+                else if (slot.FiresOnLand && (slot.Kind == SlotKind.Raise || slot.Kind == SlotKind.Multiplier))
+                {
+                    int sum = 0, product = 1;
+                    foreach (int index in PotBattle.FindChainGroup(wheel, i))
+                    {
+                        sum += wheel[index].Value;
+                        product *= Mathf.Max(1, wheel[index].Value);
+                    }
+
+                    after = slot.Kind == SlotKind.Raise ? pot + sum : pot * product;
+                }
+
+                low = Mathf.Min(low, after);
+                high = Mathf.Max(high, after);
+            }
+
+            return (low == int.MaxValue ? pot : low, high);
         }
 
         private void RefreshHouseRuleUi()
@@ -1704,7 +1792,18 @@ namespace RouletteLike.Roulette
                 lines.Add($"   {relic.Description}");
             }
 
+            if (relicOverlayTitle != null) relicOverlayTitle.text = "유물 · 이전 탈출자들의 부정행위 도구";
             relicOverlayBody.text = string.Join("\n", lines);
+            relicOverlay.SetActive(true);
+        }
+
+        /// <summary>전체 전투 기록(사건 띠를 누르면). 최근 30줄, 최신이 아래.</summary>
+        private void OpenLogOverlay()
+        {
+            if (relicOverlay == null || relicOverlayBody == null) return;
+            int start = Mathf.Max(0, _fullLog.Count - 30);
+            if (relicOverlayTitle != null) relicOverlayTitle.text = "전투 기록 · 발동 순서";
+            relicOverlayBody.text = _fullLog.Count == 0 ? "아직 기록이 없습니다." : string.Join("\n", _fullLog.GetRange(start, _fullLog.Count - start));
             relicOverlay.SetActive(true);
         }
 
@@ -1845,6 +1944,7 @@ namespace RouletteLike.Roulette
         /// <summary>하단 사건 띠: 방금 일어난 일 3개를 한 줄로, 최신이 왼쪽.</summary>
         private void AddLog(string message)
         {
+            _fullLog.Add(message);
             _combatLog.Enqueue(message);
             while (_combatLog.Count > 3) _combatLog.Dequeue();
             string[] recent = _combatLog.ToArray();

@@ -243,6 +243,12 @@ namespace RouletteLike.Roulette.Editor
             RectTransform eventStrip = AddFramedPanel("EventStrip", mainGameArea, new Vector2(0f, -385f), new Vector2(1840f, 44f), Panel, DarkGold, out _, out _);
             AddText("Icon", eventStrip, "LOG", font, 14, Gold, TextAlignmentOptions.Center, new Vector2(-880f, 0f), new Vector2(60f, 30f));
             TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(-30f, 0f), new Vector2(1620f, 36f));
+            // 사건 띠를 누르면 전체 전투 기록이 펼쳐진다(투명 버튼, 속도 버튼보다 아래).
+            UnityEngine.UI.Image logButtonImage = AddImage("LogButton", eventStrip, new Color(0f, 0f, 0f, 0f));
+            logButtonImage.rectTransform.sizeDelta = new Vector2(1700f, 44f);
+            logButtonImage.rectTransform.anchoredPosition = new Vector2(-60f, 0f);
+            logButtonImage.raycastTarget = true;
+            UnityEngine.UI.Button logButton = logButtonImage.gameObject.AddComponent<UnityEngine.UI.Button>();
             UnityEngine.UI.Button tempoButton = AddButton("TempoButton", eventStrip, new Vector2(860f, 0f), new Vector2(110f, 34f), PanelLight, font, "속도 ×1", 15, out TMP_Text tempoLabel);
             combatLogText.textWrappingMode = TextWrappingModes.NoWrap;
             combatLogText.overflowMode = TextOverflowModes.Ellipsis;
@@ -333,7 +339,14 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "dealerLandingTitle", dealerTagTitle);
             SetObject(identitySo, "dealerLandingEffect", dealerTagEffect);
             SetObject(identitySo, "dealerLandingBackground", dealerTagBackground);
-            RectTransform relicOverlay = BuildRelicOverlay(canvasObject.transform, font, out TMP_Text relicOverlayBody, out UnityEngine.UI.Button relicOverlayClose);
+            RectTransform relicOverlay = BuildRelicOverlay(canvasObject.transform, font, out TMP_Text relicOverlayTitle, out TMP_Text relicOverlayBody, out UnityEngine.UI.Button relicOverlayClose);
+            RectTransform titlePanel = BuildTitlePanel(canvasObject.transform, font, out UnityEngine.UI.Button titleStartButton, out UnityEngine.UI.Button titleResetButton, out TMP_Text titleMetaText);
+            SetObject(identitySo, "relicOverlayTitle", relicOverlayTitle);
+            SetObject(identitySo, "logButton", logButton);
+            SetObject(identitySo, "titlePanel", titlePanel.gameObject);
+            SetObject(identitySo, "titleStartButton", titleStartButton);
+            SetObject(identitySo, "titleResetButton", titleResetButton);
+            SetObject(identitySo, "titleMetaText", titleMetaText);
             SetObject(identitySo, "relicStripButton", relicStripButton);
             SetObject(identitySo, "relicStripText", relicStripText);
             SetObject(identitySo, "relicOverlay", relicOverlay.gameObject);
@@ -363,6 +376,7 @@ namespace RouletteLike.Roulette.Editor
             hijackBar.gameObject.SetActive(false);
             nudgeBar.gameObject.SetActive(false);
             relicOverlay.gameObject.SetActive(false);
+            titlePanel.SetAsLastSibling();
             momentBanner.gameObject.SetActive(false);
             playerClickArea.gameObject.SetActive(false);
             dealerClickArea.gameObject.SetActive(false);
@@ -520,13 +534,29 @@ namespace RouletteLike.Roulette.Editor
         /// 바깥 링(이중 룰렛)을 보여주는 그레이박스 띠: 칸 6개 자리, 멈춘 칸은 컨트롤러가 금색으로 강조한다.
         /// 원형 바깥 링 아트는 ArtStyleBible 확정 뒤에 교체한다.
         /// </summary>
+        /// <summary>타이틀: 게임 이름·한 줄 소개·계약하기(시작)·해금 상태·해금 초기화. 게임을 켜면 가장 먼저 보인다.</summary>
+        private static RectTransform BuildTitlePanel(Transform parent, TMP_FontAsset font, out UnityEngine.UI.Button startButton, out UnityEngine.UI.Button resetButton, out TMP_Text metaText)
+        {
+            RectTransform panel = AddPanel("TitlePanel", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(14, 10, 20, 255));
+            panel.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
+            AddText("Logo", panel, "HIJACKPOT", font, 120, Gold, TextAlignmentOptions.Center, new Vector2(0f, 190f), new Vector2(1600f, 150f));
+            AddText("Subtitle", panel, "Jack the Rules", font, 40, Ink, TextAlignmentOptions.Center, new Vector2(0f, 90f), new Vector2(1600f, 56f));
+            AddText("Tagline", panel, "행운을 빼앗는 마법 카지노에서, 룰렛의 규칙을 훔쳐 탈출하라.", font, 24, Muted, TextAlignmentOptions.Center, new Vector2(0f, 30f), new Vector2(1600f, 40f));
+            startButton = AddButton("StartButton", panel, new Vector2(0f, -90f), new Vector2(360f, 84f), Gold, font, "계약하기", 30, out TMP_Text startLabel);
+            startLabel.color = Background;
+            metaText = AddText("Meta", panel, "", font, 18, Muted, TextAlignmentOptions.Center, new Vector2(0f, -180f), new Vector2(1400f, 30f));
+            resetButton = AddButton("ResetMetaButton", panel, new Vector2(0f, -232f), new Vector2(260f, 44f), PanelLight, font, "해금 기록 지우기", 16, out _);
+            AddText("Notice", panel, "실제 돈을 쓰지 않는 게임입니다. 칩은 손님의 행운이 굳은 것입니다.", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, -470f), new Vector2(1600f, 26f));
+            return panel;
+        }
+
         /// <summary>유물 설명 펼침 패널: 가진 유물의 키워드·이름·효과와 NUDGE 규칙. 문구는 컨트롤러가 채운다.</summary>
-        private static RectTransform BuildRelicOverlay(Transform parent, TMP_FontAsset font, out TMP_Text body, out UnityEngine.UI.Button closeButton)
+        private static RectTransform BuildRelicOverlay(Transform parent, TMP_FontAsset font, out TMP_Text title, out TMP_Text body, out UnityEngine.UI.Button closeButton)
         {
             RectTransform overlay = AddPanel("RelicOverlay", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(10, 8, 14, 225));
             overlay.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
             RectTransform card = AddFramedPanel("Card", overlay, Vector2.zero, new Vector2(980f, 640f), new Color32(30, 25, 39, 255), Gold, out _, out _);
-            AddText("Title", card, "유물 · 이전 탈출자들의 부정행위 도구", font, 28, Gold, TextAlignmentOptions.Center, new Vector2(0f, 270f), new Vector2(900f, 40f));
+            title = AddText("Title", card, "유물 · 이전 탈출자들의 부정행위 도구", font, 28, Gold, TextAlignmentOptions.Center, new Vector2(0f, 270f), new Vector2(900f, 40f));
             body = AddText("Body", card, "", font, 18, Ink, TextAlignmentOptions.TopLeft, new Vector2(0f, -10f), new Vector2(900f, 480f));
             closeButton = AddButton("CloseButton", card, new Vector2(0f, -280f), new Vector2(200f, 50f), PanelLight, font, "닫기", 18, out _);
             return overlay;
