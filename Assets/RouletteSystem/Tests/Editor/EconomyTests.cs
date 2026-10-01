@@ -74,7 +74,7 @@ namespace RouletteLike.Battle.Tests
             for (int floor = 0; floor < 4; floor++)
             {
                 Assert.AreEqual(expected[floor], run.Doors[0].StartingChips, $"floor {floor + 1}");
-                Assert.AreEqual(floor >= Run.DealerAnteBonusFromFloor ? baseAnte + 1 : baseAnte, run.Doors[0].DealerAnte, $"floor {floor + 1}");
+                Assert.AreEqual(floor >= Run.DealerAnteBonusFromPosition ? baseAnte + 1 : baseAnte, run.Doors[0].DealerAnte, $"floor {floor + 1}");
                 PotBattle battle = run.EnterDoor(0);
                 for (int guard = 0; guard < 200 && battle.Phase != BattlePhase.Ended; guard++)
                 {

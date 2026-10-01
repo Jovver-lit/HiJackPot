@@ -13,7 +13,7 @@
 <section class="cover">
   <div class="kicker">HIJACKPOT: JACK THE RULES · 규칙 문서</div>
   <h1>전투 단계와 순서도</h1>
-  <div class="sub">런 → 전투 → 라운드 → 턴 → SPIN·착지까지, 규칙이 실제로 어떤 순서로 처리되는지</div>
+  <div class="sub">런(10층: 1회차 → 상점 → 2회차) → 전투 → 라운드 → 턴 → SPIN·착지까지, 규칙이 실제로 어떤 순서로 처리되는지</div>
   <div class="meta">
     기준: <code>feature/chip-exchange</code> (2026-10-01, 1차 MVP + 딴 칩 정산·환전) · 규칙 코어 <code>Assets/RouletteSystem/Core</code><br>
     이 문서의 순서는 코드(<code>PotBattle.cs</code>, <code>Run.cs</code>, <code>DealerBattleController.cs</code>)의 실제 처리 순서와 같다. 수치는 전부 임시값이다.
@@ -59,24 +59,26 @@ flowchart LR
 </div>
 
 <h2>2. 런 흐름</h2>
-<div class="mermaid">
+<div class="mermaid" data-max-height="205">
 flowchart TD
-  A([타이틀 · 계약하기]) --> F1[1층 · 토끼 딜러<br/>튜토리얼, 문 1개]
-  F1 --> W1{이겼나?}
-  W1 -->|패배| X([파산 · 계약 되감기<br/>새 런])
-  W1 -->|승리| P1[딴 칩 정산<br/>딴 칩 30% 칩 · 70% 현금<br/>문의 유물 획득]
-  P1 --> J{완전 강탈로<br/>JACKPOT 확정?}
-  J -->|예| JP[JACKPOT 칸을 둘<br/>내 칸 고르기]
-  J -->|아니오| D
-  JP --> D[2~4층 · 문 두 개<br/>환전 창구: 현금 3 = 칩 1<br/>딜러 + 유물 상금 보고 선택]
-  D --> B2[딜러 전투<br/>층마다 딜러 칩 ×1.0 / ×1.3 / ×1.6<br/>4층 딜러 앤티 +1]
-  B2 --> W2{이겼나?}
+  A([타이틀 · 계약하기]) --> F1[1층 · 토끼 딜러<br/>튜토리얼]
+  F1 --> W{이겼나?}
+  W -->|패배| X([파산 · 계약 되감기<br/>새 런])
+  W -->|승리| P[딴 칩 정산<br/>딴 칩 30% 칩 · 70% 현금<br/>문의 유물 획득<br/>완전 강탈이면 JACKPOT 배치]
+  P --> NX{다음 층은?}
+  NX -->|딜러층| D[문 두 개 · 환전 창구<br/>딜러 + 유물 상금 보고 선택]
+  D --> B[딜러 전투<br/>1회차 칩 ×1.0/×1.3/×1.6<br/>2회차 칩 ×1.2~1.8 · 앤티 +2 · 성향 +4]
+  B --> W
+  NX -->|5층 보스| BOSS[보스 「매니저」<br/>바깥 링 테이블]
+  BOSS --> WB{이겼나?}
+  WB -->|패배| X
+  WB -->|승리| FORM[룰렛 형식 획득<br/>바깥 링이 이 런의 내 룰렛에<br/>다음 런부터도 해금]
+  FORM --> SHOP[6층 상점<br/>위치 바꾸기 · 칸 강화 · 되돌리기<br/>유물 · 칩 사기 · 슬롯머신]
+  SHOP --> D
+  NX -->|10층 강화 보스| BOSS2[「매니저 · 야간 근무」<br/>칩 77 · 앤티 +3 · 보험 +2]
+  BOSS2 --> W2{이겼나?}
   W2 -->|패배| X
-  W2 -->|승리 · 4층 전| D
-  W2 -->|승리 · 4층| BOSS[5층 · 보스 「매니저」<br/>바깥 링 테이블]
-  BOSS --> W3{이겼나?}
-  W3 -->|패배| X
-  W3 -->|승리| E([탈출 · 다음 런부터<br/>바깥 링 해금])
+  W2 -->|승리| E([탈출])
 </div>
 <ul>
   <li>문 두 개의 딜러는 여우·고양이·까마귀 중 서로 다른 둘이다. 문마다 서로 다른 유물이 걸리고, 이미 가진 유물은 다시 나오지 않는다(ADR 0006).</li>
@@ -244,8 +246,21 @@ flowchart TD
   <tr><td>파산 승리</td><td>min(남은 칩, 입장 칩) + 딴 칩 × 30% (나머지 70%는 현금)</td><td>HIJACK한 칸 유지, 압수된 칸 반환</td><td>문의 유물 획득</td></tr>
   <tr><td>완전 강탈</td><td>파산 승리와 같음</td><td>같음 + 그 딜러의 JACKPOT 칸(아직 없으면)을 둘 자리 선택</td><td>문의 유물 획득</td></tr>
   <tr><td>패배</td><td>0</td><td>—</td><td>런 종료(파산). 타이틀의 계약하기로 새 런</td></tr>
-  <tr><td>보스 승리</td><td>위와 같음</td><td>위와 같음</td><td>탈출. 처음이면 다음 런부터 바깥 링 해금(저장)</td></tr>
+  <tr><td>1회차 보스 승리</td><td>위와 같음</td><td>위와 같음 + 바깥 링이 이 런의 내 룰렛에 붙음</td><td>다음 런부터 바깥 링 해금(바로 저장) → 6층 상점</td></tr>
+  <tr><td>2회차 보스 승리</td><td>—</td><td>—</td><td>탈출</td></tr>
 </table>
+
+<h3>상점층 (6층)</h3>
+<table>
+  <tr><th>서비스</th><th>현금</th><th>내용</th></tr>
+  <tr><td>위치 바꾸기</td><td>12</td><td>두 칸의 자리를 맞바꾼다(하우스 몫도 옮길 수 있음) — 연쇄를 직접 설계</td></tr>
+  <tr><td>칸 강화</td><td>18 (배율 35)</td><td>레이즈·보험 +1(최대 6), 배당·허풍 +1(최대 4), 배율 ×+1(최대 ×4). 하우스 몫·봉인·보호막·선불 불가</td></tr>
+  <tr><td>HIJACK 되돌리기</td><td>8</td><td>빼앗아 온 칸을 시작 룰렛의 그 자리 칸으로</td></tr>
+  <tr><td>유물</td><td>30</td><td>아직 없는 유물 하나(1개 한정)</td></tr>
+  <tr><td>칩 사기</td><td>3 = 칩 1</td><td>한 층 최대 5칩(환전 창구와 같은 규칙)</td></tr>
+  <tr><td>슬롯머신</td><td>1 · 5 · 10 걸기</td><td>JP×3 ×80, 7×3 ×25, ×××3 ×12, 같은 기호 셋 ×7, JP 둘 ×5, 같은 기호 둘 ×2, 「몫」 하나라도 → 잃음. 기대 환수율 약 93%</td></tr>
+</table>
+<p>새 칸은 팔지 않는다(새 칸은 HIJACK으로만). 「다음 층으로」를 누르면 7층(2회차) 문 선택으로 간다.</p>
 
 <h2 class="page-break">12. 부록: 수치</h2>
 <h3>딜러·보스 (기준 수치, 2~4층은 층 강화 전)</h3>
@@ -255,6 +270,7 @@ flowchart TD
   <tr><td>여우</td><td class="num">14</td><td class="num">4</td><td class="num">1</td><td class="num">5</td><td class="num">3</td><td>9칸</td><td>소액 손님: 판돈 4 이하로 CASH OUT 2번</td><td>「허풍」 [CASH OUT] 최소 피해 3</td></tr>
   <tr><td>고양이</td><td class="num">18</td><td class="num">4</td><td class="num">1</td><td class="num">12</td><td class="num">0</td><td>7칸</td><td>배율 정산: 배율로 불린 판돈 CASH OUT</td><td>「더블 다운」 배율 ×3</td></tr>
   <tr><td>까마귀</td><td class="num">22</td><td class="num">3</td><td class="num">1</td><td class="num">7</td><td class="num">0</td><td>13칸</td><td>선제 정산: 내 선공 라운드에 CASH OUT 피해 5+</td><td>「선불」 선공 75%</td></tr>
+  <tr><td>2회차 보스 「매니저 · 야간 근무」</td><td class="num">77</td><td class="num">5</td><td class="num">5</td><td class="num">16</td><td class="num">4</td><td>10칸 + 바깥 링</td><td>잭팟 라인 2번</td><td>「VIP 보호막」</td></tr>
   <tr><td>보스 「매니저」</td><td class="num">48</td><td class="num">5</td><td class="num">2</td><td class="num">10</td><td class="num">2</td><td>10칸 + 바깥 링</td><td>잭팟 라인: 안쪽·바깥 같은 종류 2번</td><td>「VIP 보호막」 이번 턴 하우스 몫 1회 무효</td></tr>
 </table>
 <h3>플레이어 시작 룰렛 (8칸, 시계 방향)</h3>
@@ -266,7 +282,7 @@ flowchart TD
   <tr><th>항목</th><th>값</th></tr>
   <tr><td>딴 칩 정산</td><td>입장 칩을 넘게 딴 칩의 30%는 칩, 70%는 현금(「VIP 회원증」 칩 50%). 상금 없음</td></tr>
   <tr><td>환전 창구</td><td>현금 3 = 칩 1, 한 층(문 선택 화면 한 번)에 최대 5칩</td></tr>
-  <tr><td>층 강화</td><td>2층 ×1.0 · 3층 ×1.3 · 4층 ×1.6 딜러 칩, 4층 딜러 앤티 +1</td></tr>
+  <tr><td>층 강화</td><td>1회차: 딜러 칩 ×1.0 · ×1.3 · ×1.6, 세 번째 딜러층 앤티 +1 / 2회차: 칩 ×1.2 · ×1.5 · ×1.8, 앤티 +2(세 번째 +3), 성향 +4</td></tr>
   <tr><td>테이블 마감</td><td>10라운드부터 양쪽 사용료 1, 15라운드부터 2</td></tr>
   <tr><td>NUDGE</td><td>전투당 1회(「끈 달린 칩」 +1)</td></tr>
   <tr><td>역탈취</td><td>전투당 1회(토끼 없음, 「압수 방지 봉인」 0회)</td></tr>

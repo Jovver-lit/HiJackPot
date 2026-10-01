@@ -168,6 +168,12 @@ namespace RouletteLike.Battle.Tests
             for (int floor = 0; floor < run.FloorCount; floor++)
             {
                 if (floor == run.FloorCount - 1) Assert.AreEqual(FloorKind.Boss, run.CurrentFloorKind);
+                if (run.CurrentFloorKind == FloorKind.Shop)
+                {
+                    run.LeaveShop();
+                    continue;
+                }
+
                 WinByBankrupt(run.EnterDoor(0));
                 run.CompleteBattle();
             }

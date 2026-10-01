@@ -181,6 +181,22 @@ namespace RouletteLike.Roulette
         [SerializeField] private UnityEngine.UI.Button titleResetButton;
         [SerializeField] private TMP_Text titleMetaText;
 
+        [Header("Shop (상점층, ADR 0009)")]
+        [SerializeField] private GameObject shopPanel;
+        [SerializeField] private TMP_Text shopStatusText;
+        [SerializeField] private TMP_Text shopMessageText;
+        [Tooltip("0 위치 바꾸기, 1 칸 강화, 2 HIJACK 되돌리기, 3 유물, 4 칩 사기")]
+        [SerializeField] private UnityEngine.UI.Button[] shopServiceButtons = new UnityEngine.UI.Button[0];
+        [SerializeField] private TMP_Text[] shopServiceLabels = new TMP_Text[0];
+        [SerializeField] private UnityEngine.UI.Button[] shopSlotButtons = new UnityEngine.UI.Button[0];
+        [SerializeField] private TMP_Text[] shopSlotLabels = new TMP_Text[0];
+        [SerializeField] private TMP_Text[] slotReelTexts = new TMP_Text[0];
+        [SerializeField] private TMP_Text slotResultText;
+        [SerializeField] private UnityEngine.UI.Button[] slotBetButtons = new UnityEngine.UI.Button[0];
+        [SerializeField] private UnityEngine.UI.Button slotPullButton;
+        [SerializeField] private TMP_Text slotPayTableText;
+        [SerializeField] private UnityEngine.UI.Button shopLeaveButton;
+
         [Header("Tempo Toggle")]
         [SerializeField] private UnityEngine.UI.Button tempoButton;
         [SerializeField] private TMP_Text tempoLabel;
@@ -231,6 +247,12 @@ namespace RouletteLike.Roulette
         private int _selectedHijackSourceIndex = -1;
         private int _pendingNudgeIndex = -1;
 
+        private enum ShopMode { None, Swap, Upgrade, Revert }
+        private ShopMode _shopMode;
+        private int _swapFirst = -1;
+        private int _slotBet = 1;
+        private bool _slotSpinning;
+
         /// <summary>템포 배율(1 또는 2). 결과 확인 시간·딜러 턴·회전·연출 대기를 이만큼 빨리 감는다. 기기에 저장한다.</summary>
         private float _tempo = 1f;
         private const string TempoKey = "hijackpot.settings.tempo";
@@ -272,6 +294,27 @@ namespace RouletteLike.Roulette
                 exchangeButtons[i]?.onClick.AddListener(() => BuyChipsAtWindow(amount));
             }
             relicStripButton?.onClick.AddListener(OpenRelicOverlay);
+            for (int i = 0; i < shopServiceButtons.Length; i++)
+            {
+                int service = i;
+                shopServiceButtons[i]?.onClick.AddListener(() => OnShopService(service));
+            }
+
+            for (int i = 0; i < shopSlotButtons.Length; i++)
+            {
+                int slot = i;
+                shopSlotButtons[i]?.onClick.AddListener(() => OnShopSlot(slot));
+            }
+
+            int[] betSizes = { 1, 5, 10 };
+            for (int i = 0; i < slotBetButtons.Length && i < betSizes.Length; i++)
+            {
+                int bet = betSizes[i];
+                slotBetButtons[i]?.onClick.AddListener(() => { _slotBet = bet; RefreshShop(); });
+            }
+
+            slotPullButton?.onClick.AddListener(() => { if (!_slotSpinning) StartCoroutine(PullSlotMachine()); });
+            shopLeaveButton?.onClick.AddListener(LeaveShop);
             logButton?.onClick.AddListener(OpenLogOverlay);
             titleStartButton?.onClick.AddListener(OnTitleStart);
             titleResetButton?.onClick.AddListener(OnTitleReset);
@@ -319,6 +362,13 @@ namespace RouletteLike.Roulette
         {
             if (relicOverlay != null && relicOverlay.activeSelf) { relicOverlay.SetActive(false); return; }
             if (titlePanel != null && titlePanel.activeSelf) { OnTitleStart(); return; }
+            if (shopPanel != null && shopPanel.activeSelf)
+            {
+                _run.BuyChips(int.MaxValue);
+                if (_run.Cash >= 1 && !_slotSpinning && Random.value < 0.5f) { _slotBet = 1; StartCoroutine(PullSlotMachine()); return; }
+                if (!_slotSpinning) LeaveShop();
+                return;
+            }
             if (doorPanel != null && doorPanel.activeSelf) { BuyChipsAtWindow(int.MaxValue); EnterDoor(0); return; }
             if (endPanel != null && endPanel.activeSelf)
             {
@@ -449,6 +499,12 @@ namespace RouletteLike.Roulette
         /// <summary>1층(토끼)처럼 문이 하나뿐이면 바로 들어가고, 둘이면 문 선택 화면을 연다.</summary>
         private void ShowDoorsOrEnter()
         {
+            if (_run.CurrentFloorKind == FloorKind.Shop)
+            {
+                OpenShop();
+                return;
+            }
+
             // 문이 하나여도(보스층) 바꿀 현금이 있으면 환전 창구를 들르게 한다.
             if (_run.Doors.Count == 1 && _run.Cash < _run.Exchange.CashPerChip)
             {
@@ -534,6 +590,12 @@ namespace RouletteLike.Roulette
 
             _run.CompleteBattle();
             endPanel?.SetActive(false);
+            if (_run.GainedWheelFormThisBattle)
+            {
+                // 보스를 이기면 그 런에서 바로 바깥 링을 얻고, 다음 런부터도 쓰도록 바로 저장한다(2회차에서 져도 해금은 남는다).
+                PlayerPrefs.SetInt(OuterRingUnlockedKey, 1);
+                PlayerPrefs.Save();
+            }
             if (_run.Outcome == RunOutcome.Escaped)
             {
                 ShowRunEscaped();
@@ -554,13 +616,7 @@ namespace RouletteLike.Roulette
             _state = ViewState.Ended;
             endPanel?.SetActive(true);
             endTitleText.text = "탈출 성공";
-            endBodyText.text = $"남은 칩 {_run.Chips} · 현금 {_run.Cash}.\n빼앗은 규칙을 들고 카지노 문을 나섰습니다.";
-            if (_run.UnlockedOuterRingThisRun)
-            {
-                PlayerPrefs.SetInt(OuterRingUnlockedKey, 1);
-                PlayerPrefs.Save();
-                endBodyText.text += "\n\n룰렛 형식 해금: 다음 런부터 내 룰렛에 바깥 링이 붙습니다.";
-            }
+            endBodyText.text = $"남은 칩 {_run.Chips} · 현금 {_run.Cash}.\n두 번의 보스를 넘고, 빼앗은 규칙을 들고 카지노 문을 나섰습니다.";
             if (endContinueLabel != null) endContinueLabel.text = "새 계약";
             dealerLineText.text = "\"다음에 또 오세요. 당첨 확률은 공개하지 않습니다.\"";
         }
@@ -1235,6 +1291,248 @@ namespace RouletteLike.Roulette
             yield return ContinueTurnFlow();
         }
 
+        // ───────────── 상점층 ─────────────
+
+        private void OpenShop()
+        {
+            _state = ViewState.Ended;
+            doorPanel?.SetActive(false);
+            spinInput?.ShowUnavailableState("상점");
+            shopPanel?.SetActive(true);
+            _shopMode = ShopMode.None;
+            _swapFirst = -1;
+            if (slotPayTableText != null) slotPayTableText.text = SlotMachine.PayTable;
+            if (slotResultText != null) slotResultText.text = "현금을 걸고 당기세요. 「몫」이 나오면 잃습니다.";
+            foreach (TMP_Text reel in slotReelTexts) if (reel != null) reel.text = "7";
+            if (shopMessageText != null) shopMessageText.text = "보스를 넘었습니다. 2회차 테이블 전에 룰렛을 손보세요.";
+            RefreshShop();
+        }
+
+        private void LeaveShop()
+        {
+            if (_run == null || !_run.InShop || _slotSpinning) return;
+            _run.LeaveShop();
+            shopPanel?.SetActive(false);
+            if (_run.Outcome == RunOutcome.Escaped)
+            {
+                ShowRunEscaped();
+                return;
+            }
+
+            ShowDoorsOrEnter();
+        }
+
+        private void OnShopService(int service)
+        {
+            if (_run == null || !_run.InShop || _slotSpinning) return;
+            _swapFirst = -1;
+            switch (service)
+            {
+                case 0:
+                    _shopMode = ShopMode.Swap;
+                    ShopMessage($"위치 바꾸기(현금 {ShopPrices.Swap}): 바꿀 두 칸을 차례로 고르세요");
+                    break;
+                case 1:
+                    _shopMode = ShopMode.Upgrade;
+                    ShopMessage($"칸 강화(현금 {ShopPrices.Upgrade}, 배율 {ShopPrices.UpgradeMultiplier}): 강화할 칸을 고르세요");
+                    break;
+                case 2:
+                    _shopMode = ShopMode.Revert;
+                    ShopMessage($"HIJACK 되돌리기(현금 {ShopPrices.Revert}): 빼앗아 온 칸(H)을 고르면 시작 룰렛의 칸으로 돌아갑니다");
+                    break;
+                case 3:
+                    _shopMode = ShopMode.None;
+                    RelicId? relic = _run.ShopRelic;
+                    ShopError relicError = _run.BuyShopRelic();
+                    ShopMessage(relicError == ShopError.None && relic.HasValue ? $"유물 「{RelicCatalog.Get(relic.Value).Name}」을 샀습니다" : ShopErrorText(relicError));
+                    break;
+                case 4:
+                    _shopMode = ShopMode.None;
+                    int bought = _run.BuyChips(1);
+                    ShopMessage(bought > 0 ? "칩 1개를 샀습니다" : "현금이 모자라거나 이번 층 한도를 채웠습니다");
+                    break;
+            }
+
+            RefreshShop();
+        }
+
+        private void OnShopSlot(int index)
+        {
+            if (_run == null || !_run.InShop || _slotSpinning) return;
+            ShopError error = ShopError.None;
+            switch (_shopMode)
+            {
+                case ShopMode.Swap:
+                    if (_swapFirst < 0)
+                    {
+                        _swapFirst = index;
+                        ShopMessage($"{index + 1}번 「{_run.Wheel[index].Label}」과 바꿀 칸을 고르세요");
+                        RefreshShop();
+                        return;
+                    }
+
+                    error = _run.SwapSlots(_swapFirst, index);
+                    if (error == ShopError.None) ShopMessage($"{_swapFirst + 1}번과 {index + 1}번 칸의 자리를 바꿨습니다");
+                    _swapFirst = -1;
+                    break;
+                case ShopMode.Upgrade:
+                    error = _run.UpgradeSlot(index);
+                    if (error == ShopError.None) ShopMessage($"{index + 1}번 칸을 강화했습니다: 「{_run.Wheel[index].Label}」");
+                    break;
+                case ShopMode.Revert:
+                    error = _run.RevertSlot(index);
+                    if (error == ShopError.None) ShopMessage($"{index + 1}번 칸을 「{_run.Wheel[index].Label}」로 되돌렸습니다");
+                    break;
+                default:
+                    ShopMessage("먼저 왼쪽에서 서비스를 고르세요");
+                    return;
+            }
+
+            if (error != ShopError.None)
+            {
+                ShopMessage(ShopErrorText(error));
+            }
+            else
+            {
+                _shopMode = ShopMode.None;
+            }
+
+            RefreshShop();
+        }
+
+        private void RefreshShop()
+        {
+            if (_run == null || shopPanel == null) return;
+            if (shopStatusText != null)
+            {
+                shopStatusText.text = $"{_run.FloorIndex + 1}층 · 현금 {_run.Cash}  ·  칩 {_run.Chips}  ·  유물 {_run.Relics.Count}  ·  바깥 링 {(_run.OuterRing.Count > 0 ? "있음" : "없음")}";
+            }
+
+            string relicText = _run.ShopRelic.HasValue
+                ? $"{RelicCatalog.Get(_run.ShopRelic.Value).Keyword} 「{RelicCatalog.Get(_run.ShopRelic.Value).Name}」 {RelicCatalog.Get(_run.ShopRelic.Value).Description}"
+                : "다 팔렸습니다";
+            int cap = _run.Exchange.MaxChipsPerVisit;
+            string[] labels =
+            {
+                $"위치 바꾸기 · 현금 {ShopPrices.Swap}\n두 칸의 자리를 맞바꿔 연쇄를 직접 설계",
+                $"칸 강화 · 현금 {ShopPrices.Upgrade} (배율 {ShopPrices.UpgradeMultiplier})\n레이즈·보험·배당 +1, 배율 ×+1 (하우스 몫 불가)",
+                $"HIJACK 되돌리기 · 현금 {ShopPrices.Revert}\n급하게 덮어쓴 칸을 시작 룰렛의 칸으로",
+                $"유물 · 현금 {ShopPrices.Relic}\n{relicText}",
+                $"칩 사기 · 현금 {_run.Exchange.CashPerChip} = 칩 1\n이번 층 {_run.ChipsBoughtThisVisit}/{(cap > 0 ? cap.ToString() : "∞")}칩"
+            };
+            bool[] enabled =
+            {
+                _run.Cash >= ShopPrices.Swap,
+                _run.Cash >= ShopPrices.Upgrade,
+                _run.Cash >= ShopPrices.Revert,
+                _run.ShopRelic.HasValue && _run.Cash >= ShopPrices.Relic,
+                _run.Cash >= _run.Exchange.CashPerChip && (cap <= 0 || _run.ChipsBoughtThisVisit < cap)
+            };
+            for (int i = 0; i < shopServiceButtons.Length && i < labels.Length; i++)
+            {
+                if (shopServiceLabels[i] != null) shopServiceLabels[i].text = labels[i];
+                shopServiceButtons[i].interactable = enabled[i] && !_slotSpinning;
+            }
+
+            for (int i = 0; i < shopSlotButtons.Length; i++)
+            {
+                bool exists = i < _run.Wheel.Count;
+                shopSlotButtons[i].gameObject.SetActive(exists);
+                if (!exists) continue;
+                Slot slot = _run.Wheel[i];
+                bool selectable = _shopMode switch
+                {
+                    ShopMode.Swap => i != _swapFirst,
+                    ShopMode.Upgrade => _run.UpgradePrice(i) >= 0 && _run.UpgradePrice(i) <= _run.Cash,
+                    ShopMode.Revert => slot.IsStolen && _run.Cash >= ShopPrices.Revert,
+                    _ => false
+                };
+                shopSlotButtons[i].interactable = selectable;
+                string marker = i == _swapFirst ? " ◀" : "";
+                if (shopSlotLabels[i] != null) shopSlotLabels[i].text = $"{i + 1}{marker}\n{(slot.IsStolen ? "H " : "")}{slot.Label}";
+            }
+
+            int[] betSizes = { 1, 5, 10 };
+            for (int i = 0; i < slotBetButtons.Length && i < betSizes.Length; i++)
+            {
+                slotBetButtons[i].interactable = !_slotSpinning && _run.Cash >= betSizes[i];
+                TMP_Text label = slotBetButtons[i].GetComponentInChildren<TMP_Text>();
+                if (label != null) label.text = (_slotBet == betSizes[i] ? "▶ " : "") + $"{betSizes[i]} 걸기";
+            }
+
+            if (slotPullButton != null) slotPullButton.interactable = !_slotSpinning && _run.Cash >= _slotBet;
+            if (shopLeaveButton != null) shopLeaveButton.interactable = !_slotSpinning;
+            RefreshRelicStrip();
+        }
+
+        /// <summary>슬롯머신: 결과는 코어가 먼저 정하고, 릴이 차례로 멈추며 보여 준다.</summary>
+        private IEnumerator PullSlotMachine()
+        {
+            if (_run == null || !_run.InShop) yield break;
+            SlotMachineResult result = _run.PlaySlotMachine(_slotBet);
+            if (result == null)
+            {
+                ShopMessage("현금이 모자랍니다");
+                yield break;
+            }
+
+            _slotSpinning = true;
+            RefreshShop();
+            if (slotResultText != null) slotResultText.text = $"현금 {result.Bet}을 걸고 당겼다...";
+            System.Random flicker = new System.Random();
+            float[] stopAt = { 0.45f, 0.75f, 1.05f };
+            for (float t = 0f; t < stopAt[2]; t += Time.unscaledDeltaTime)
+            {
+                for (int i = 0; i < slotReelTexts.Length && i < 3; i++)
+                {
+                    if (slotReelTexts[i] == null) continue;
+                    slotReelTexts[i].text = t >= stopAt[i]
+                        ? SlotMachine.Glyph(result.Reels[i])
+                        : SlotMachine.Glyph((ReelSymbol)flicker.Next(7));
+                }
+
+                yield return null;
+            }
+
+            for (int i = 0; i < slotReelTexts.Length && i < 3; i++)
+            {
+                if (slotReelTexts[i] != null) slotReelTexts[i].text = SlotMachine.Glyph(result.Reels[i]);
+            }
+
+            if (slotResultText != null)
+            {
+                slotResultText.text = result.Payout > 0
+                    ? $"{result.Outcome}  현금 +{result.Payout} (순이익 {result.Net:+0;-0;0})"
+                    : $"{result.Outcome}  현금 −{result.Bet}";
+                slotResultText.color = result.Payout > result.Bet ? new Color32(224, 168, 52, 255) : result.Payout == 0 ? new Color32(230, 110, 110, 255) : new Color32(245, 240, 226, 255);
+            }
+
+            _slotSpinning = false;
+            RefreshShop();
+            if (result.Payout >= result.Bet * SlotMachine.MultiplierTriplePayout)
+            {
+                yield return PlayBanner(result.Outcome, $"현금 +{result.Payout}", new Color32(224, 168, 52, 255));
+            }
+        }
+
+        private void ShopMessage(string text)
+        {
+            if (shopMessageText != null) shopMessageText.text = text;
+        }
+
+        private static string ShopErrorText(ShopError error)
+        {
+            switch (error)
+            {
+                case ShopError.NotEnoughCash: return "현금이 모자랍니다";
+                case ShopError.CannotUpgrade: return "그 칸은 더 강화할 수 없습니다(하우스 몫·봉인·특수 칸·최대치)";
+                case ShopError.NotStolen: return "빼앗아 온 칸(H)만 되돌릴 수 있습니다";
+                case ShopError.SoldOut: return "다 팔렸습니다";
+                case ShopError.InvalidSlot: return "다른 칸을 고르세요";
+                default: return "상점에서만 할 수 있습니다";
+            }
+        }
+
         // ───────────── 템포 ─────────────
 
         private WaitForSecondsRealtime Wait(float seconds) => new WaitForSecondsRealtime(seconds / _tempo);
@@ -1462,7 +1760,12 @@ namespace RouletteLike.Roulette
             {
                 endContinueLabel.text = _battle.Outcome == BattleOutcome.DealerWins
                     ? "계약 되감기"
-                    : lastFloor ? "탈출하기" : $"{_run.FloorIndex + 2}층으로";
+                    : lastFloor ? "탈출하기" : _run.NextFloorKind == FloorKind.Shop ? "상점으로" : $"{_run.FloorIndex + 2}층으로";
+            }
+
+            if (_battle.Outcome != BattleOutcome.DealerWins && !lastFloor && _battle.Profile.TableOuterRing.Count > 0 && _run.OuterRing.Count == 0)
+            {
+                endBodyText.text += "\n룰렛 형식 획득: 바깥 링 — 지금부터 이 런의 내 룰렛에 붙고, 다음 런부터도 쓸 수 있습니다.";
             }
 
             RefreshAllUi();

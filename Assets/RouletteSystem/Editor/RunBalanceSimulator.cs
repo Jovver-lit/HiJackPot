@@ -72,7 +72,8 @@ namespace RouletteLike.Roulette.EditorTools
         private static string SimulatePolicy(Policy policy, int runs, ChipExchangeRules rules, bool buyChipsWithCash)
         {
             int escaped = 0, stalls = 0;
-            int[] diedAt = new int[6];
+            int[] diedAt = new int[11];
+            long shopCash = 0, shopVisits = 0;
             int[] roundBuckets = new int[6]; // 0-2, 3-5, 6-8, 9-11, 12-14, 15+
             Dictionary<string, DealerStats> dealers = new Dictionary<string, DealerStats>();
             Dictionary<RelicId, int[]> relicEscapes = new Dictionary<RelicId, int[]>();
@@ -87,6 +88,15 @@ namespace RouletteLike.Roulette.EditorTools
                 while (run.Outcome == RunOutcome.InProgress)
                 {
                     if (run.PendingJackpot != null) run.PlacePendingJackpot(WeakestSlot(run.Wheel));
+                    if (run.CurrentFloorKind == FloorKind.Shop)
+                    {
+                        shopVisits++;
+                        shopCash += run.Cash;
+                        ShopPolicy(run, buyChipsWithCash);
+                        run.LeaveShop();
+                        continue;
+                    }
+
                     if (buyChipsWithCash) run.BuyChips(int.MaxValue);
                     int entryChips = run.Chips;
                     PotBattle battle = run.EnterDoor(doorRng.Next(run.Doors.Count));
@@ -128,7 +138,7 @@ namespace RouletteLike.Roulette.EditorTools
             }
 
             StringBuilder text = new StringBuilder();
-            text.AppendLine($"== {policy}: 탈출 {100.0 * escaped / runs:0.0}% · 층별 탈락(1~5층) {string.Join(",", Array.ConvertAll(diedAt, x => x.ToString()), 0, 5)} · 교착({MaxRoundsPerBattle}라운드+) {stalls}");
+            text.AppendLine($"== {policy}: 탈출 {100.0 * escaped / runs:0.0}% · 층별 탈락(1~10층) {string.Join(",", Array.ConvertAll(diedAt, x => x.ToString()), 0, 10)} · 상점 도착 {100.0 * shopVisits / runs:0}%(현금 {(shopVisits > 0 ? shopCash / (double)shopVisits : 0):0}) · 교착({MaxRoundsPerBattle}라운드+) {stalls}");
             text.AppendLine($"   전투 라운드 분포 0-2/3-5/6-8/9-11/12-14/15+: {string.Join(" / ", roundBuckets)}");
             foreach (KeyValuePair<string, DealerStats> pair in dealers)
             {
@@ -227,6 +237,26 @@ namespace RouletteLike.Roulette.EditorTools
                 }
 
                 if (battle.CounterHijackPending) battle.ResolveCounterHijack();
+            }
+        }
+
+        /// <summary>상점 휴리스틱: 칩을 살 수 있는 만큼 사고, 남은 현금으로 레이즈·배율 칸을 강화한다(슬롯머신은 하지 않음).</summary>
+        private static void ShopPolicy(Run run, bool buyChips)
+        {
+            if (buyChips) run.BuyChips(int.MaxValue);
+            for (int guard = 0; guard < 20; guard++)
+            {
+                int best = -1;
+                for (int i = 0; i < run.Wheel.Count; i++)
+                {
+                    Slot slot = run.Wheel[i];
+                    if (slot.Kind != SlotKind.Raise && slot.Kind != SlotKind.Multiplier) continue;
+                    int price = run.UpgradePrice(i);
+                    if (price < 0 || price > run.Cash) continue;
+                    if (best < 0 || slot.Value < run.Wheel[best].Value) best = i;
+                }
+
+                if (best < 0 || run.UpgradeSlot(best) != ShopError.None) break;
             }
         }
 
