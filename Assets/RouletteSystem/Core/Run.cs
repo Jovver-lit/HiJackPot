@@ -34,7 +34,11 @@ namespace RouletteLike.Battle
         private readonly Func<DealerProfile> _tutorialDealer;
         private readonly Func<DealerProfile> _boss;
         private readonly List<DealerProfile> _doors = new List<DealerProfile>();
+        private readonly List<RelicId?> _doorRelics = new List<RelicId?>();
+        private readonly List<RelicId> _relics = new List<RelicId>();
+        private readonly Random _relicRng;
         private readonly int _seed;
+        private int _enteredDoor = -1;
 
         public int Chips { get; private set; }
         public IReadOnlyList<Slot> Wheel => _wheel;
@@ -58,6 +62,18 @@ namespace RouletteLike.Battle
         public FloorKind CurrentFloorKind => FloorIndex == FloorCount - 1 ? FloorKind.Boss : FloorKind.Dealer;
         public IReadOnlyList<DealerProfile> Doors => _doors;
 
+        /// <summary>문마다 걸린 유물 상금(같은 순서). 그 딜러를 이기면 받는다. 보스 문에는 없다(null).</summary>
+        public IReadOnlyList<RelicId?> DoorRelics => _doorRelics;
+
+        /// <summary>이번 런에 모은 유물.</summary>
+        public IReadOnlyList<RelicId> Relics => _relics;
+
+        /// <summary>지금 들어간 문에 걸린 유물 상금(없으면 null). 이기면 CompleteBattle에서 받는다.</summary>
+        public RelicId? CurrentPrize => _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
+
+        /// <summary>방금 끝낸 전투에서 받은 유물(없으면 null). 종료 화면 표시용.</summary>
+        public RelicId? LastRelicGained { get; private set; }
+
         public Run(
             int seed,
             int startingChips,
@@ -66,10 +82,14 @@ namespace RouletteLike.Battle
             IReadOnlyList<Func<DealerProfile>> dealerPool,
             Func<DealerProfile> boss,
             int floorCount = 5,
-            IEnumerable<Slot> outerRing = null)
+            IEnumerable<Slot> outerRing = null,
+            IEnumerable<RelicId> startingRelics = null)
         {
             _seed = seed;
             _rng = new Random(seed);
+            // 유물 상금은 별도 RNG로 굴려 문(딜러) 순서가 유물 때문에 바뀌지 않게 한다.
+            _relicRng = new Random(seed ^ 0x5EED);
+            if (startingRelics != null) _relics.AddRange(startingRelics);
             Chips = startingChips;
             _wheel = new List<Slot>(startingWheel);
             _outerRing = outerRing == null ? new List<Slot>() : new List<Slot>(outerRing);
@@ -88,7 +108,8 @@ namespace RouletteLike.Battle
             if (PendingJackpot != null) throw new InvalidOperationException("획득한 JACKPOT 칸을 먼저 배치하세요.");
             if (doorIndex < 0 || doorIndex >= _doors.Count) throw new ArgumentOutOfRangeException(nameof(doorIndex));
 
-            CurrentBattle = new PotBattle(_wheel, Chips, _doors[doorIndex], _seed * 31 + FloorIndex, _outerRing);
+            _enteredDoor = doorIndex;
+            CurrentBattle = new PotBattle(_wheel, Chips, _doors[doorIndex], _seed * 31 + FloorIndex, _outerRing, _relics);
             return CurrentBattle;
         }
 
@@ -101,6 +122,7 @@ namespace RouletteLike.Battle
             PotBattle battle = CurrentBattle ?? throw new InvalidOperationException("진행 중인 전투가 없습니다.");
             if (battle.Phase != BattlePhase.Ended) throw new InvalidOperationException("전투가 아직 끝나지 않았습니다.");
             CurrentBattle = null;
+            LastRelicGained = null;
 
             if (battle.Outcome == BattleOutcome.DealerWins)
             {
@@ -115,7 +137,14 @@ namespace RouletteLike.Battle
 
             if (battle.Outcome == BattleOutcome.PlayerWinsByBankrupt)
             {
-                Chips += (int)Math.Round(battle.Profile.StartingChips * WinningsRatio);
+                Chips += WinningsFor(battle.Profile);
+            }
+
+            RelicId? prize = _enteredDoor >= 0 && _enteredDoor < _doorRelics.Count ? _doorRelics[_enteredDoor] : null;
+            if (prize.HasValue && !_relics.Contains(prize.Value))
+            {
+                _relics.Add(prize.Value);
+                LastRelicGained = prize;
             }
             else if (battle.Outcome == BattleOutcome.PlayerWinsByCleanSweep)
             {
@@ -136,6 +165,13 @@ namespace RouletteLike.Battle
             }
 
             RollDoors();
+        }
+
+        /// <summary>파산 승리 상금 = 딜러 시작 칩 × 비율. 유물 「VIP 회원증」이 ×1.5.</summary>
+        public int WinningsFor(DealerProfile dealer)
+        {
+            float ratio = WinningsRatio * (_relics.Contains(RelicId.VipCard) ? RelicCatalog.VipWinningsMultiplier : 1f);
+            return (int)Math.Round(dealer.StartingChips * ratio);
         }
 
         /// <summary>확정 획득한 JACKPOT 칸으로 내 칸 하나를 덮어쓴다(하우스 몫 불가). -1이면 포기한다.</summary>
@@ -171,6 +207,33 @@ namespace RouletteLike.Battle
         private void RollDoors()
         {
             _doors.Clear();
+            _doorRelics.Clear();
+            _enteredDoor = -1;
+            RollDealers();
+
+            // 유물은 딜러층 문에만 걸린다. 같은 층의 두 문에는 서로 다른, 아직 없는 유물을 건다.
+            List<RelicId> pool = new List<RelicId>();
+            foreach (Relic relic in RelicCatalog.Relics)
+            {
+                if (!_relics.Contains(relic.Id)) pool.Add(relic.Id);
+            }
+
+            for (int i = 0; i < _doors.Count; i++)
+            {
+                if (CurrentFloorKind == FloorKind.Boss || pool.Count == 0)
+                {
+                    _doorRelics.Add(null);
+                    continue;
+                }
+
+                int pick = _relicRng.Next(pool.Count);
+                _doorRelics.Add(pool[pick]);
+                pool.RemoveAt(pick);
+            }
+        }
+
+        private void RollDealers()
+        {
             if (FloorIndex == 0)
             {
                 _doors.Add(_tutorialDealer());

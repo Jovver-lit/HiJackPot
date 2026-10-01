@@ -105,6 +105,11 @@ namespace RouletteLike.Roulette.Editor
             RectTransform playerArea = AddRect("PlayerArea", battleStage, new Vector2(-640f, 0f), new Vector2(540f, 190f));
             TMP_Text playerChipsText;
             UnityEngine.UI.Image playerChipsFill = AddChipsWidget("PlayerChips", playerArea, new Vector2(70f, 30f), "손님", Teal, font, out playerChipsText, out _);
+            // 유물·NUDGE 띠: 칩 바 아래. 누르면 유물 설명이 펼쳐진다(전체 설명은 필요할 때만, CLAUDE.md 6장).
+            UnityEngine.UI.Button relicStripButton = AddButton("RelicStrip", playerArea, new Vector2(70f, -42f), new Vector2(440f, 56f), PanelLight, font, "", 14, out TMP_Text relicStripText);
+            relicStripText.alignment = TextAlignmentOptions.Left;
+            relicStripText.rectTransform.sizeDelta = new Vector2(420f, 50f);
+            relicStripText.text = "NUDGE 1  ·  유물 없음";
             RectTransform playerCharacter = AddRect("PlayerCharacter", playerArea, new Vector2(-200f, -8f), new Vector2(170f, 170f));
             UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(165f, 165f));
             businessmanImage.raycastTarget = false;
@@ -246,6 +251,15 @@ namespace RouletteLike.Roulette.Editor
             TMP_Text hijackBarTitle = AddText("Title", hijackBar, "HOUSE RULE CLEAR · HIJACK", font, 22, Gold, TextAlignmentOptions.Center, new Vector2(0f, 72f), new Vector2(440f, 32f));
             TMP_Text hijackBarText = AddText("Instruction", hijackBar, "딜러 룰렛에서 빼앗을 칸을 클릭하세요", font, 16, Ink, TextAlignmentOptions.Center, new Vector2(0f, -12f), new Vector2(440f, 140f));
 
+            // NUDGE 선택 띠: 하우스 몫에 걸렸을 때 테이블 위쪽을 덮는다(룰렛을 옆 칸으로 밀기 / 그대로).
+            RectTransform nudgeBar = AddFramedPanel("NudgeBar", centerPanel, new Vector2(0f, 250f), new Vector2(460f, 200f), new Color32(48, 24, 30, 255), Red, out _, out _);
+            TMP_Text nudgeBarTitle = AddText("Title", nudgeBar, "하우스 몫!  NUDGE?", font, 24, Red, TextAlignmentOptions.Center, new Vector2(0f, 70f), new Vector2(440f, 34f));
+            TMP_Text nudgeBarText = AddText("Text", nudgeBar, "옆 칸으로 밀면 그 칸이 대신 발동합니다", font, 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, 36f), new Vector2(440f, 26f));
+            UnityEngine.UI.Button nudgeLeftButton = AddButton("NudgeLeft", nudgeBar, new Vector2(-148f, -20f), new Vector2(140f, 64f), PanelLight, font, "◀ 레이즈 +2", 16, out TMP_Text nudgeLeftLabel);
+            UnityEngine.UI.Button nudgeStayButton = AddButton("NudgeStay", nudgeBar, new Vector2(0f, -20f), new Vector2(140f, 64f), new Color32(70, 40, 46, 255), font, "그대로\n(아껴 두기)", 15, out _);
+            UnityEngine.UI.Button nudgeRightButton = AddButton("NudgeRight", nudgeBar, new Vector2(148f, -20f), new Vector2(140f, 64f), PanelLight, font, "보험 +2 ▶", 16, out TMP_Text nudgeRightLabel);
+            TMP_Text nudgeCountText = AddText("Count", nudgeBar, "이번 전투 NUDGE 1회 남음", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -76f), new Vector2(440f, 22f));
+
             // 연출 층: CASH OUT 칩·피해 숫자가 패널 위로 날아다닌다. 큰 순간 배너는 그 위.
             RectTransform fxLayer = AddRect("FxLayer", canvasObject.transform, Vector2.zero, new Vector2(1920f, 1080f));
             RectTransform momentBanner = AddFramedPanel("MomentBanner", canvasObject.transform, new Vector2(0f, 60f), new Vector2(1920f, 150f), new Color32(30, 25, 39, 240), Gold, out UnityEngine.UI.Image momentBannerBackground, out _);
@@ -318,6 +332,20 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "dealerLandingTitle", dealerTagTitle);
             SetObject(identitySo, "dealerLandingEffect", dealerTagEffect);
             SetObject(identitySo, "dealerLandingBackground", dealerTagBackground);
+            RectTransform relicOverlay = BuildRelicOverlay(canvasObject.transform, font, out TMP_Text relicOverlayBody, out UnityEngine.UI.Button relicOverlayClose);
+            SetObject(identitySo, "relicStripButton", relicStripButton);
+            SetObject(identitySo, "relicStripText", relicStripText);
+            SetObject(identitySo, "relicOverlay", relicOverlay.gameObject);
+            SetObject(identitySo, "relicOverlayBody", relicOverlayBody);
+            SetObject(identitySo, "relicOverlayClose", relicOverlayClose);
+            SetObject(identitySo, "nudgeBar", nudgeBar.gameObject);
+            SetObject(identitySo, "nudgeBarText", nudgeBarText);
+            SetObject(identitySo, "nudgeLeftButton", nudgeLeftButton);
+            SetObject(identitySo, "nudgeLeftLabel", nudgeLeftLabel);
+            SetObject(identitySo, "nudgeStayButton", nudgeStayButton);
+            SetObject(identitySo, "nudgeRightButton", nudgeRightButton);
+            SetObject(identitySo, "nudgeRightLabel", nudgeRightLabel);
+            SetObject(identitySo, "nudgeCountText", nudgeCountText);
             SetObject(identitySo, "playerWheelClick", playerClickArea);
             SetObject(identitySo, "dealerWheelClick", dealerClickArea);
             SetObject(identitySo, "hijackBar", hijackBar.gameObject);
@@ -330,6 +358,8 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "momentBannerBackground", momentBannerBackground);
             identitySo.ApplyModifiedPropertiesWithoutUndo();
             hijackBar.gameObject.SetActive(false);
+            nudgeBar.gameObject.SetActive(false);
+            relicOverlay.gameObject.SetActive(false);
             momentBanner.gameObject.SetActive(false);
             playerClickArea.gameObject.SetActive(false);
             dealerClickArea.gameObject.SetActive(false);
@@ -487,6 +517,18 @@ namespace RouletteLike.Roulette.Editor
         /// 바깥 링(이중 룰렛)을 보여주는 그레이박스 띠: 칸 6개 자리, 멈춘 칸은 컨트롤러가 금색으로 강조한다.
         /// 원형 바깥 링 아트는 ArtStyleBible 확정 뒤에 교체한다.
         /// </summary>
+        /// <summary>유물 설명 펼침 패널: 가진 유물의 키워드·이름·효과와 NUDGE 규칙. 문구는 컨트롤러가 채운다.</summary>
+        private static RectTransform BuildRelicOverlay(Transform parent, TMP_FontAsset font, out TMP_Text body, out UnityEngine.UI.Button closeButton)
+        {
+            RectTransform overlay = AddPanel("RelicOverlay", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(10, 8, 14, 225));
+            overlay.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
+            RectTransform card = AddFramedPanel("Card", overlay, Vector2.zero, new Vector2(980f, 640f), new Color32(30, 25, 39, 255), Gold, out _, out _);
+            AddText("Title", card, "유물 · 이전 탈출자들의 부정행위 도구", font, 28, Gold, TextAlignmentOptions.Center, new Vector2(0f, 270f), new Vector2(900f, 40f));
+            body = AddText("Body", card, "", font, 18, Ink, TextAlignmentOptions.TopLeft, new Vector2(0f, -10f), new Vector2(900f, 480f));
+            closeButton = AddButton("CloseButton", card, new Vector2(0f, -280f), new Vector2(200f, 50f), PanelLight, font, "닫기", 18, out _);
+            return overlay;
+        }
+
         /// <summary>룰렛 위 클릭 영역(투명). HIJACK·JACKPOT 배치 때만 켜서 칸을 직접 고르게 한다. SPIN 버튼보다 아래에 둔다.</summary>
         private static RouletteClickArea AddClickArea(RectTransform rouletteRoot, RouletteController controller, float size)
         {

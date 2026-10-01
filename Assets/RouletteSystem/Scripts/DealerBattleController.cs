@@ -142,6 +142,21 @@ namespace RouletteLike.Roulette
         [SerializeField] private TMP_Text dealerLandingEffect;
         [SerializeField] private UnityEngine.UI.Image dealerLandingBackground;
 
+        [Header("Relics · NUDGE")]
+        [SerializeField] private UnityEngine.UI.Button relicStripButton;
+        [SerializeField] private TMP_Text relicStripText;
+        [SerializeField] private GameObject relicOverlay;
+        [SerializeField] private TMP_Text relicOverlayBody;
+        [SerializeField] private UnityEngine.UI.Button relicOverlayClose;
+        [SerializeField] private GameObject nudgeBar;
+        [SerializeField] private TMP_Text nudgeBarText;
+        [SerializeField] private UnityEngine.UI.Button nudgeLeftButton;
+        [SerializeField] private TMP_Text nudgeLeftLabel;
+        [SerializeField] private UnityEngine.UI.Button nudgeStayButton;
+        [SerializeField] private UnityEngine.UI.Button nudgeRightButton;
+        [SerializeField] private TMP_Text nudgeRightLabel;
+        [SerializeField] private TMP_Text nudgeCountText;
+
         [Header("Hijack On Wheels (룰렛 위에서 직접 고르기)")]
         [SerializeField] private RouletteClickArea playerWheelClick;
         [SerializeField] private RouletteClickArea dealerWheelClick;
@@ -189,6 +204,7 @@ namespace RouletteLike.Roulette
         private int _dealerLandingIndex;
         private bool _hijackTransferInProgress;
         private int _selectedHijackSourceIndex = -1;
+        private int _pendingNudgeIndex = -1;
 
         public bool CanChooseSpinPower => _state == ViewState.PlayerTurn && !_playerSpinning;
         public UnityEvent OnDealerSpinRequested => onDealerSpinRequested;
@@ -220,6 +236,11 @@ namespace RouletteLike.Roulette
             }
 
             endContinueButton?.onClick.AddListener(OnEndContinue);
+            relicStripButton?.onClick.AddListener(OpenRelicOverlay);
+            relicOverlayClose?.onClick.AddListener(() => relicOverlay?.SetActive(false));
+            nudgeLeftButton?.onClick.AddListener(() => ChooseNudge(-1));
+            nudgeStayButton?.onClick.AddListener(() => ChooseNudge(0));
+            nudgeRightButton?.onClick.AddListener(() => ChooseNudge(1));
             if (playerWheelClick != null) playerWheelClick.SegmentClicked += OnPlayerWheelClicked;
             if (dealerWheelClick != null) dealerWheelClick.SegmentClicked += SelectHijackSource;
         }
@@ -294,7 +315,7 @@ namespace RouletteLike.Roulette
                 if (!exists) continue;
                 DealerProfile dealer = _run.Doors[i];
                 doorTitleTexts[i].text = dealer.Name;
-                doorBodyTexts[i].text = DescribeDealer(dealer);
+                doorBodyTexts[i].text = DescribeDealer(dealer) + DescribeRelicPrize(i < _run.DoorRelics.Count ? _run.DoorRelics[i] : null);
             }
         }
 
@@ -409,6 +430,9 @@ namespace RouletteLike.Roulette
             HideLandingFeedback(Side.Dealer);
             SetWheelPicking(false);
             momentBanner?.gameObject.SetActive(false);
+            nudgeBar?.SetActive(false);
+            relicOverlay?.SetActive(false);
+            _pendingNudgeIndex = -1;
             openingSpeechBubble?.SetActive(_battle.Profile.Telegraphs);
             endPanel?.SetActive(false);
             instructionText.text = $"{_battle.Profile.Name} 테이블에 앉았습니다. 코인플립으로 선공을 정합니다.";
@@ -572,6 +596,78 @@ namespace RouletteLike.Roulette
                 return;
             }
 
+            if (CanOfferNudge(index))
+            {
+                OfferNudge(index);
+                return;
+            }
+
+            ResolvePlayerLanding(index);
+        }
+
+        // ───────────── NUDGE ─────────────
+
+        /// <summary>하우스 몫(안쪽)에 걸렸고, 보호막이 없고, NUDGE가 남아 있고, 밀 만한 옆 칸이 있을 때만 묻는다.</summary>
+        private bool CanOfferNudge(int index)
+        {
+            IReadOnlyList<Slot> wheel = _battle.Player.Wheel;
+            if (wheel[index].Kind != SlotKind.HouseCut || _battle.Player.CutShields > 0 || _battle.NudgesRemaining <= 0) return false;
+            return wheel[Neighbor(index, -1)].Kind != SlotKind.HouseCut || wheel[Neighbor(index, 1)].Kind != SlotKind.HouseCut;
+        }
+
+        private int Neighbor(int index, int direction)
+        {
+            int count = _battle.Player.Wheel.Count;
+            return ((index + direction) % count + count) % count;
+        }
+
+        private void OfferNudge(int index)
+        {
+            _state = ViewState.Busy;
+            _pendingNudgeIndex = index;
+            spinInput?.ShowUnavailableState("NUDGE?");
+            Slot left = _battle.Player.Wheel[Neighbor(index, -1)];
+            Slot right = _battle.Player.Wheel[Neighbor(index, 1)];
+            nudgeLeftLabel.text = $"◀ {left.Label}";
+            nudgeRightLabel.text = $"{right.Label} ▶";
+            nudgeLeftButton.interactable = left.Kind != SlotKind.HouseCut;
+            nudgeRightButton.interactable = right.Kind != SlotKind.HouseCut;
+            nudgeBarText.text = $"증발 직전의 판돈 {_battle.Player.Pot} · 옆 칸으로 밀면 그 칸이 대신 발동";
+            nudgeCountText.text = $"이번 전투 NUDGE {_battle.NudgesRemaining}회 남음";
+            nudgeBar?.SetActive(true);
+            resultText.text = "하우스 몫…?";
+            calculationText.text = "NUDGE로 옆 칸으로 밀거나, 그대로 받아들이세요";
+            roulette?.ShowLanding(_battle.Player.Wheel[index].Id, null);
+        }
+
+        private void ChooseNudge(int direction)
+        {
+            if (_pendingNudgeIndex < 0) return;
+            int index = _pendingNudgeIndex;
+            _pendingNudgeIndex = -1;
+            nudgeBar?.SetActive(false);
+            roulette?.ClearLanding();
+            if (direction == 0 || !_battle.UseNudge())
+            {
+                ResolvePlayerLanding(index);
+                return;
+            }
+
+            int target = Neighbor(index, direction);
+            FlushCoreLog();
+            if (spinController != null)
+            {
+                spinController.NudgeToSegment(target, () => ResolvePlayerLanding(target));
+            }
+            else
+            {
+                ResolvePlayerLanding(target);
+            }
+        }
+
+        private void ResolvePlayerLanding(int index)
+        {
+            _state = ViewState.PlayerTurn;
             _lastPlayerOuter = _battle.RollOuterIndex(Side.Player);
             LandingResult landing = _battle.Land(index, _lastPlayerOuter);
             FlushCoreLog();
@@ -612,7 +708,9 @@ namespace RouletteLike.Roulette
             CashOutResult result = _battle.CashOut();
             FlushCoreLog();
             resultText.text = $"CASH OUT  피해 {result.Damage}";
-            calculationText.text = $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} = {result.Damage}";
+            calculationText.text = result.RelicBonus > 0
+                ? $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} + 유물 {result.RelicBonus} = {result.Damage}"
+                : $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} = {result.Damage}";
             dealerLineText.text = result.Damage >= 8
                 ? "\"크게 가져가시네요. 장부에 기록해 두겠습니다.\""
                 : "\"정산 완료. 다음 판도 기대하겠습니다.\"";
@@ -1091,17 +1189,20 @@ namespace RouletteLike.Roulette
             spinInput?.ShowUnavailableState("전투 종료");
             endPanel?.SetActive(true);
             bool lastFloor = _run.FloorIndex >= _run.FloorCount - 1;
-            int winnings = (int)System.Math.Round(_battle.Profile.StartingChips * Run.WinningsRatio);
+            int winnings = _run.WinningsFor(_battle.Profile);
+            string prize = _run.CurrentPrize.HasValue && _battle.Outcome != BattleOutcome.DealerWins
+                ? $"\n유물 획득: 「{RelicCatalog.Get(_run.CurrentPrize.Value).Name}」 {RelicCatalog.Get(_run.CurrentPrize.Value).Description}"
+                : "";
             switch (_battle.Outcome)
             {
                 case BattleOutcome.PlayerWinsByCleanSweep:
                     endTitleText.text = "완전 강탈";
-                    endBodyText.text = $"{_battle.Profile.Name}의 룰렛을 전부 봉인했습니다.\n상금 대신 JACKPOT 칸을 가져갑니다.";
+                    endBodyText.text = $"{_battle.Profile.Name}의 룰렛을 전부 봉인했습니다.\n상금 대신 JACKPOT 칸을 가져갑니다." + prize;
                     dealerLineText.text = "\"...제 룰렛이 텅 비었네요. 다음 테이블도 화이팅~\"";
                     break;
                 case BattleOutcome.PlayerWinsByBankrupt:
                     endTitleText.text = $"{_battle.Profile.Name} 파산";
-                    endBodyText.text = $"남은 칩 {_battle.Player.Chips} + 상금 {winnings}.\n빼앗은 칸은 손님의 룰렛에 영구히 남습니다.";
+                    endBodyText.text = $"남은 칩 {_battle.Player.Chips} + 상금 {winnings}.\n빼앗은 칸은 손님의 룰렛에 영구히 남습니다." + prize;
                     dealerLineText.text = "\"축하드립니다. 다음 테이블도 화이팅~\"";
                     break;
                 default:
@@ -1136,7 +1237,10 @@ namespace RouletteLike.Roulette
             dealerChipsText.text = $"칩 {_battle.Dealer.Chips}";
             playerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Player.Chips / playerStart);
             dealerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Dealer.Chips / dealerStart);
-            insuranceText.text = $"내 보험 {_battle.Player.Insurance}";
+            insuranceText.text = _battle.HasRelic(RelicId.DopamineShot)
+                ? $"내 보험 {_battle.Player.Insurance} · 도파민 {_battle.Dopamine}"
+                : $"내 보험 {_battle.Player.Insurance}";
+            RefreshRelicStrip();
             Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
             potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {potSeat.Pot}" : $"판돈 {potSeat.Pot}";
             int chipsShown = Mathf.Min(potChipImages.Length, (potSeat.Pot + 1) / 2);
@@ -1510,6 +1614,53 @@ namespace RouletteLike.Roulette
         }
 
         /// <summary>문 선택 카드: 성향·보험·하우스 룰·JACKPOT 칸을 한눈에.</summary>
+        // ───────────── 유물 ─────────────
+
+        private IReadOnlyList<RelicId> OwnedRelics => _run != null ? _run.Relics : System.Array.Empty<RelicId>();
+
+        private void RefreshRelicStrip()
+        {
+            if (relicStripText == null) return;
+            int nudges = _battle != null ? _battle.NudgesRemaining : PotBattle.BaseNudgesPerBattle;
+            List<string> names = new List<string>();
+            foreach (RelicId id in OwnedRelics) names.Add(RelicCatalog.Get(id).Name);
+            relicStripText.text = names.Count == 0
+                ? $"NUDGE {nudges}  ·  유물 없음 (문 카드의 유물을 이겨서 얻기)"
+                : $"NUDGE {nudges}  ·  유물 {names.Count}: {string.Join(" · ", names)}";
+        }
+
+        private void OpenRelicOverlay()
+        {
+            if (relicOverlay == null || relicOverlayBody == null) return;
+            List<string> lines = new List<string>
+            {
+                $"NUDGE (전투당 {PotBattle.BaseNudgesPerBattle}회, 이번 전투 남은 {(_battle != null ? _battle.NudgesRemaining : PotBattle.BaseNudgesPerBattle)}회)",
+                "   하우스 몫에 걸리면 룰렛을 옆 칸으로 밀 수 있다. 아껴 두고 큰 판돈을 지킬 수도 있다.",
+                ""
+            };
+            if (OwnedRelics.Count == 0)
+            {
+                lines.Add("아직 유물이 없습니다. 층마다 문 카드에 걸린 유물은 그 딜러를 이기면 가져옵니다.");
+            }
+
+            foreach (RelicId id in OwnedRelics)
+            {
+                Relic relic = RelicCatalog.Get(id);
+                lines.Add($"{relic.Keyword} 「{relic.Name}」");
+                lines.Add($"   {relic.Description}");
+            }
+
+            relicOverlayBody.text = string.Join("\n", lines);
+            relicOverlay.SetActive(true);
+        }
+
+        private static string DescribeRelicPrize(RelicId? prize)
+        {
+            if (!prize.HasValue) return "";
+            Relic relic = RelicCatalog.Get(prize.Value);
+            return $"\n이기면 유물: {relic.Keyword} 「{relic.Name}」 {relic.Description}";
+        }
+
         private static string DescribeDealer(DealerProfile dealer)
         {
             string jackpot = "없음";

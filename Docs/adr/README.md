@@ -11,3 +11,4 @@
 | [0003](0003-no-trophy-hijack-is-permanent.md) | 전리품 칸 없이 HIJACK이 영구 덮어쓰기다 (룰렛 8칸 고정) |
 | [0004](0004-dealers-have-house-cut.md) | 일반 딜러의 룰렛에도 하우스 몫이 있다 (토끼 제외) |
 | [0005](0005-outer-ring-carries-house-cut.md) | 바깥 링에는 보호막 대신 하우스 몫이 있다 |
+| [0006](0006-relics-are-door-prizes.md) | 유물은 문 카드에 걸린 상금으로 얻는다 |

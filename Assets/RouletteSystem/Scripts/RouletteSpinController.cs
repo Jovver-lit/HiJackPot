@@ -232,6 +232,46 @@ namespace RouletteLike.Roulette
         }
 
         /// <summary>
+        /// NUDGE: 멈춘 룰렛을 가장 가까운 방향으로 살짝 돌려 지정한 칸의 가운데를 포인터 아래에 둔다(틱 한 번 + 멈춤 소리).
+        /// 결과 이벤트는 다시 보내지 않는다. 끝나면 onDone을 부른다.
+        /// </summary>
+        public void NudgeToSegment(int segmentIndex, Action onDone)
+        {
+            ResolveReferences();
+            if (_isSpinning || rouletteController == null || wheel == null
+                || !rouletteController.TryGetSegmentAngles(segmentIndex, out _, out _, out float centerAngle, out _))
+            {
+                onDone?.Invoke();
+                return;
+            }
+
+            _spinRoutine = StartCoroutine(NudgeRoutine(centerAngle, onDone));
+        }
+
+        private IEnumerator NudgeRoutine(float targetCenterAngle, Action onDone)
+        {
+            _isSpinning = true;
+            float startAngle = wheel.localEulerAngles.z;
+            float targetAngle = targetCenterAngle - pointerAngle;
+            float delta = Mathf.DeltaAngle(startAngle, targetAngle);
+            const float duration = 0.3f;
+            PlayClip(tickClip, tickVolume);
+            for (float t = 0f; t < duration; t += useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime)
+            {
+                float k = t / duration;
+                float eased = 1f - (1f - k) * (1f - k) * (1f - k);
+                SetWheelAngle(startAngle + delta * eased);
+                yield return null;
+            }
+
+            SetWheelAngle(startAngle + delta);
+            PlayClip(stopClip, 1f);
+            _isSpinning = false;
+            _spinRoutine = null;
+            onDone?.Invoke();
+        }
+
+        /// <summary>
         /// 런 시작/전투 시작 시 저장된 RNG 시드를 주입하면 정지 결과를 재현할 수 있습니다.
         /// </summary>
         public void SetRandomSeed(int seed)

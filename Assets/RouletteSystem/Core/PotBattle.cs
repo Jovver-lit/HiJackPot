@@ -63,6 +63,9 @@ namespace RouletteLike.Battle
         public int OpponentInsurance;
         public int Damage;
         public bool FullCoverage;
+
+        /// <summary>유물(도파민 주사기·이중 장부)로 더해진 피해.</summary>
+        public int RelicBonus;
     }
 
     public enum HijackError
@@ -120,14 +123,38 @@ namespace RouletteLike.Battle
         public IReadOnlyList<string> RoundStartEffects => _roundStartEffects;
 
         /// <summary>이번 전투에 남은 역탈취 횟수.</summary>
-        public int CounterHijacksRemaining => Profile.CounterHijacks ? MaxCounterHijacksPerBattle - _seizedSlots.Count - _returnedSeizures : 0;
+        public int CounterHijacksRemaining => Profile.CounterHijacks && !HasRelic(RelicId.SeizureSeal)
+            ? MaxCounterHijacksPerBattle - _seizedSlots.Count - _returnedSeizures
+            : 0;
 
         private int _returnedSeizures;
         private Side? _guaranteedInitiative;
+        private readonly HashSet<RelicId> _playerRelics = new HashSet<RelicId>();
+
+        /// <summary>NUDGE 기본 횟수(전투당). 유물 「끈 달린 칩」이 +1.</summary>
+        public const int BaseNudgesPerBattle = 1;
+
+        /// <summary>플레이어가 가진 유물(런에서 넘어온다).</summary>
+        public IReadOnlyCollection<RelicId> PlayerRelics => _playerRelics;
+
+        /// <summary>이번 전투에 남은 NUDGE 횟수. 하우스 몫에 걸렸을 때 룰렛을 옆 칸으로 밀 수 있다.</summary>
+        public int NudgesRemaining { get; private set; }
+
+        /// <summary>도파민(유물 「도파민 주사기」 전용): 이번 전투에서 하우스 몫에 걸린 횟수만큼 차오르고 CASH OUT 피해에 더해진다.</summary>
+        public int Dopamine { get; private set; }
+
+        public bool HasRelic(RelicId id) => _playerRelics.Contains(id);
 
         /// <param name="playerOuterRing">플레이어 자신의 바깥 링(해금된 경우). 없으면 딜러의 테이블 바깥 링을 빌려 쓴다.</param>
-        public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null)
+        /// <param name="playerRelics">플레이어 유물. 효과는 이 전투 규칙 곳곳에서 확인한다.</param>
+        public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null, IEnumerable<RelicId> playerRelics = null)
         {
+            if (playerRelics != null)
+            {
+                foreach (RelicId relic in playerRelics) _playerRelics.Add(relic);
+            }
+
+            NudgesRemaining = BaseNudgesPerBattle + (HasRelic(RelicId.StringChip) ? 1 : 0);
             Profile = dealer;
             IReadOnlyList<Slot> tableRing = dealer.TableOuterRing;
             Player = new Seat(Side.Player, playerChips, playerWheel,
@@ -162,6 +189,7 @@ namespace RouletteLike.Battle
                 Phase = BattlePhase.AwaitingAnte;
                 Write($"라운드 {Round}: 선불 착지 효과 → {Name(Active)} 선공 확정");
                 _roundStartEffects.Add($"{Name(Active)}의 선불(착지): 선공 확정");
+                ApplyInitiativeRelics();
                 return Active;
             }
 
@@ -177,6 +205,7 @@ namespace RouletteLike.Battle
                 Phase = BattlePhase.AwaitingAnte;
                 Write($"라운드 {Round}: 코인플립(선불로 두 번) → {Name(Active)} 선공");
                 _roundStartEffects.Add($"{Name(holder)}의 선불: 코인플립 두 번 → {(holderWins ? "선공 획득" : "그래도 후공")}");
+                ApplyInitiativeRelics();
                 return Active;
             }
 
@@ -184,13 +213,41 @@ namespace RouletteLike.Battle
             Active = FirstThisRound;
             Phase = BattlePhase.AwaitingAnte;
             Write($"라운드 {Round}: 코인플립 → {Name(Active)} 선공");
+            ApplyInitiativeRelics();
             return Active;
+        }
+
+        /// <summary>[라운드 시작] 유물: 「뒷면만 나오는 동전」은 후공이 된 라운드에 칩 +1.</summary>
+        private void ApplyInitiativeRelics()
+        {
+            if (FirstThisRound == Side.Dealer && HasRelic(RelicId.LuckyCoin))
+            {
+                Player.Chips += 1;
+                Write("유물 「뒷면만 나오는 동전」: 후공 → 칩 +1");
+                _roundStartEffects.Add("뒷면만 나오는 동전: 후공 → 칩 +1");
+            }
+        }
+
+        /// <summary>
+        /// NUDGE: 하우스 몫에 걸린 플레이어 룰렛을 옆 칸으로 민다. 횟수를 하나 쓰며, 어느 칸으로 밀지는 화면이 정해 Land에 넘긴다.
+        /// </summary>
+        public bool UseNudge()
+        {
+            if (Active != Side.Player || Phase != BattlePhase.Spinning || NudgesRemaining <= 0)
+            {
+                return false;
+            }
+
+            NudgesRemaining--;
+            Write($"NUDGE: 룰렛을 옆 칸으로 밀었다 (남은 {NudgesRemaining})");
+            return true;
         }
 
         /// <summary>앤티 가능 범위의 최대치. 테이블 한도와 남은 칩 중 작은 쪽.</summary>
         public int MaxAnte(Side side)
         {
-            return Math.Max(0, Math.Min(Profile.TableLimit, SeatOf(side).Chips));
+            int limit = Profile.TableLimit + (side == Side.Player && HasRelic(RelicId.HighRollerBadge) ? 1 : 0);
+            return Math.Max(0, Math.Min(limit, SeatOf(side).Chips));
         }
 
         /// <summary>
@@ -201,7 +258,7 @@ namespace RouletteLike.Battle
             RequirePhase(BattlePhase.AwaitingAnte);
             Seat seat = ActiveSeat;
             int ante = Math.Max(1, Math.Min(amount, MaxAnte(Active)));
-            seat.Insurance = Active == Side.Dealer ? Profile.BaseInsurance : 0;
+            seat.Insurance = Active == Side.Dealer ? Profile.BaseInsurance : HasRelic(RelicId.InsurancePolicy) ? 1 : 0;
             seat.CutShields = 0;
             seat.IgnoresInsuranceThisTurn = false;
             if (Active == Side.Player) _playerMultipliedThisTurn = false;
@@ -281,7 +338,19 @@ namespace RouletteLike.Battle
                 return FinishLanding(result, seat, parts);
             }
 
+            if (Active == Side.Player && slot.Kind == SlotKind.Multiplier && HasRelic(RelicId.FoldedCorner))
+            {
+                seat.Pot += 1;
+                parts.Add($"모서리 접힌 카드: 곱하기 전에 판돈 +1 = {seat.Pot}");
+            }
+
             parts.Add(ApplyInnerEffect(seat, slot, group, result));
+            if (Active == Side.Player && group.Count >= 2 && HasRelic(RelicId.StickyDivider))
+            {
+                seat.Pot += RelicCatalog.StickyDividerBonus;
+                parts.Add($"끈적한 칸막이: 연쇄 {group.Count}칸 → 판돈 +{RelicCatalog.StickyDividerBonus} = {seat.Pot}");
+            }
+
             if (outer != null && outer.Kind == SlotKind.Multiplier)
             {
                 parts.Add("배율 링: " + ApplyInnerEffect(seat, slot, group, result));
@@ -320,6 +389,21 @@ namespace RouletteLike.Battle
             result.Amount = seat.Pot;
             result.HouseCutHit = true;
             parts.Add($"{label} → 판돈 {seat.Pot} 증발");
+            if (Active == Side.Player)
+            {
+                if (HasRelic(RelicId.DopamineShot))
+                {
+                    Dopamine++;
+                    parts.Add($"도파민 +1 = {Dopamine}");
+                }
+
+                if (HasRelic(RelicId.Consolation) && seat.Ante > 0)
+                {
+                    seat.Chips += seat.Ante;
+                    parts.Add($"위로금 봉투: 앤티 {seat.Ante} 반환");
+                }
+            }
+
             seat.Pot = 0;
             seat.Ante = 0;
             result.EndedTurn = true;
@@ -437,8 +521,14 @@ namespace RouletteLike.Battle
             return seat.HasOuterRing ? _rng.Next(seat.OuterRing.Count) : -1;
         }
 
-        /// <summary>CASH OUT 했을 때 상대가 받을 피해 미리보기(판돈 − 상대 보험).</summary>
+        /// <summary>CASH OUT 했을 때 상대가 받을 피해 미리보기(판돈 − 상대 보험, 허풍 최소 피해, 유물 보너스).</summary>
         public int PreviewCashOutDamage(Side side)
+        {
+            return PreviewCashOutDamage(side, out _);
+        }
+
+        /// <param name="relicBonus">그중 유물(도파민 주사기·이중 장부)이 더한 몫(상대 칩 상한 적용 뒤).</param>
+        public int PreviewCashOutDamage(Side side, out int relicBonus)
         {
             Seat seat = SeatOf(side);
             Seat opponent = Opponent(side);
@@ -455,7 +545,16 @@ namespace RouletteLike.Battle
                 }
             }
 
-            return Math.Min(opponent.Chips, damage);
+            int bonus = 0;
+            if (side == Side.Player && seat.Pot > 0)
+            {
+                if (HasRelic(RelicId.DopamineShot)) bonus += Dopamine;
+                if (HasRelic(RelicId.DoubleLedger) && seat.Pot >= RelicCatalog.DoubleLedgerPotThreshold) bonus += RelicCatalog.DoubleLedgerBonus;
+            }
+
+            int total = Math.Min(opponent.Chips, damage + bonus);
+            relicBonus = Math.Max(0, total - Math.Min(opponent.Chips, damage));
+            return total;
         }
 
         /// <summary>
@@ -467,7 +566,7 @@ namespace RouletteLike.Battle
             RequirePhase(BattlePhase.Spinning);
             Seat seat = ActiveSeat;
             Seat opponent = Opponent(Active);
-            int damage = PreviewCashOutDamage(Active);
+            int damage = PreviewCashOutDamage(Active, out int relicBonus);
 
             CashOutResult result = new CashOutResult
             {
@@ -479,7 +578,8 @@ namespace RouletteLike.Battle
 
             opponent.Chips -= damage;
             seat.Chips += seat.Ante + damage;
-            Write($"{Name(Active)} CASH OUT: 판돈 {seat.Pot} − 보험 {opponent.Insurance} = 피해 {damage}");
+            result.RelicBonus = relicBonus;
+            Write($"{Name(Active)} CASH OUT: 판돈 {seat.Pot} − 보험 {opponent.Insurance} = 피해 {damage}{(result.RelicBonus > 0 ? $" (유물 +{result.RelicBonus})" : "")}");
 
             if (Active == Side.Dealer
                 && Profile.HouseRule == HouseRule.FullCoverage
@@ -600,6 +700,11 @@ namespace RouletteLike.Battle
             HijackChances--;
             HijackUsedThisRound = true;
             Write($"HIJACK: {Profile.Name}의 {stolen.Label}{(stolen.IsJackpot ? "(JACKPOT)" : "")} → 내 {playerIndex + 1}번 칸({replaced.Label})");
+            if (HasRelic(RelicId.MarkedCard))
+            {
+                Player.Chips += RelicCatalog.MarkedCardChips;
+                Write($"유물 「표시된 카드」: HIJACK → 칩 +{RelicCatalog.MarkedCardChips}");
+            }
 
             bool allSealed = true;
             foreach (Slot slot in Dealer.Wheel)
