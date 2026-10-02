@@ -7,7 +7,7 @@ namespace RouletteLike.Battle.Tests
     /// <summary>유물 12개의 규칙 효과, NUDGE 횟수, 문 카드 유물 상금(런) EditMode 테스트.</summary>
     public sealed class RelicTests
     {
-        // 시작 룰렛: 0 레이즈+2, 1 레이즈+2, 2 배율×2, 3 보험+3, 4 레이즈+3, 5 하우스 몫, 6 배당+2, 7 보험+2
+        // 시작 룰렛: 0 레이즈+2, 1 레이즈+2, 2 배율×2, 3 보험+3, 4 레이즈+3, 5 몰수, 6 배당+2, 7 보험+2
         private const int RaisePairA = 0, Multiplier = 2, Raise3 = 4, HouseCut = 5;
 
         private static PotBattle FoxBattle(params RelicId[] relics)
@@ -34,7 +34,7 @@ namespace RouletteLike.Battle.Tests
             Assert.AreEqual(12, RelicCatalog.Relics.Count);
             HashSet<string> keywords = new HashSet<string>();
             foreach (Relic relic in RelicCatalog.Relics) keywords.Add(relic.Keyword);
-            foreach (string keyword in new[] { "[착지]", "[인접]", "[CASH OUT]", "[하우스 몫]", "[라운드 시작]", "[HIJACK]" })
+            foreach (string keyword in new[] { "[착지]", "[인접]", "[CASH OUT]", "[몰수]", "[라운드 시작]", "[HIJACK]" })
             {
                 Assert.IsTrue(keywords.Contains(keyword), keyword);
             }
@@ -52,7 +52,7 @@ namespace RouletteLike.Battle.Tests
         {
             PotBattle battle = FoxBattle();
             AdvanceToPlayer(battle);
-            Assert.IsFalse(battle.UseNudge()); // 앤티 전
+            Assert.IsFalse(battle.UseNudge()); // 베팅 전
             battle.PlaceAnte(1);
 
             Assert.IsTrue(battle.UseNudge());
@@ -85,7 +85,7 @@ namespace RouletteLike.Battle.Tests
             battle.Land(RaisePairA); // 레이즈 +2, 옆(1번)도 레이즈
             Assert.AreEqual(1 + 2 + RelicCatalog.StickyDividerBonus, battle.Player.Pot);
 
-            battle.Land(Raise3); // 옆이 보험·하우스 몫인 칸은 보너스 없음
+            battle.Land(Raise3); // 옆이 보험·몰수인 칸은 보너스 없음
             Assert.AreEqual(1 + 2 + 2 + 3, battle.Player.Pot);
         }
 
@@ -211,7 +211,7 @@ namespace RouletteLike.Battle.Tests
             Assert.AreNotEqual(RelicId.VipCard, prize.Value);
 
             PotBattle battle = run.EnterDoor(0);
-            // 여우 하우스 룰(판돈 4 이하로 CASH OUT 2번)을 채우며 이긴다: 앤티 1 + 레이즈 3 = 판돈 4로 CASH OUT.
+            // 여우 하우스 룰(판돈 4 이하로 CASH OUT 2번)을 채우며 이긴다: 베팅 1 + 레이즈 3 = 판돈 4로 CASH OUT.
             for (int guard = 0; guard < 200 && battle.Phase != BattlePhase.Ended; guard++)
             {
                 if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();

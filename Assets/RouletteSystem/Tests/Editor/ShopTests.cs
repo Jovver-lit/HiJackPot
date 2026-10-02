@@ -105,7 +105,7 @@ namespace RouletteLike.Battle.Tests
             foreach (Slot slot in battle.Dealer.OuterRing) Assert.AreNotEqual(SlotKind.HouseCut, slot.Kind);
             bool playerRingHasCut = false;
             foreach (Slot slot in battle.Player.OuterRing) playerRingHasCut |= slot.Kind == SlotKind.HouseCut;
-            Assert.IsTrue(playerRingHasCut, "플레이어는 5층 보스에게서 얻은 자기 바깥 링(하우스 몫 있음)을 쓴다");
+            Assert.IsTrue(playerRingHasCut, "플레이어는 5층 보스에게서 얻은 자기 바깥 링(몰수 있음)을 쓴다");
         }
 
         [Test]

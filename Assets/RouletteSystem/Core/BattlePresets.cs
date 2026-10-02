@@ -10,7 +10,7 @@ namespace RouletteLike.Battle
         public const int PlayerStartingChips = 20;
 
         /// <summary>
-        /// 시작 8칸: 레이즈 3 / 배율 1 / 보험 2 / 배당 1 / 하우스 몫 1.
+        /// 시작 8칸: 레이즈 3 / 배율 1 / 보험 2 / 배당 1 / 몰수 1.
         /// 레이즈 칸을 모아 두어 SPIN 강도로 노리기 쉽게 하고, 배율은 그 뒤에 둔다.
         /// </summary>
         public static List<Slot> CreateStarterWheel()
@@ -22,17 +22,17 @@ namespace RouletteLike.Battle
                 new Slot("p_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
                 new Slot("p_insurance_3", SlotKind.Insurance, 3, "보험 +3"),
                 new Slot("p_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
-                new Slot("p_house_cut", SlotKind.HouseCut, 0, "하우스 몫"),
+                new Slot("p_house_cut", SlotKind.HouseCut, 0, "몰수"),
                 new Slot("p_dividend_2", SlotKind.Dividend, 2, "배당 +2"),
                 new Slot("p_insurance_2", SlotKind.Insurance, 2, "보험 +2")
             };
         }
 
         /// <summary>
-        /// 토끼 딜러: 칩 12, 테이블 한도 3, 앤티 1, 판돈 4 이상이면 CASH OUT(소심한 튜토리얼 딜러), 하우스 룰은 전액 보장. 연쇄를 뺀 뒤(ADR 0013) 칩 15·판돈 5에서 낮췄다.
+        /// 토끼 딜러: 칩 12, 테이블 한도 3, 베팅 1, 판돈 4 이상이면 CASH OUT(소심한 튜토리얼 딜러), 하우스 룰은 전액 보장. 연쇄를 뺀 뒤(ADR 0013) 칩 15·판돈 5에서 낮췄다.
         /// JACKPOT 칸은 「서비스」([라운드 시작] 칩 +1).
         /// 보험 칸이 없다(보험 0 고정). 원안의 "토끼 방어력 0"처럼 작은 판돈 갉아먹기가 통하게 한다.
-        /// R3는 대본: 예고 후 앤티만으로 곧장 CASH OUT → 보험이 1 이상이면 전액 보장.
+        /// R3는 대본: 예고 후 베팅만으로 곧장 CASH OUT → 보험이 1 이상이면 전액 보장.
         /// </summary>
         public static DealerProfile CreateRabbitDealer()
         {
@@ -60,7 +60,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 튜토리얼을 마친 뒤의 1층 토끼: 칸·칩·하우스 룰은 같고, 예고·앤티 고정·R3 대본 같은 튜토리얼 장치만 뺐다.
+        /// 튜토리얼을 마친 뒤의 1층 토끼: 칸·칩·하우스 룰은 같고, 예고·베팅 고정·R3 대본 같은 튜토리얼 장치만 뺐다.
         /// 몸풀기 전투이자 「서비스」를 훔칠 기회로 남긴다.
         /// </summary>
         public static DealerProfile CreateRabbitWarmup()
@@ -79,7 +79,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 바깥 링 4칸: 레이즈 +3 / 배율 ×2(안쪽 효과 한 번 더) / 보험 +2 / 바깥 하우스 몫(판돈 증발).
+        /// 바깥 링 4칸: 레이즈 +3 / 배율 ×2(안쪽 효과 한 번 더) / 보험 +2 / 바깥 몰수(판돈 증발).
         /// 바깥 링도 보상과 위험을 함께 가진다(ADR 0005). 보호막은 보스 JACKPOT 「VIP 보호막」에만 있다.
         /// 보스 매니저의 테이블 규칙이자, 보스를 이긴 뒤 다음 런부터 플레이어가 갖는 바깥 링이다.
         /// </summary>
@@ -90,12 +90,12 @@ namespace RouletteLike.Battle
                 new Slot("o_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
                 new Slot("o_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
                 new Slot("o_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
-                new Slot("o_house_cut", SlotKind.HouseCut, 0, "하우스 몫")
+                new Slot("o_house_cut", SlotKind.HouseCut, 0, "몰수")
             };
         }
 
         /// <summary>
-        /// 카지노 링: 2회차 딜러만 쓰는 바깥 링. 손님 바깥 링과 같되 하우스 몫 자리가 레이즈 +2다.
+        /// 카지노 링: 2회차 딜러만 쓰는 바깥 링. 손님 바깥 링과 같되 몰수 자리가 레이즈 +2다.
         /// 카지노는 원래 불공정하다 — 플레이어는 칸과 유물로 강해지고, 딜러는 이 링으로 강해진다.
         /// </summary>
         public static List<Slot> CreateCasinoRing()
@@ -111,7 +111,7 @@ namespace RouletteLike.Battle
 
         /// <summary>
         /// 스테이지 1 보스 「매니저」. 테이블 규칙으로 양쪽 룰렛에 바깥 링이 붙는다.
-        /// 하우스 룰 "잭팟 라인 2번"(안쪽과 바깥이 같은 종류로 멈추기). JACKPOT 「VIP 보호막」: [착지] 이번 턴 하우스 몫 1회 무효.
+        /// 하우스 룰 "잭팟 라인 2번"(안쪽과 바깥이 같은 종류로 멈추기). JACKPOT 「VIP 보호막」: [착지] 이번 턴 몰수 1회 무효.
         /// 수치는 임시값이다.
         /// </summary>
         public static DealerProfile CreateStageBoss()
@@ -127,7 +127,7 @@ namespace RouletteLike.Battle
                 new Slot("m_raise_1", SlotKind.Raise, 1, "레이즈 +1"),
                 new Slot("m_dividend_2", SlotKind.Dividend, 2, "배당 +2"),
                 new Slot("m_raise_2_c", SlotKind.Raise, 2, "레이즈 +2"),
-                new Slot("m_house_cut", SlotKind.HouseCut, 0, "하우스 몫")
+                new Slot("m_house_cut", SlotKind.HouseCut, 0, "몰수")
             };
 
             return new DealerProfile(
@@ -137,8 +137,8 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 2~4층 문 뒤에 설 수 있는 일반 딜러들. 일반 딜러는 룰렛에 하우스 몫이 1칸 있다(ADR 0004).
-        /// 튜토리얼 토끼만 하우스 몫이 없다.
+        /// 2~4층 문 뒤에 설 수 있는 일반 딜러들. 일반 딜러는 룰렛에 몰수가 1칸 있다(ADR 0004).
+        /// 튜토리얼 토끼만 몰수가 없다.
         /// </summary>
         public static IReadOnlyList<System.Func<DealerProfile>> CreateDealerPool()
         {
@@ -162,7 +162,7 @@ namespace RouletteLike.Battle
                 new Slot("f_bluff", SlotKind.MinimumPayout, 3, "허풍", SlotTrigger.CashOut, isJackpot: true),
                 new Slot("f_raise_2_c", SlotKind.Raise, 2, "레이즈 +2"),
                 new Slot("f_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
-                new Slot("f_house_cut", SlotKind.HouseCut, 0, "하우스 몫")
+                new Slot("f_house_cut", SlotKind.HouseCut, 0, "몰수")
             };
 
             return new DealerProfile(
@@ -186,7 +186,7 @@ namespace RouletteLike.Battle
                 new Slot("c_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
                 new Slot("c_insurance_3", SlotKind.Insurance, 3, "보험 +3"),
                 new Slot("c_raise_1", SlotKind.Raise, 1, "레이즈 +1"),
-                new Slot("c_house_cut", SlotKind.HouseCut, 0, "하우스 몫")
+                new Slot("c_house_cut", SlotKind.HouseCut, 0, "몰수")
             };
 
             return new DealerProfile(
@@ -216,7 +216,7 @@ namespace RouletteLike.Battle
                 new Slot("k_insurance_1_b", SlotKind.Insurance, 1, "보험 +1"),
                 new Slot("k_raise_1_e", SlotKind.Raise, 1, "레이즈 +1"),
                 new Slot("k_dividend_1", SlotKind.Dividend, 1, "배당 +1"),
-                new Slot("k_house_cut", SlotKind.HouseCut, 0, "하우스 몫")
+                new Slot("k_house_cut", SlotKind.HouseCut, 0, "몰수")
             };
 
             return new DealerProfile(

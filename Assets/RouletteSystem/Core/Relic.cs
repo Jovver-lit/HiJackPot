@@ -28,7 +28,7 @@ namespace RouletteLike.Battle
         public RelicId Id { get; }
         public string Name { get; }
 
-        /// <summary>발동 시점 키워드([착지]·[인접]·[CASH OUT]·[하우스 몫]·[라운드 시작]·[HIJACK]) 또는 [개입]·[테이블]·[상금].</summary>
+        /// <summary>발동 시점 키워드([착지]·[인접]·[CASH OUT]·[몰수]·[라운드 시작]·[HIJACK]) 또는 [개입]·[테이블]·[상금].</summary>
         public string Keyword { get; }
         public string Description { get; }
 
@@ -50,7 +50,7 @@ namespace RouletteLike.Battle
     /// <summary>MVP 유물 12개(데이터). 문 카드 상금으로 등장한다(ADR 0006).</summary>
     public static class RelicCatalog
     {
-        /// <summary>도파민 주사기: 하우스 몫 1번당 CASH OUT 피해 +1.</summary>
+        /// <summary>도파민 주사기: 몰수 1번당 CASH OUT 피해 +1.</summary>
         public const int DoubleLedgerPotThreshold = 8;
         public const int DoubleLedgerBonus = 2;
         public const int StickyDividerBonus = 2;
@@ -64,8 +64,8 @@ namespace RouletteLike.Battle
             new Relic(RelicId.HighRollerBadge, "하이 롤러 배지", "[테이블]", "내 테이블 한도 +1", "한도"),
             new Relic(RelicId.InsurancePolicy, "보험 약관 사본", "[CASH OUT]", "내 턴을 보험 1로 시작한다", "약관"),
             new Relic(RelicId.StickyDivider, "끈적한 칸막이", "[인접]", $"착지한 칸 바로 옆에 같은 종류 칸이 있으면 판돈 +{StickyDividerBonus}", "칸막"),
-            new Relic(RelicId.DopamineShot, "도파민 주사기", "[하우스 몫]", "하우스 몫에 걸릴 때마다 도파민 +1. 내 CASH OUT 피해 + 도파민(이번 전투)", "도파"),
-            new Relic(RelicId.Consolation, "위로금 봉투", "[하우스 몫]", "하우스 몫에 걸리면 앤티만은 돌려받는다", "위로"),
+            new Relic(RelicId.DopamineShot, "도파민 주사기", "[몰수]", "몰수에 걸릴 때마다 도파민 +1. 내 CASH OUT 피해 + 도파민(이번 전투)", "도파"),
+            new Relic(RelicId.Consolation, "위로금 봉투", "[몰수]", "몰수에 걸리면 베팅만은 돌려받는다", "위로"),
             new Relic(RelicId.MarkedCard, "표시된 카드", "[HIJACK]", $"HIJACK할 때마다 칩 +{MarkedCardChips}", "카드"),
             new Relic(RelicId.DoubleLedger, "이중 장부", "[CASH OUT]", $"판돈 {DoubleLedgerPotThreshold} 이상으로 CASH OUT하면 피해 +{DoubleLedgerBonus}", "장부"),
             new Relic(RelicId.LuckyCoin, "뒷면만 나오는 동전", "[라운드 시작]", "코인플립에서 후공이 되면 칩 +1", "동전"),

@@ -26,7 +26,7 @@ namespace RouletteLike.Roulette.Editor
         private const string RouletteStopSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_stop.wav";
 
         // ── UI 1단계 와이어프레임 팔레트(2026-10-02): 장식 없이 배치와 위계만 본다. 최종 색·재질은 ArtStyleBible(아르데코 카지노) 확정 뒤.
-        // 회색 단계로 정보의 중요도를 나누고, 강조색(Accent)은 판돈·CASH OUT·SPIN·내 차례에만, 위험색(Danger)은 하우스 몫에만 쓴다.
+        // 회색 단계로 정보의 중요도를 나누고, 강조색(Accent)은 판돈·CASH OUT·SPIN·내 차례에만, 위험색(Danger)은 몰수에만 쓴다.
         private static readonly Color Background = new Color32(24, 24, 26, 255);
         private static readonly Color Felt = new Color32(40, 41, 44, 255);
         private static readonly Color StageBackground = new Color32(0, 0, 0, 0);
@@ -244,10 +244,10 @@ namespace RouletteLike.Roulette.Editor
             // 룰렛 아래 안내: 특수 칸이 있으면 효과 설명, 없으면 칸 배치 안내(두 줄까지).
             TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "칸은 하나씩 발동", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
 
-            // ── 가운데 "테이블": 판돈이 쌓이는 곳. 결과 → 계산식 → 칩 더미 → 판돈 → 보험 → 확률 → 앤티 → CASH OUT → 딜러 한마디.
+            // ── 가운데 "테이블": 판돈이 쌓이는 곳. 결과 → 계산식 → 칩 더미 → 판돈 → 보험 → 확률 → 베팅 → CASH OUT → 딜러 한마디.
             RectTransform centerPanel = AddRect("CenterPanel", mainGameArea, new Vector2(0f, 26f), new Vector2(360f, 760f));
             // 룰렛 칸 기호 범례(그레이박스 아이콘): 칸에는 기호 + 숫자만, 긴 이름은 착지 이름표·설명에서 보여 준다.
-            AddText("SlotLegend", centerPanel, "▲레이즈 ×배율 ◆보험 ●배당 몫=하우스 몫", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 356f), new Vector2(360f, 26f));
+            AddText("SlotLegend", centerPanel, "▲레이즈 ×배율 ◆보험 ●배당 몰수", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 356f), new Vector2(360f, 26f));
             // 테이블은 숫자 위주로: 한 줄 결과 → 판돈 흐름(이번 턴에 판돈이 어떻게 커졌는지) → 칩 더미·큰 판돈. 긴 계산식은 전체 기록에만 남긴다.
             TMP_Text instructionText = AddText("GuideText", centerPanel, "", font, 14, Ink, TextAlignmentOptions.Center, new Vector2(0f, -300f), new Vector2(360f, 60f));
             TMP_Text powerPreviewText = AddText("PowerPreview", centerPanel, "", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 290f), new Vector2(440f, 22f));
@@ -269,10 +269,10 @@ namespace RouletteLike.Roulette.Editor
             potText.fontSizeMin = 40f;
             potText.fontSizeMax = 72f;
             TMP_Text insuranceText = AddBadge("InsuranceStatus", centerPanel, "내 보험 0", Teal, font, new Vector2(0f, 6f), 340f);
-            TMP_Text riskSummaryText = AddText("RiskSummary", centerPanel, "다음 SPIN 하우스 몫 확률 12.5%", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -42f), new Vector2(360f, 44f));
+            TMP_Text riskSummaryText = AddText("RiskSummary", centerPanel, "다음 SPIN 몰수 확률 12.5%", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -42f), new Vector2(360f, 44f));
             RectTransform betControls = AddRect("BetControls", centerPanel, new Vector2(0f, -100f), new Vector2(340f, 52f));
             UnityEngine.UI.Button anteDownButton = AddButton("AnteDown", betControls, new Vector2(-140f, 0f), new Vector2(52f, 48f), PanelLight, font, "−", 26, out _);
-            TMP_Text anteText = AddText("AnteText", betControls, "앤티 1", font, 17, Ink, TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(210f, 48f));
+            TMP_Text anteText = AddText("AnteText", betControls, "베팅 1", font, 17, Ink, TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(210f, 48f));
             UnityEngine.UI.Button anteUpButton = AddButton("AnteUp", betControls, new Vector2(140f, 0f), new Vector2(52f, 48f), PanelLight, font, "+", 26, out _);
             UnityEngine.UI.Button cashOutButton = AddButton("CashOutButton", centerPanel, new Vector2(0f, -186f), new Vector2(340f, 96f), Accent, font, "CASH OUT", 28, out TMP_Text cashOutLabel);
             cashOutLabel.color = Background;
@@ -315,9 +315,9 @@ namespace RouletteLike.Roulette.Editor
             TMP_Text hijackBarTitle = AddText("Title", hijackBar, "HOUSE RULE CLEAR · HIJACK", font, 20, Accent, TextAlignmentOptions.Center, new Vector2(0f, 72f), new Vector2(360f, 32f));
             TMP_Text hijackBarText = AddText("Instruction", hijackBar, "딜러 룰렛에서 빼앗을 칸을 클릭하세요", font, 16, Ink, TextAlignmentOptions.Center, new Vector2(0f, -12f), new Vector2(360f, 140f));
 
-            // NUDGE 선택 띠: 하우스 몫에 걸렸을 때 테이블 위쪽을 덮는다(룰렛을 옆 칸으로 밀기 / 그대로).
+            // NUDGE 선택 띠: 몰수에 걸렸을 때 테이블 위쪽을 덮는다(룰렛을 옆 칸으로 밀기 / 그대로).
             RectTransform nudgeBar = AddFramedPanel("NudgeBar", centerPanel, new Vector2(0f, 250f), new Vector2(380f, 200f), new Color32(48, 30, 32, 255), Danger, out _, out _);
-            TMP_Text nudgeBarTitle = AddText("Title", nudgeBar, "하우스 몫!  NUDGE?", font, 24, Danger, TextAlignmentOptions.Center, new Vector2(0f, 70f), new Vector2(360f, 34f));
+            TMP_Text nudgeBarTitle = AddText("Title", nudgeBar, "몰수!  NUDGE?", font, 24, Danger, TextAlignmentOptions.Center, new Vector2(0f, 70f), new Vector2(360f, 34f));
             TMP_Text nudgeBarText = AddText("Text", nudgeBar, "옆 칸으로 밀면 그 칸이 대신 발동합니다", font, 14, Ink, TextAlignmentOptions.Center, new Vector2(0f, 36f), new Vector2(360f, 26f));
             UnityEngine.UI.Button nudgeLeftButton = AddButton("NudgeLeft", nudgeBar, new Vector2(-122f, -20f), new Vector2(116f, 64f), PanelLight, font, "◀ 레이즈 +2", 14, out TMP_Text nudgeLeftLabel);
             UnityEngine.UI.Button nudgeStayButton = AddButton("NudgeStay", nudgeBar, new Vector2(0f, -20f), new Vector2(116f, 64f), new Color32(70, 40, 46, 255), font, "그대로\n(아껴 두기)", 13, out _);
@@ -583,7 +583,7 @@ namespace RouletteLike.Roulette.Editor
                 float y = i < 7 ? 125f : 45f;
                 sourceButtons[i] = AddButton($"EnemySlot{i + 1}", panel, new Vector2(x, y), new Vector2(148f, 70f), new Color32(112, 50, 60, 255), font, $"{i + 1}\n-", 15, out sourceLabels[i]);
             }
-            AddText("PlayerSlotsTitle", panel, "내 룰렛 · 덮어쓸 위치 (하우스 몫 불가)", font, 17, Gold, TextAlignmentOptions.Left, new Vector2(-390f, -15f), new Vector2(360f, 30f));
+            AddText("PlayerSlotsTitle", panel, "내 룰렛 · 덮어쓸 위치 (몰수 불가)", font, 17, Gold, TextAlignmentOptions.Left, new Vector2(-390f, -15f), new Vector2(360f, 30f));
             destinationButtons = new UnityEngine.UI.Button[8];
             destinationLabels = new TMP_Text[8];
             for (int i = 0; i < destinationButtons.Length; i++)

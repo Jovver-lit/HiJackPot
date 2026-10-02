@@ -4,10 +4,10 @@ using NUnit.Framework;
 
 namespace RouletteLike.Battle.Tests
 {
-    /// <summary>바깥 링(이중 룰렛)·잭팟 라인·바깥 하우스 몫·보호막과 보스 매니저, 런의 바깥 링 해금 EditMode 테스트.</summary>
+    /// <summary>바깥 링(이중 룰렛)·잭팟 라인·바깥 몰수·보호막과 보스 매니저, 런의 바깥 링 해금 EditMode 테스트.</summary>
     public sealed class OuterRingTests
     {
-        // 바깥 링 인덱스: 0 레이즈 +3, 1 배율 ×2, 2 보험 +2, 3 바깥 하우스 몫
+        // 바깥 링 인덱스: 0 레이즈 +3, 1 배율 ×2, 2 보험 +2, 3 바깥 몰수
         private const int OuterRaise = 0, OuterMultiplier = 1, OuterInsurance = 2, OuterHouseCut = 3;
 
         private static PotBattle BossBattle(int seed = 4)
@@ -48,7 +48,7 @@ namespace RouletteLike.Battle.Tests
             LandingResult result = battle.Land(4, OuterRaise); // 안쪽 레이즈 +3 (옆 칸과 안 이어짐)
 
             Assert.IsTrue(result.JackpotLine); // 레이즈 + 레이즈
-            Assert.AreEqual(2 + 3 + 3 + 3, battle.Player.Pot); // 앤티 + 안쪽 + 잭팟 라인 + 바깥 레이즈
+            Assert.AreEqual(2 + 3 + 3 + 3, battle.Player.Pot); // 베팅 + 안쪽 + 잭팟 라인 + 바깥 레이즈
         }
 
         [Test]

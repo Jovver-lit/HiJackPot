@@ -427,7 +427,7 @@ namespace RouletteLike.Roulette
         }
 
         /// <summary>
-        /// 칸 폭을 바꾸는 동안(하우스 몫이 SPIN마다 넓어질 때) 포인터 아래 칸이 밀리지 않게 휠 각도를 보정한다.
+        /// 칸 폭을 바꾸는 동안(몰수가 SPIN마다 넓어질 때) 포인터 아래 칸이 밀리지 않게 휠 각도를 보정한다.
         /// relayout 안에서 RouletteController의 칸 무게를 바꾼다.
         /// </summary>
         public void RelayoutKeepingPointer(Action relayout)

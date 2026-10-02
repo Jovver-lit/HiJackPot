@@ -29,7 +29,7 @@ namespace RouletteLike.Battle.Tests
                 () => Dealer("보스", 2));
         }
 
-        /// <summary>플레이어가 매 턴 앤티 3 → 레이즈 → CASH OUT, 딜러는 앤티 1 → CASH OUT으로 끝낸다.</summary>
+        /// <summary>플레이어가 매 턴 베팅 3 → 레이즈 → CASH OUT, 딜러는 베팅 1 → CASH OUT으로 끝낸다.</summary>
         private static void WinByBankrupt(PotBattle battle)
         {
             for (int guard = 0; guard < 200 && battle.Phase != BattlePhase.Ended; guard++)
@@ -96,7 +96,7 @@ namespace RouletteLike.Battle.Tests
             battle.StartRound();
             if (battle.Active == Side.Dealer) { battle.PlaceAnte(1); battle.CashOut(); }
             battle.PlaceAnte(3);
-            battle.Land(5); // 하우스 몫: 앤티 3 증발
+            battle.Land(5); // 몰수: 베팅 3 증발
             int left = battle.Player.Chips;
             Assert.Less(left, 20);
 
@@ -152,7 +152,7 @@ namespace RouletteLike.Battle.Tests
             {
                 if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();
                 battle.PlaceAnte(1);
-                if (battle.Active == Side.Player) battle.Land(5); // 하우스 몫으로 앤티를 잃는다
+                if (battle.Active == Side.Player) battle.Land(5); // 몰수로 베팅을 잃는다
                 if (battle.Phase == BattlePhase.Spinning) battle.CashOut();
             }
 
@@ -192,7 +192,7 @@ namespace RouletteLike.Battle.Tests
                 new List<Func<DealerProfile>> { () => Dealer("A", 2) }, () => Dealer("보스", 2));
             PotBattle battle = run.EnterDoor(0);
 
-            // 플레이어 보험 3 → 딜러 앤티 1 CASH OUT(전액 보장) → HIJACK으로 유일한 칸 봉인 → 완전 강탈.
+            // 플레이어 보험 3 → 딜러 베팅 1 CASH OUT(전액 보장) → HIJACK으로 유일한 칸 봉인 → 완전 강탈.
             for (int guard = 0; guard < 50 && battle.HijackChances == 0; guard++)
             {
                 if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();

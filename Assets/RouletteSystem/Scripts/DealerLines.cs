@@ -9,7 +9,7 @@ namespace RouletteLike.Roulette
     public sealed class DealerLines
     {
         public string Opening;
-        /// <summary>플레이어가 하우스 몫에 걸렸을 때.</summary>
+        /// <summary>플레이어가 몰수에 걸렸을 때.</summary>
         public string PlayerHouseCut;
         /// <summary>플레이어가 배율·잭팟 라인으로 판돈을 크게 불렸을 때.</summary>
         public string BigCombo;
@@ -23,13 +23,13 @@ namespace RouletteLike.Roulette
         public string Nudged;
         public string DealerLoses;
         public string CleanSwept;
-        /// <summary>2회차: 딜러가 하우스 몫 없는 카지노 링을 쓸 때의 첫마디(왜 손님 링과 다른지 알려 준다).</summary>
+        /// <summary>2회차: 딜러가 몰수 없는 카지노 링을 쓸 때의 첫마디(왜 손님 링과 다른지 알려 준다).</summary>
         public string CasinoRingOpening;
 
         private static readonly DealerLines Default = new DealerLines
         {
             Opening = "오늘의 하우스 룰은 게시판에 붙어 있습니다.",
-            PlayerHouseCut = "하우스 몫입니다. 테이블 위의 칩은 저희가 정리하겠습니다.",
+            PlayerHouseCut = "몰수입니다. 테이블 위의 칩은 저희가 정리하겠습니다.",
             BigCombo = "손님, 확률을 직접 수정하시는 건 약관 위반입니다.",
             BigCashOut = "크게 가져가시네요. 장부에 기록해 두겠습니다.",
             SmallCashOut = "정산 완료. 다음 판도 기대하겠습니다.",
@@ -40,7 +40,7 @@ namespace RouletteLike.Roulette
             Nudged = "방금 룰렛이... 저절로 움직였네요. 그렇다고 해 두죠.",
             DealerLoses = "축하드립니다. 다음 테이블도 화이팅~",
             CleanSwept = "...제 룰렛이 텅 비었네요.",
-            CasinoRingOpening = "손님 바깥 링엔 하우스 몫이 있지요? 제 링엔 없습니다. 하우스니까요."
+            CasinoRingOpening = "손님 바깥 링엔 몰수가 있지요? 제 링엔 없습니다. 하우스니까요."
         };
 
         private static readonly Dictionary<string, DealerLines> ByDealer = new Dictionary<string, DealerLines>
@@ -48,7 +48,7 @@ namespace RouletteLike.Roulette
             ["토끼"] = new DealerLines
             {
                 Opening = "어서오세요, 첫 손님이시네요. 걸고, 돌리고, 적당할 때 터뜨리세요.",
-                PlayerHouseCut = "앗, 하우스 몫! 괜찮아요, 원래 다들 한 번씩 잃어요.",
+                PlayerHouseCut = "앗, 몰수! 괜찮아요, 원래 다들 한 번씩 잃어요.",
                 BigCombo = "와아, 판돈이 쑥 컸네요! 배율은 그렇게 쓰는 거예요.",
                 BigCashOut = "아야야... 그렇게 크게 터뜨리시면 제 귀가 쫑긋해요.",
                 SmallCashOut = "정산 완료! 작게라도 챙기는 거, 좋은 습관이에요.",
@@ -62,7 +62,7 @@ namespace RouletteLike.Roulette
             },
             ["여우"] = new DealerLines
             {
-                CasinoRingOpening = "이 링이요? 직원 전용입니다. 하우스 몫은... 직원한텐 안 붙어요.",
+                CasinoRingOpening = "이 링이요? 직원 전용입니다. 몰수는... 직원한텐 안 붙어요.",
                 Opening = "여우입니다. 보험은 두둑이 들어 두었으니 마음껏 덤비세요.",
                 PlayerHouseCut = "어머, 증발. 욕심은 늘 하우스 편이에요.",
                 BigCombo = "그 판돈, 제 보험으로 다 막을 수 있을까요? 궁금하네요.",
@@ -78,7 +78,7 @@ namespace RouletteLike.Roulette
             },
             ["고양이"] = new DealerLines
             {
-                CasinoRingOpening = "냐, 내 링엔 몫 칸이 없어. 하우스는 원래 안 터지거든.",
+                CasinoRingOpening = "냐, 내 링엔 몰수 칸이 없어. 하우스는 원래 안 터지거든.",
                 Opening = "냐... 고양이야. 난 느긋하게 키워서 한 방에 터뜨려.",
                 PlayerHouseCut = "증발했네. 꾹꾹이로 위로해 줄까?",
                 BigCombo = "오, 그 판돈 맛있어 보이는데. 배율은 내 전문인데 말이야.",
@@ -94,7 +94,7 @@ namespace RouletteLike.Roulette
             },
             ["까마귀"] = new DealerLines
             {
-                CasinoRingOpening = "수금원 링엔 하우스 몫이 빠져 있습니다. 걷는 쪽이 털릴 순 없잖아요.",
+                CasinoRingOpening = "수금원 링엔 몰수가 빠져 있습니다. 걷는 쪽이 털릴 순 없잖아요.",
                 Opening = "까악. 반짝이는 건 다 내 거야. 선공도 내가 가져갈 거고.",
                 PlayerHouseCut = "증발한 칩, 바닥에 떨어진 건 내가 주울게.",
                 BigCombo = "반짝반짝하네. 그 판돈, 둥지에 딱 어울리겠어.",
@@ -111,7 +111,7 @@ namespace RouletteLike.Roulette
             ["매니저"] = new DealerLines
             {
                 Opening = "층 매니저입니다. 손님의 그간 활약, 보고서로 잘 읽었습니다.",
-                PlayerHouseCut = "하우스 몫은 회사 방침입니다. 저도 어쩔 수 없어요.",
+                PlayerHouseCut = "몰수는 회사 방침입니다. 저도 어쩔 수 없어요.",
                 BigCombo = "그 판돈, 감사팀에 회부하겠습니다.",
                 BigCashOut = "손실 보고서를 쓰게 만드시는군요.",
                 SmallCashOut = "그 정도는 운영비로 처리하겠습니다.",
@@ -134,7 +134,7 @@ namespace RouletteLike.Roulette
             "안내 방송: 다음 층부터 딜러들이 진지해집니다. 진지함은 무료입니다.",
             "안내 방송: 매니저실이 열렸습니다. 탈출구는 존재합니다. 당첨 확률은 공개하지 않습니다.",
             "안내 방송: 캐셔 라운지는 24시간 영업합니다. 슬롯머신의 당첨 확률도 공개하지 않습니다.",
-            "안내 방송: 야간 영업을 시작합니다. 딜러들에게 하우스 몫이 없는 카지노 링을 지급했습니다. 손님용과는 사양이 다릅니다.",
+            "안내 방송: 야간 영업을 시작합니다. 딜러들에게 몰수가 없는 카지노 링을 지급했습니다. 손님용과는 사양이 다릅니다.",
             "안내 방송: 야간 테이블은 판돈이 큽니다. 손님의 행운도 크게 청구됩니다.",
             "안내 방송: 마감이 가까워졌습니다. 남은 행운을 확인해 주세요.",
             "안내 방송: 야간 매니저실이 열렸습니다. 이번에는 정말로 탈출구가 있습니다. 아마도."
