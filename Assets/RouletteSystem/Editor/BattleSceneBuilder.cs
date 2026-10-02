@@ -224,8 +224,8 @@ namespace RouletteLike.Roulette.Editor
             spinCenter.SetAsLastSibling();
 
             AddRect("EffectRoot", playerRouletteContainer, Vector2.zero, new Vector2(620f, 620f));
-            // 룰렛 아래 안내: 특수 칸이 있으면 효과 설명, 없으면 연쇄 안내(두 줄까지).
-            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "이어진 같은 칸은 한 묶음", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
+            // 룰렛 아래 안내: 특수 칸이 있으면 효과 설명, 없으면 칸 배치 안내(두 줄까지).
+            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "칸은 하나씩 발동", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
 
             // ── 가운데 "테이블": 판돈이 쌓이는 곳. 결과 → 계산식 → 칩 더미 → 판돈 → 보험 → 확률 → 앤티 → CASH OUT → 딜러 한마디.
             RectTransform centerPanel = AddFramedPanel("CenterPanel", mainGameArea, new Vector2(0f, 26f), new Vector2(480f, 760f), Panel, DarkGold, out _, out _);
@@ -661,7 +661,7 @@ namespace RouletteLike.Roulette.Editor
 
             view.LeaveButton = AddButton("Leave", view.Panel, new Vector2(720f, -440f), new Vector2(380f, 70f), Gold, font, "다음 층으로 (2회차)", 22, out TMP_Text leaveLabel);
             leaveLabel.color = Background;
-            AddText("Hint", view.Panel, "칸 번호는 룰렛을 시계 방향으로 돈 순서이고, 8번 다음은 다시 1번입니다. 바로 옆 칸끼리 이어져 연쇄가 됩니다.", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(-300f, -440f), new Vector2(1200f, 30f));
+            AddText("Hint", view.Panel, "칸 번호는 룰렛을 시계 방향으로 돈 순서이고, 8번 다음은 다시 1번입니다. 같은 칸을 모아 두면 SPIN 강도로 그 구역을 노리기 쉽습니다.", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(-300f, -440f), new Vector2(1200f, 30f));
             return view;
         }
 

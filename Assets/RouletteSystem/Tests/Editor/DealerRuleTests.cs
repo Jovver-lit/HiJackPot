@@ -156,7 +156,8 @@ namespace RouletteLike.Battle.Tests
             battle.CashOut();
             AdvanceTo(battle, Side.Player);
             battle.PlaceAnte(3);
-            battle.Land(0); // 판돈 7
+            battle.Land(0);
+            battle.Land(1); // 판돈 3 + 2 + 2 = 7
             battle.Land(6); // 허풍 착지
 
             Assert.AreEqual(System.Math.Min(battle.Dealer.Chips, 7), battle.PreviewCashOutDamage(Side.Player));

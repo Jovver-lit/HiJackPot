@@ -29,7 +29,7 @@ namespace RouletteLike.Battle.Tests
                 () => Dealer("보스", 2));
         }
 
-        /// <summary>플레이어가 매 턴 앤티 3 → 레이즈 연쇄 → CASH OUT, 딜러는 앤티 1 → CASH OUT으로 끝낸다.</summary>
+        /// <summary>플레이어가 매 턴 앤티 3 → 레이즈 → CASH OUT, 딜러는 앤티 1 → CASH OUT으로 끝낸다.</summary>
         private static void WinByBankrupt(PotBattle battle)
         {
             for (int guard = 0; guard < 200 && battle.Phase != BattlePhase.Ended; guard++)
