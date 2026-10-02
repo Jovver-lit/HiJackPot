@@ -2209,7 +2209,7 @@ namespace RouletteLike.Roulette
         {
             DealerProfile dealer = _battle.Profile;
             if (dealerNameText != null) dealerNameText.text = dealer.Name;
-            if (dealerHeaderText != null) dealerHeaderText.text = $"◆  상대 룰렛 · {dealer.Name}  ◆";
+            if (dealerHeaderText != null) dealerHeaderText.text = $"상대 룰렛 · {dealer.Name}";
             if (houseRuleTitleText != null) houseRuleTitleText.text = $"하우스 룰  ·  {HouseRuleName(dealer.HouseRule)}";
             if (houseRuleDescriptionText != null)
             {
