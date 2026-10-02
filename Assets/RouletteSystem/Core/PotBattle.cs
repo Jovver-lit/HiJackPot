@@ -162,11 +162,14 @@ namespace RouletteLike.Battle
             IReadOnlyList<Slot> tableRing = dealer.TableOuterRing;
             Player = new Seat(Side.Player, playerChips, playerWheel,
                 playerOuterRing != null && playerOuterRing.Count > 0 ? playerOuterRing : tableRing);
-            Dealer = new Seat(Side.Dealer, dealer.StartingChips, dealer.Wheel, tableRing);
+            Dealer = new Seat(Side.Dealer, dealer.StartingChips, dealer.Wheel, dealer.DealerOuterRing.Count > 0 ? dealer.DealerOuterRing : tableRing);
             _rng = new Random(seed);
         }
 
         public Seat SeatOf(Side side) => side == Side.Player ? Player : Dealer;
+
+        /// <summary>딜러가 하우스 몫 없는 카지노 링을 쓰는지(손님 바깥 링과 사양이 다르다).</summary>
+        public bool DealerHasCasinoRing => Profile.DealerOuterRing.Count > 0;
         public Seat Opponent(Side side) => side == Side.Player ? Dealer : Player;
         public Seat ActiveSeat => SeatOf(Active);
 

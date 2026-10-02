@@ -94,6 +94,29 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
+        public void SecondStage_DealersUseCasinoRing_WithoutHouseCut_PlayerKeepsOwnRing()
+        {
+            Run run = RunToShop(10);
+            run.LeaveShop();
+            Assert.Greater(run.Doors[0].DealerOuterRing.Count, 0);
+            PotBattle battle = run.EnterDoor(0);
+
+            Assert.IsTrue(battle.DealerHasCasinoRing);
+            foreach (Slot slot in battle.Dealer.OuterRing) Assert.AreNotEqual(SlotKind.HouseCut, slot.Kind);
+            bool playerRingHasCut = false;
+            foreach (Slot slot in battle.Player.OuterRing) playerRingHasCut |= slot.Kind == SlotKind.HouseCut;
+            Assert.IsTrue(playerRingHasCut, "플레이어는 5층 보스에게서 얻은 자기 바깥 링(하우스 몫 있음)을 쓴다");
+        }
+
+        [Test]
+        public void FirstStage_DealersHaveNoCasinoRing()
+        {
+            Run run = new Run(3, 20, BattlePresets.CreateStarterWheel(), BattlePresets.CreateRabbitDealer,
+                BattlePresets.CreateDealerPool(), BattlePresets.CreateStageBoss);
+            Assert.IsFalse(run.EnterDoor(0).DealerHasCasinoRing);
+        }
+
+        [Test]
         public void Shop_SwapUpgradeRevert_CostCash()
         {
             Run run = RunToShop();
