@@ -9,3 +9,4 @@
 | [2026-09-30-boss-sim.md](2026-09-30-boss-sim.md) | 보스 매니저·바깥 링 밸런스, 보호막이 욕심의 위험을 지우는 문제 |
 | [2026-09-30-first-run-user-playtest.md](2026-09-30-first-run-user-playtest.md) | 첫 전체 런 사용자 플레이테스트: 루프는 재미있음, UI·역탈취 가시성 문제(이후 2차 피드백·조치 포함) |
 | [2026-10-01-full-run-sim.md](2026-10-01-full-run-sim.md) | 유물·NUDGE 포함 런 전체 시뮬레이션: 칩 눈덩이 발견 → 테이블 칩 회수(ADR 0007)·층별 강화·테이블 마감 |
+| [2026-10-02-slot-growth-timeout-sim.md](2026-10-02-slot-growth-timeout-sim.md) | 칸 늘리기(하우스 몫 희석·승률)와 타임아웃 승리(시간 끌기·보험·배당 빌드) 시뮬레이션 |
