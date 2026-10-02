@@ -277,6 +277,20 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
+        public void RabbitWarmup_KeepsTheTableButDropsTutorialDevices()
+        {
+            DealerProfile tutorial = BattlePresets.CreateRabbitDealer();
+            DealerProfile warmup = BattlePresets.CreateRabbitWarmup();
+            Assert.IsTrue(tutorial.Telegraphs);
+            Assert.IsFalse(warmup.Telegraphs);
+            Assert.AreEqual(0, warmup.ScriptedInstantCashOutRounds.Count);
+            Assert.AreEqual(tutorial.Wheel.Count, warmup.Wheel.Count);
+            Assert.AreEqual(tutorial.StartingChips, warmup.StartingChips);
+            Assert.AreEqual(tutorial.HouseRule, warmup.HouseRule);
+            Assert.IsFalse(warmup.CounterHijacks);
+        }
+
+        [Test]
         public void HouseCutChance_RisesFivePercentPerSpin_CapsAt35_AndResetsNextTurn()
         {
             PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 40, BattlePresets.CreateFoxDealer(), 4);

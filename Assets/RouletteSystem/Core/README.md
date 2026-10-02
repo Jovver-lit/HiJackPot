@@ -13,7 +13,7 @@
 | `RunShop.cs` | 런의 상점층 기능(Run의 나머지 절반): 위치 바꾸기·칸 강화·HIJACK 되돌리기·유물·슬롯머신·다음 층으로, 상점 가격(ADR 0009) |
 | `SlotMachine.cs` | 상점 미니게임 슬롯머신: 릴 기호·무게·배당표·기대 환수율(약 93%) |
 | `Relic.cs` | 유물 12개(이름·키워드·설명 데이터)와 수치 상수. 효과 계산은 `PotBattle`·`Run`이 한다 |
-| `BattlePresets.cs` | 시작 룰렛 8칸, 바깥 링 4칸, 토끼(튜토리얼)·여우·고양이·까마귀 딜러, 보스 「매니저」 수치(전부 임시값) |
+| `BattlePresets.cs` | 시작 룰렛 8칸, 바깥 링 4칸, 토끼(튜토리얼, 튜토리얼 뒤에는 대본 없는 몸풀기)·여우·고양이·까마귀 딜러, 보스 「매니저」 수치(전부 임시값) |
 | `AssemblyInfo.cs` | 테스트 어셈블리(`HiJackPot.Core.Tests`)에 내부 상태 접근 허용 |
 | `HiJackPot.Core.asmdef` | 어셈블리 정의. `Assembly-CSharp`가 자동 참조한다 |
 

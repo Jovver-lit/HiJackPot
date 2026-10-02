@@ -187,6 +187,11 @@ namespace RouletteLike.Roulette.Editor
             AddText("Header", playerPanel, "◆  내 룰렛  ◆", font, 22, Teal, TextAlignmentOptions.Center, new Vector2(0f, 352f), new Vector2(560f, 36f));
             RectTransform playerRouletteContainer = AddRect("RouletteContainer", playerPanel, new Vector2(0f, 10f), new Vector2(620f, 620f));
             UnityEngine.UI.Image playerGlow = AddGlow("ActiveGlow", playerRouletteContainer, new Color32(57, 190, 198, 90), new Vector2(600f, 600f));
+            // 바깥 링: 안쪽 룰렛 뒤에 겹친 큰 룰렛. 바깥 링이 있으면 안쪽 룰렛이 줄어들어 바깥 띠만 보인다(같은 포인터 아래).
+            RectTransform playerOuterRingRoot = AddRect("OuterRingWheel", playerRouletteContainer, Vector2.zero, new Vector2(580f, 580f));
+            RouletteController playerOuterRoulette = playerOuterRingRoot.gameObject.AddComponent<RouletteController>();
+            RouletteSpinController playerOuterSpin = playerOuterRingRoot.gameObject.AddComponent<RouletteSpinController>();
+            BuildOuterRingWheel(playerOuterRingRoot, playerOuterRoulette, playerOuterSpin, legacyFont, pointerSprite, 580f);
             RectTransform rouletteRoot = AddRect("ExistingPlayerRoulette", playerRouletteContainer, Vector2.zero, new Vector2(580f, 580f));
             RouletteController roulette = rouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController spin = rouletteRoot.gameObject.AddComponent<RouletteSpinController>();
@@ -260,6 +265,10 @@ namespace RouletteLike.Roulette.Editor
             TMP_Text enemyNextIntentText = AddText("ValueText", dealerIntent, "판돈 5+에서 CASH OUT", font, 17, Ink, TextAlignmentOptions.Left, new Vector2(35f, 0f), new Vector2(470f, 50f));
             RectTransform dealerRouletteContainer = AddRect("RouletteContainer", dealerPanel, new Vector2(0f, -10f), new Vector2(560f, 560f));
             UnityEngine.UI.Image dealerGlow = AddGlow("ActiveGlow", dealerRouletteContainer, new Color32(220, 72, 78, 90), new Vector2(540f, 540f));
+            RectTransform dealerOuterRingRoot = AddRect("OuterRingWheel", dealerRouletteContainer, Vector2.zero, new Vector2(530f, 530f));
+            RouletteController dealerOuterRoulette = dealerOuterRingRoot.gameObject.AddComponent<RouletteController>();
+            RouletteSpinController dealerOuterSpin = dealerOuterRingRoot.gameObject.AddComponent<RouletteSpinController>();
+            BuildOuterRingWheel(dealerOuterRingRoot, dealerOuterRoulette, dealerOuterSpin, legacyFont, pointerSprite, 530f);
             RectTransform enemyRouletteRoot = AddRect("ExistingDealerRoulette", dealerRouletteContainer, Vector2.zero, new Vector2(530f, 530f));
             RouletteController enemyRoulette = enemyRouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController enemySpin = enemyRouletteRoot.gameObject.AddComponent<RouletteSpinController>();
@@ -350,14 +359,10 @@ namespace RouletteLike.Roulette.Editor
             SetObjectArray(identitySo.FindProperty("doorBodyTexts"), doorBodies);
             SetObject(identitySo, "exchangeText", exchangeText);
             SetObjectArray(identitySo.FindProperty("exchangeButtons"), exchangeButtons);
-            RectTransform playerOuter = BuildOuterRingStrip("OuterRingStrip", playerPanel, new Vector2(0f, -302f), 96f, font, out UnityEngine.UI.Image[] playerOuterBoxes, out TMP_Text[] playerOuterLabels);
-            RectTransform dealerOuter = BuildOuterRingStrip("OuterRingStrip", dealerPanel, new Vector2(0f, -302f), 92f, font, out UnityEngine.UI.Image[] dealerOuterBoxes, out TMP_Text[] dealerOuterLabels);
-            SetObject(identitySo, "playerOuterRoot", playerOuter.gameObject);
-            SetObjectArray(identitySo.FindProperty("playerOuterBoxes"), playerOuterBoxes);
-            SetObjectArray(identitySo.FindProperty("playerOuterLabels"), playerOuterLabels);
-            SetObject(identitySo, "dealerOuterRoot", dealerOuter.gameObject);
-            SetObjectArray(identitySo.FindProperty("dealerOuterBoxes"), dealerOuterBoxes);
-            SetObjectArray(identitySo.FindProperty("dealerOuterLabels"), dealerOuterLabels);
+            SetObject(identitySo, "playerOuterRoulette", playerOuterRoulette);
+            SetObject(identitySo, "playerOuterSpin", playerOuterSpin);
+            SetObject(identitySo, "dealerOuterRoulette", dealerOuterRoulette);
+            SetObject(identitySo, "dealerOuterSpin", dealerOuterSpin);
             // 착지 이름표: 포인터 바로 위, 멈춘 칸의 이름과 실제로 일어난 효과. 다음 SPIN 전까지 남는다.
             RectTransform playerTag = BuildLandingTag(playerPanel, new Vector2(0f, 340f), font, out TMP_Text playerTagTitle, out TMP_Text playerTagEffect, out UnityEngine.UI.Image playerTagBackground);
             RectTransform dealerTag = BuildLandingTag(dealerPanel, new Vector2(0f, 300f), font, out TMP_Text dealerTagTitle, out TMP_Text dealerTagEffect, out UnityEngine.UI.Image dealerTagBackground);
@@ -438,8 +443,8 @@ namespace RouletteLike.Roulette.Editor
             playerTag.gameObject.SetActive(false);
             dealerTag.gameObject.SetActive(false);
             doorPanel.gameObject.SetActive(false);
-            playerOuter.gameObject.SetActive(false);
-            dealerOuter.gameObject.SetActive(false);
+            playerOuterRingRoot.gameObject.SetActive(false);
+            dealerOuterRingRoot.gameObject.SetActive(false);
 
             SerializedObject holdSo = new SerializedObject(holdInput);
             holdSo.FindProperty("battle").objectReferenceValue = battle;
@@ -671,7 +676,7 @@ namespace RouletteLike.Roulette.Editor
             startButton = AddButton("StartButton", panel, new Vector2(0f, -90f), new Vector2(360f, 84f), Gold, font, "계약하기", 30, out TMP_Text startLabel);
             startLabel.color = Background;
             metaText = AddText("Meta", panel, "", font, 18, Muted, TextAlignmentOptions.Center, new Vector2(0f, -180f), new Vector2(1400f, 30f));
-            resetButton = AddButton("ResetMetaButton", panel, new Vector2(0f, -232f), new Vector2(260f, 44f), PanelLight, font, "해금 기록 지우기", 16, out _);
+            resetButton = AddButton("ResetMetaButton", panel, new Vector2(0f, -232f), new Vector2(260f, 44f), PanelLight, font, "튜토리얼 다시 하기", 16, out _);
             AddText("Notice", panel, "실제 돈을 쓰지 않는 게임입니다. 칩은 손님의 행운이 굳은 것입니다.", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, -470f), new Vector2(1600f, 26f));
             return panel;
         }
@@ -712,22 +717,43 @@ namespace RouletteLike.Roulette.Editor
             return tag;
         }
 
-        private static RectTransform BuildOuterRingStrip(string name, Transform parent, Vector2 position, float boxWidth, TMP_FontAsset font, out UnityEngine.UI.Image[] boxes, out TMP_Text[] labels)
+        /// <summary>
+        /// 바깥 링 룰렛: 안쪽 룰렛 뒤에 겹치는 큰 원판. 안쪽 룰렛(84%로 줄어듦)에 가려지지 않은 테두리 띠에 칸 기호가 보이고,
+        /// 맨 위 작은 포인터가 안쪽 포인터와 같은 12시를 가리킨다. 결과는 코어가 정하고 이 룰렛은 그 칸으로 돌아가 멈춘다(소리 없음).
+        /// </summary>
+        private static void BuildOuterRingWheel(RectTransform root, RouletteController controller, RouletteSpinController spin, Font legacyFont, Sprite pointerSprite, float size)
         {
-            const int Count = 6;
-            RectTransform strip = AddRect(name, parent, position, new Vector2(Count * (boxWidth + 6f), 30f));
-            boxes = new UnityEngine.UI.Image[Count];
-            labels = new TMP_Text[Count];
-            for (int i = 0; i < Count; i++)
-            {
-                float x = (i - (Count - 1) * 0.5f) * (boxWidth + 6f);
-                boxes[i] = AddImage($"OuterSlot{i + 1}", strip, new Color32(61, 53, 79, 255));
-                boxes[i].rectTransform.anchoredPosition = new Vector2(x, 0f);
-                boxes[i].rectTransform.sizeDelta = new Vector2(boxWidth, 28f);
-                labels[i] = AddText("Label", boxes[i].transform, "-", font, 14, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(boxWidth - 6f, 24f));
-            }
+            RectTransform wheel = AddRect("Wheel", root, Vector2.zero, new Vector2(size, size));
+            RectTransform segments = AddRect("DynamicSegments", wheel, Vector2.zero, new Vector2(size, size));
+            RoulettePixelWheelRenderer renderer = segments.gameObject.AddComponent<RoulettePixelWheelRenderer>();
+            renderer.raycastTarget = false;
+            // 포인터는 링 바깥 가장자리에 걸쳐 두어 멈춘 칸의 기호를 가리지 않는다.
+            UnityEngine.UI.Image pointer = AddSpriteImage("OuterPointer", root, pointerSprite, new Vector2(44f, 44f));
+            pointer.rectTransform.anchoredPosition = new Vector2(0f, size * 0.5f + 14f);
 
-            return strip;
+            SerializedObject controllerSo = new SerializedObject(controller);
+            controllerSo.FindProperty("wheel").objectReferenceValue = wheel;
+            controllerSo.FindProperty("dynamicSegmentRoot").objectReferenceValue = segments;
+            controllerSo.FindProperty("pixelWheelRenderer").objectReferenceValue = renderer;
+            controllerSo.FindProperty("labelFont").objectReferenceValue = legacyFont;
+            controllerSo.FindProperty("labelFontSize").intValue = 22;
+            controllerSo.FindProperty("iconRadiusRatio").floatValue = 0.915f;
+            controllerSo.FindProperty("labelRadiusRatio").floatValue = 0.915f;
+            controllerSo.FindProperty("labelSize").vector2Value = new Vector2(72f, 30f);
+            controllerSo.FindProperty("keepLabelsUpright").boolValue = true;
+            controllerSo.ApplyModifiedPropertiesWithoutUndo();
+
+            // 안쪽(최소 1.8초)보다 늘 먼저 멈추도록 짧게. 같은 DurationScale을 받는다.
+            SerializedObject spinSo = new SerializedObject(spin);
+            spinSo.FindProperty("rouletteController").objectReferenceValue = controller;
+            spinSo.FindProperty("wheel").objectReferenceValue = wheel;
+            spinSo.FindProperty("minSpinDuration").floatValue = 1.1f;
+            spinSo.FindProperty("maxSpinDuration").floatValue = 1.3f;
+            spinSo.FindProperty("startSpeed").floatValue = 900f;
+            spinSo.FindProperty("deceleration").floatValue = 700f;
+            spinSo.FindProperty("minimumFullRotations").intValue = 1;
+            spinSo.FindProperty("selectedHighlightDuration").floatValue = 0.9f;
+            spinSo.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>층 사이 문 선택 패널: 딜러 카드 두 장(이름·성향·하우스 룰·JACKPOT)과 층 안내.</summary>
