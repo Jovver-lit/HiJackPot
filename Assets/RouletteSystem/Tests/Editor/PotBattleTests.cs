@@ -272,8 +272,61 @@ namespace RouletteLike.Battle.Tests
             Slot raise = behind.Player.Wheel[0];
             Slot houseCut = behind.Player.Wheel[5];
             Assert.Greater(behind.LandingWeight(Side.Player, raise), 1f);
-            Assert.AreEqual(1f, behind.LandingWeight(Side.Player, houseCut));
-            Assert.AreEqual(1f, behind.LandingWeight(Side.Dealer, raise));
+            Assert.AreEqual(1f, behind.ComebackWeight(Side.Player, houseCut));
+            Assert.AreEqual(1f, behind.ComebackWeight(Side.Dealer, raise));
+        }
+
+        [Test]
+        public void HouseCutChance_RisesFivePercentPerSpin_CapsAt35_AndResetsNextTurn()
+        {
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 40, BattlePresets.CreateFoxDealer(), 4);
+            battle.StartRound();
+            if (battle.Active == Side.Dealer)
+            {
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            Assert.AreEqual(Side.Player, battle.Active);
+            Assert.AreEqual(0.05f, battle.HouseCutChance(Side.Player), 1e-4f); // 앤티 전: 다음은 1번째 SPIN
+            battle.PlaceAnte(1);
+            float[] expected = { 0.05f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.35f };
+            foreach (float chance in expected)
+            {
+                Assert.AreEqual(chance, battle.HouseCutChance(Side.Player), 1e-4f);
+                battle.Land(0); // 레이즈: 턴이 이어진다
+            }
+
+            Assert.AreEqual(0.05f, battle.HouseCutChance(Side.Dealer), 1e-4f); // 상대는 늘 1번째 SPIN 기준
+            battle.CashOut();
+            Assert.AreEqual(0, battle.SpinsThisTurn);
+        }
+
+        [Test]
+        public void HouseCutWeight_DrawsTheChanceAsSlotWidth_AndRollsMatchIt()
+        {
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 40, BattlePresets.CreateFoxDealer(), 9);
+            battle.StartRound();
+            if (battle.Active == Side.Dealer)
+            {
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            battle.PlaceAnte(1);
+            battle.Land(0);
+            battle.Land(0); // 다음은 3번째 SPIN = 15%
+            float weight = battle.HouseCutWeight(Side.Player);
+            Assert.AreEqual(0.15f, weight / (weight + 7f), 1e-4f);
+
+            int cuts = 0;
+            const int trials = 20000;
+            for (int i = 0; i < trials; i++)
+            {
+                if (battle.Player.Wheel[battle.RollLandingIndex(Side.Player)].Kind == SlotKind.HouseCut) cuts++;
+            }
+
+            Assert.AreEqual(0.15, cuts / (double)trials, 0.015);
         }
 
         [Test]

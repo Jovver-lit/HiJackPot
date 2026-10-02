@@ -426,6 +426,39 @@ namespace RouletteLike.Roulette
             }
         }
 
+        /// <summary>
+        /// 칸 폭을 바꾸는 동안(하우스 몫이 SPIN마다 넓어질 때) 포인터 아래 칸이 밀리지 않게 휠 각도를 보정한다.
+        /// relayout 안에서 RouletteController의 칸 무게를 바꾼다.
+        /// </summary>
+        public void RelayoutKeepingPointer(Action relayout)
+        {
+            if (rouletteController == null || wheel == null)
+            {
+                relayout?.Invoke();
+                return;
+            }
+
+            float local = RouletteController.NormalizeAngle(pointerAngle + wheel.localEulerAngles.z);
+            RouletteSegmentData under = rouletteController.GetSegmentAtLocalAngle(local);
+            int index = -1;
+            for (int i = 0; i < rouletteController.Count; i++)
+            {
+                if (rouletteController.GetSegment(i) == under) index = i;
+            }
+
+            float fraction = 0.5f;
+            if (index >= 0 && rouletteController.TryGetSegmentAngles(index, out float start, out _, out _, out float size) && size > 0f)
+            {
+                fraction = Mathf.Clamp01(RouletteController.NormalizeAngle(local - start) / size);
+            }
+
+            relayout?.Invoke();
+            if (index >= 0 && rouletteController.TryGetSegmentAngles(index, out float newStart, out _, out _, out float newSize))
+            {
+                SetWheelAngle(newStart + fraction * newSize - pointerAngle);
+            }
+        }
+
         private void SetWheelAngle(float zAngle)
         {
             wheel.localRotation = Quaternion.Euler(0f, 0f, zAngle);

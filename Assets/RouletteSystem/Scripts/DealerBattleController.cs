@@ -1875,13 +1875,8 @@ namespace RouletteLike.Roulette
         {
             if (riskSummaryText == null) return;
 
-            int houseCuts = 0;
-            foreach (Slot slot in _battle.Player.Wheel)
-            {
-                if (slot.Kind == SlotKind.HouseCut) houseCuts++;
-            }
-
-            float houseCutChance = 100f * houseCuts / Mathf.Max(1, _battle.Player.Wheel.Count);
+            SyncHouseCutWidths();
+            float houseCutChance = 100f * _battle.HouseCutChance(Side.Player);
             if (_battle.Active == Side.Player && _battle.Phase == BattlePhase.Spinning)
             {
                 (int low, int high) = NextSpinPotRange(_battle.Player.Wheel, _battle.Player.Pot);
@@ -2456,18 +2451,53 @@ namespace RouletteLike.Roulette
 
         private void SyncWheels()
         {
-            roulette?.SetSegments(ToSegments(_battle.Player.Wheel), false);
-            enemyRoulette?.SetSegments(ToSegments(_battle.Dealer.Wheel), false);
+            roulette?.SetSegments(ToSegments(_battle.Player.Wheel, _battle.HouseCutWeight(Side.Player)), false);
+            enemyRoulette?.SetSegments(ToSegments(_battle.Dealer.Wheel, _battle.HouseCutWeight(Side.Dealer)), false);
         }
 
-        private static List<RouletteSegmentData> ToSegments(IReadOnlyList<Slot> wheel)
+        /// <summary>
+        /// 하우스 몫 칸 폭을 이번 턴 SPIN 횟수에 맞춘다(ADR 0012: N번째 SPIN = N × 5%, 최대 35%).
+        /// 칸 폭의 비율이 곧 확률이며, 회전 중에는 바꾸지 않는다.
+        /// </summary>
+        private void SyncHouseCutWidths()
+        {
+            if (_battle == null || _pendingNudgeIndex >= 0) return;
+            SyncHouseCutWidth(roulette, spinController, _battle.HouseCutWeight(Side.Player));
+            SyncHouseCutWidth(enemyRoulette, enemySpinController, _battle.HouseCutWeight(Side.Dealer));
+        }
+
+        private static void SyncHouseCutWidth(RouletteController controller, RouletteSpinController spinner, float weight)
+        {
+            if (controller == null || (spinner != null && spinner.IsSpinning)) return;
+            bool changed = false;
+            for (int i = 0; i < controller.Count; i++)
+            {
+                RouletteSegmentData segment = controller.GetSegment(i);
+                if (segment != null && segment.type == RouletteSegmentType.Poison && Mathf.Abs(segment.weight - weight) > 0.001f) changed = true;
+            }
+
+            if (!changed) return;
+            void Relayout()
+            {
+                for (int i = 0; i < controller.Count; i++)
+                {
+                    RouletteSegmentData segment = controller.GetSegment(i);
+                    if (segment != null && segment.type == RouletteSegmentType.Poison) controller.ChangeSegmentWeight(i, weight);
+                }
+            }
+
+            if (spinner != null) spinner.RelayoutKeepingPointer(Relayout);
+            else Relayout();
+        }
+
+        private static List<RouletteSegmentData> ToSegments(IReadOnlyList<Slot> wheel, float houseCutWeight)
         {
             List<RouletteSegmentData> segments = new List<RouletteSegmentData>(wheel.Count);
-            foreach (Slot slot in wheel) segments.Add(ToSegment(slot));
+            foreach (Slot slot in wheel) segments.Add(ToSegment(slot, houseCutWeight));
             return segments;
         }
 
-        private static RouletteSegmentData ToSegment(Slot slot)
+        private static RouletteSegmentData ToSegment(Slot slot, float houseCutWeight = 1f)
         {
             (RouletteSegmentType type, Color color) = slot.Kind switch
             {
@@ -2493,17 +2523,17 @@ namespace RouletteLike.Roulette
             }
 
             return new RouletteSegmentData(
-                slot.Id, type, slot.Value, 1f, color, null, label,
+                slot.Id, type, slot.Value, slot.Kind == SlotKind.HouseCut ? houseCutWeight : 1f, color, null, label,
                 slot.IsJackpot || slot.IsStolen || slot.Kind == SlotKind.HouseCut);
         }
 
-        /// <summary>역전 보정 무게. 코어가 계산하고 회전은 그 무게를 착지 구역 안에서만 반영한다.</summary>
+        /// <summary>역전 보정 무게. 코어가 계산하고 회전은 그 무게를 착지 구역 안에서만 반영한다(하우스 몫 상승은 칸 폭으로 그린다).</summary>
         private float LandingWeightFor(RouletteSegmentData segment)
         {
             if (_battle == null || segment == null) return 1f;
             foreach (Slot slot in _battle.Player.Wheel)
             {
-                if (slot.Id == segment.id) return _battle.LandingWeight(Side.Player, slot);
+                if (slot.Id == segment.id) return _battle.ComebackWeight(Side.Player, slot);
             }
 
             return 1f;
