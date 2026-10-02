@@ -71,7 +71,7 @@ namespace RouletteLike.Battle
             new Relic(RelicId.LuckyCoin, "뒷면만 나오는 동전", "[라운드 시작]", "코인플립에서 후공이 되면 칩 +1", "동전"),
             new Relic(RelicId.FoldedCorner, "모서리 접힌 카드", "[착지]", "배율 칸에 착지하면 곱하기 전에 판돈 +1", "모서"),
             new Relic(RelicId.VipCard, "VIP 회원증", "[정산]", "딴 칩 중 칩으로 남는 몫 30% → 50% (나머지는 현금)", "VIP"),
-            new Relic(RelicId.SeizureSeal, "압수 방지 봉인", "[HIJACK]", "역탈취를 당하지 않는다", "봉인"),
+            new Relic(RelicId.SeizureSeal, "회수 방지 봉인", "[HIJACK]", "역탈취를 당하지 않는다", "봉인"),
         };
 
         public static IReadOnlyList<Relic> Relics => All;
