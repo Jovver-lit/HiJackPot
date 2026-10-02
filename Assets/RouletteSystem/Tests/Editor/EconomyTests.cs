@@ -9,7 +9,7 @@ namespace RouletteLike.Battle.Tests
     {
         private static void PlayRoundQuietly(PotBattle battle)
         {
-            // 양쪽 모두 앤티 1로 곧장 CASH OUT: 칩이 거의 움직이지 않는 라운드.
+            // 양쪽 모두 베팅 1로 곧장 CASH OUT: 칩이 거의 움직이지 않는 라운드.
             for (int turn = 0; turn < 2 && battle.Phase != BattlePhase.Ended; turn++)
             {
                 battle.PlaceAnte(1);

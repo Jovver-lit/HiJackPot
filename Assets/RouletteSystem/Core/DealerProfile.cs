@@ -31,7 +31,7 @@ namespace RouletteLike.Battle
         public string Name { get; }
         public int StartingChips { get; }
 
-        /// <summary>앤티의 최대치. 플레이어와 딜러 모두에게 적용된다.</summary>
+        /// <summary>베팅의 최대치. 플레이어와 딜러 모두에게 적용된다.</summary>
         public int TableLimit { get; }
 
         public int DealerAnte { get; }
@@ -41,7 +41,7 @@ namespace RouletteLike.Battle
 
         public HouseRule HouseRule { get; }
 
-        /// <summary>딜러가 앤티를 걸 때마다 보험이 이 값으로 시작한다(여우 3, 토끼 0).</summary>
+        /// <summary>딜러가 베팅을 걸 때마다 보험이 이 값으로 시작한다(여우 3, 토끼 0).</summary>
         public int BaseInsurance { get; }
 
         /// <summary>
@@ -58,20 +58,20 @@ namespace RouletteLike.Battle
 
         /// <summary>
         /// 딜러만 쓰는 바깥 링(카지노 링). 테이블 규칙과 달리 플레이어에게 빌려주지 않는다.
-        /// 2회차 딜러가 받는다 — 하우스 몫이 없어 딜러에게 순수한 강화다("하우스니까요", 2026-10-02 사용자 결정).
+        /// 2회차 딜러가 받는다 — 몰수가 없어 딜러에게 순수한 강화다("하우스니까요", 2026-10-02 사용자 결정).
         /// </summary>
         public IReadOnlyList<Slot> DealerOuterRing { get; }
 
         /// <summary>다음 행동을 미리 보여주는지. 튜토리얼 딜러만 true.</summary>
         public bool Telegraphs { get; }
 
-        /// <summary>플레이어가 하우스 몫에 걸렸을 때 칸을 빼앗는지(역탈취).</summary>
+        /// <summary>플레이어가 몰수에 걸렸을 때 칸을 빼앗는지(역탈취).</summary>
         public bool CounterHijacks { get; }
 
         public IReadOnlyList<Slot> Wheel { get; }
 
         /// <summary>
-        /// 튜토리얼 대본: 이 라운드에는 딜러가 SPIN 없이 앤티만으로 곧장 CASH OUT한다(예고와 함께).
+        /// 튜토리얼 대본: 이 라운드에는 딜러가 SPIN 없이 베팅만으로 곧장 CASH OUT한다(예고와 함께).
         /// 토끼 R3에서 전액 보장 → HIJACK을 반드시 한 번 경험시키기 위한 장치.
         /// </summary>
         public IReadOnlyCollection<int> ScriptedInstantCashOutRounds { get; }
@@ -108,13 +108,13 @@ namespace RouletteLike.Battle
             DealerOuterRing = dealerOuterRing ?? System.Array.Empty<Slot>();
         }
 
-        /// <summary>시작 칩·앤티를 바꾼 사본(층이 오를수록 딜러가 단단하고 아파진다).</summary>
+        /// <summary>시작 칩·베팅을 바꾼 사본(층이 오를수록 딜러가 단단하고 아파진다).</summary>
         public DealerProfile WithFloorScaling(int startingChips, int anteBonus)
         {
             return WithStakes(Name, startingChips, anteBonus, 0, 0);
         }
 
-        /// <summary>이름·시작 칩·앤티·기본 보험·성향(CASH OUT 판돈)을 바꾼 사본. 2회차 보스 등.</summary>
+        /// <summary>이름·시작 칩·베팅·기본 보험·성향(CASH OUT 판돈)을 바꾼 사본. 2회차 보스 등.</summary>
         public DealerProfile WithStakes(string name, int startingChips, int anteBonus, int insuranceBonus, int cashOutAtBonus)
         {
             return new DealerProfile(name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt + cashOutAtBonus, HouseRule, Telegraphs, CounterHijacks,

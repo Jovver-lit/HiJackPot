@@ -27,7 +27,7 @@ namespace RouletteLike.Battle
         MinimumPayout,
 
         /// <summary>
-        /// 보호막: 이번 턴에 하우스 몫 1회를 무효로 만든다. 바깥 링에 있으면 그 SPIN의 착지보다 먼저 발동한다.
+        /// 보호막: 이번 턴에 몰수 1회를 무효로 만든다. 바깥 링에 있으면 그 SPIN의 착지보다 먼저 발동한다.
         /// </summary>
         CutShield,
 

@@ -15,7 +15,7 @@ namespace RouletteLike.Battle.Tests
                 seed);
         }
 
-        /// <summary>코인플립 결과와 관계없이 원하는 쪽 차례가 올 때까지 상대 턴을 앤티 → CASH OUT으로 넘긴다.</summary>
+        /// <summary>코인플립 결과와 관계없이 원하는 쪽 차례가 올 때까지 상대 턴을 베팅 → CASH OUT으로 넘긴다.</summary>
         private static void AdvanceTo(PotBattle battle, Side side)
         {
             if (battle.Phase == BattlePhase.RoundOver)
@@ -322,7 +322,7 @@ namespace RouletteLike.Battle.Tests
             }
 
             Assert.AreEqual(Side.Player, battle.Active);
-            Assert.AreEqual(0.05f, battle.HouseCutChance(Side.Player), 1e-4f); // 앤티 전: 다음은 1번째 SPIN
+            Assert.AreEqual(0.05f, battle.HouseCutChance(Side.Player), 1e-4f); // 베팅 전: 다음은 1번째 SPIN
             battle.PlaceAnte(1);
             float[] expected = { 0.05f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.35f };
             foreach (float chance in expected)
@@ -392,7 +392,7 @@ namespace RouletteLike.Battle.Tests
             AdvanceTo(battle, Side.Player);
             battle.PlaceAnte(1);
 
-            battle.Land(5); // 하우스 몫
+            battle.Land(5); // 몰수
             Assert.IsTrue(battle.CounterHijackPending);
             int seized = battle.ResolveCounterHijack();
 
@@ -478,7 +478,7 @@ namespace RouletteLike.Battle.Tests
             Assert.AreEqual(1, battle.HijackChances);
         }
 
-        /// <summary>플레이어가 보험 3을 쌓은 직후 딜러가 앤티 1로 곧장 CASH OUT한다(전액 보장).</summary>
+        /// <summary>플레이어가 보험 3을 쌓은 직후 딜러가 베팅 1로 곧장 CASH OUT한다(전액 보장).</summary>
         private static CashOutResult DealerCashesOutIntoInsurance(PotBattle battle)
         {
             PlayUntilDealerFacesInsurance(battle);
@@ -487,8 +487,8 @@ namespace RouletteLike.Battle.Tests
         }
 
         /// <summary>
-        /// 플레이어가 보험 3을 쌓고 난 뒤 딜러가 앤티를 걸 차례가 될 때까지 진행한다.
-        /// 보험은 자기 다음 앤티 때 사라지므로, 코인플립 순서와 관계없이 이 지점에서는 보험 3이 남아 있다.
+        /// 플레이어가 보험 3을 쌓고 난 뒤 딜러가 베팅을 걸 차례가 될 때까지 진행한다.
+        /// 보험은 자기 다음 베팅 때 사라지므로, 코인플립 순서와 관계없이 이 지점에서는 보험 3이 남아 있다.
         /// </summary>
         private static void PlayUntilDealerFacesInsurance(PotBattle battle)
         {

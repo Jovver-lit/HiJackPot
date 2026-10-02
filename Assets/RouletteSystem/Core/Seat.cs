@@ -29,10 +29,10 @@ namespace RouletteLike.Battle
 
         public bool HasOuterRing => _outerRing.Count > 0;
 
-        /// <summary>이번 턴에 남은 하우스 몫 무효 횟수(보호막). 앤티를 걸 때 0으로 돌아간다.</summary>
+        /// <summary>이번 턴에 남은 몰수 무효 횟수(보호막). 베팅을 걸 때 0으로 돌아간다.</summary>
         public int CutShields { get; internal set; }
 
-        /// <summary>허풍 착지 효과: 이번 턴 CASH OUT에서 상대 보험을 무시한다. 앤티 때 해제.</summary>
+        /// <summary>허풍 착지 효과: 이번 턴 CASH OUT에서 상대 보험을 무시한다. 베팅 때 해제.</summary>
         public bool IgnoresInsuranceThisTurn { get; internal set; }
         public bool IsBankrupt => Chips <= 0 && Pot <= 0;
 

@@ -10,7 +10,7 @@ namespace RouletteLike.Battle
         /// <summary>라운드가 끝났거나 시작 전. StartRound를 기다린다.</summary>
         RoundOver,
 
-        /// <summary>현재 차례인 쪽이 앤티를 걸기를 기다린다.</summary>
+        /// <summary>현재 차례인 쪽이 베팅을 걸기를 기다린다.</summary>
         AwaitingAnte,
 
         /// <summary>SPIN을 반복하거나 CASH OUT할 수 있다.</summary>
@@ -46,10 +46,10 @@ namespace RouletteLike.Battle
         /// <summary>안쪽과 바깥 링이 같은 종류로 멈췄다.</summary>
         public bool JackpotLine;
 
-        /// <summary>하우스 몫에 걸렸지만 보호막이 막았다.</summary>
+        /// <summary>몰수에 걸렸지만 보호막이 막았다.</summary>
         public bool CutShielded;
 
-        /// <summary>안쪽 또는 바깥 하우스 몫으로 판돈이 증발했다.</summary>
+        /// <summary>안쪽 또는 바깥 몰수로 판돈이 증발했다.</summary>
         public bool HouseCutHit;
 
         /// <summary>[라운드 시작]·[CASH OUT] 특수 칸에 착지해 그 효과가 즉시 발동했다.</summary>
@@ -81,7 +81,7 @@ namespace RouletteLike.Battle
 
     /// <summary>
     /// 판돈 모델의 한 전투 규칙. 화면·연출과 분리되어 있으며 같은 시드면 같은 결과를 낸다.
-    /// 한 라운드: 선공 코인플립 → 각자 한 턴(앤티 → SPIN 반복 → CASH OUT 또는 하우스 몫).
+    /// 한 라운드: 선공 코인플립 → 각자 한 턴(베팅 → SPIN 반복 → CASH OUT 또는 몰수).
     /// </summary>
     public sealed class PotBattle
     {
@@ -114,7 +114,7 @@ namespace RouletteLike.Battle
         private bool _playerMultipliedThisTurn;
         public bool HijackUsedThisRound { get; private set; }
 
-        /// <summary>플레이어가 방금 하우스 몫에 걸려 딜러가 역탈취할 수 있는 상태.</summary>
+        /// <summary>플레이어가 방금 몰수에 걸려 딜러가 역탈취할 수 있는 상태.</summary>
         public bool CounterHijackPending { get; private set; }
 
         public IReadOnlyList<string> Log => _log;
@@ -137,10 +137,10 @@ namespace RouletteLike.Battle
         /// <summary>플레이어가 가진 유물(런에서 넘어온다).</summary>
         public IReadOnlyCollection<RelicId> PlayerRelics => _playerRelics;
 
-        /// <summary>이번 전투에 남은 NUDGE 횟수. 하우스 몫에 걸렸을 때 룰렛을 옆 칸으로 밀 수 있다.</summary>
+        /// <summary>이번 전투에 남은 NUDGE 횟수. 몰수에 걸렸을 때 룰렛을 옆 칸으로 밀 수 있다.</summary>
         public int NudgesRemaining { get; private set; }
 
-        /// <summary>도파민(유물 「도파민 주사기」 전용): 이번 전투에서 하우스 몫에 걸린 횟수만큼 차오르고 CASH OUT 피해에 더해진다.</summary>
+        /// <summary>도파민(유물 「도파민 주사기」 전용): 이번 전투에서 몰수에 걸린 횟수만큼 차오르고 CASH OUT 피해에 더해진다.</summary>
         public int Dopamine { get; private set; }
 
         public bool HasRelic(RelicId id) => _playerRelics.Contains(id);
@@ -168,13 +168,13 @@ namespace RouletteLike.Battle
 
         public Seat SeatOf(Side side) => side == Side.Player ? Player : Dealer;
 
-        /// <summary>딜러가 하우스 몫 없는 카지노 링을 쓰는지(손님 바깥 링과 사양이 다르다).</summary>
+        /// <summary>딜러가 몰수 없는 카지노 링을 쓰는지(손님 바깥 링과 사양이 다르다).</summary>
         public bool DealerHasCasinoRing => Profile.DealerOuterRing.Count > 0;
         public Seat Opponent(Side side) => side == Side.Player ? Dealer : Player;
         public Seat ActiveSeat => SeatOf(Active);
 
         /// <summary>
-        /// 라운드를 시작한다: [라운드 시작] 칸 발동 → 선공 코인플립. 선공 쪽이 앤티를 걸 차례가 된다.
+        /// 라운드를 시작한다: [라운드 시작] 칸 발동 → 선공 코인플립. 선공 쪽이 베팅을 걸 차례가 된다.
         /// </summary>
         public Side StartRound()
         {
@@ -260,7 +260,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// NUDGE: 하우스 몫에 걸린 플레이어 룰렛을 옆 칸으로 민다. 횟수를 하나 쓰며, 어느 칸으로 밀지는 화면이 정해 Land에 넘긴다.
+        /// NUDGE: 몰수에 걸린 플레이어 룰렛을 옆 칸으로 민다. 횟수를 하나 쓰며, 어느 칸으로 밀지는 화면이 정해 Land에 넘긴다.
         /// </summary>
         public bool UseNudge()
         {
@@ -274,7 +274,7 @@ namespace RouletteLike.Battle
             return true;
         }
 
-        /// <summary>앤티 가능 범위의 최대치. 테이블 한도와 남은 칩 중 작은 쪽.</summary>
+        /// <summary>베팅 가능 범위의 최대치. 테이블 한도와 남은 칩 중 작은 쪽.</summary>
         public int MaxAnte(Side side)
         {
             int limit = Profile.TableLimit + (side == Side.Player && HasRelic(RelicId.HighRollerBadge) ? 1 : 0);
@@ -282,7 +282,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 현재 차례인 쪽이 앤티를 건다. 1 ~ MaxAnte로 맞춰지며, 이전 턴의 보험은 여기서 사라진다.
+        /// 현재 차례인 쪽이 베팅을 건다. 1 ~ MaxAnte로 맞춰지며, 이전 턴의 보험은 여기서 사라진다.
         /// </summary>
         public int PlaceAnte(int amount)
         {
@@ -298,7 +298,7 @@ namespace RouletteLike.Battle
             seat.Pot = ante;
             SpinsThisTurn = 0;
             Phase = BattlePhase.Spinning;
-            Write($"{Name(Active)} 앤티 {ante}");
+            Write($"{Name(Active)} 베팅 {ante}");
             return ante;
         }
 
@@ -306,7 +306,7 @@ namespace RouletteLike.Battle
         /// 현재 차례인 쪽의 룰렛이 index 칸에 착지했다. 칸은 혼자 발동한다(테이블 규칙 「연쇄」가 있을 때만 이어진 같은 종류 칸이 한 묶음으로).
         /// 바깥 링이 있으면 outerIndex 칸도 함께 멈춘다: 보호막은 착지보다 먼저, 레이즈·보험은 착지 뒤에 더하고,
         /// 배율 링은 안쪽 효과를 한 번 더 발동한다. 안쪽과 바깥이 같은 종류면 잭팟 라인으로 안쪽 효과가 또 한 번 발동한다.
-        /// 바깥 하우스 몫은 안쪽 효과가 끝난 뒤 판돈을 증발시킨다(보호막이 있으면 막는다).
+        /// 바깥 몰수는 안쪽 효과가 끝난 뒤 판돈을 증발시킨다(보호막이 있으면 막는다).
         /// </summary>
         public LandingResult Land(int index, int outerIndex = -1)
         {
@@ -362,12 +362,12 @@ namespace RouletteLike.Battle
                 {
                     seat.CutShields--;
                     result.CutShielded = true;
-                    parts.Add("하우스 몫 → 보호막이 막았다 (판돈 유지)");
+                    parts.Add("몰수 → 보호막이 막았다 (판돈 유지)");
                     ApplyOuterBonus(seat, outer, parts);
                     return FinishLanding(result, seat, parts);
                 }
 
-                ApplyHouseCut(seat, result, parts, "하우스 몫");
+                ApplyHouseCut(seat, result, parts, "몰수");
                 return FinishLanding(result, seat, parts);
             }
 
@@ -406,11 +406,11 @@ namespace RouletteLike.Battle
                 {
                     seat.CutShields--;
                     result.CutShielded = true;
-                    parts.Add("바깥 하우스 몫 → 보호막이 막았다");
+                    parts.Add("바깥 몰수 → 보호막이 막았다");
                 }
                 else
                 {
-                    ApplyHouseCut(seat, result, parts, "바깥 하우스 몫");
+                    ApplyHouseCut(seat, result, parts, "바깥 몰수");
                 }
             }
 
@@ -433,7 +433,7 @@ namespace RouletteLike.Battle
                 if (HasRelic(RelicId.Consolation) && seat.Ante > 0)
                 {
                     seat.Chips += seat.Ante;
-                    parts.Add($"위로금 봉투: 앤티 {seat.Ante} 반환");
+                    parts.Add($"위로금 봉투: 베팅 {seat.Ante} 반환");
                 }
             }
 
@@ -511,7 +511,7 @@ namespace RouletteLike.Battle
                 {
                     seat.CutShields += group.Count;
                     result.Amount += group.Count;
-                    return $"{slot.Label} → 이번 턴 하우스 몫 무효 {seat.CutShields}회";
+                    return $"{slot.Label} → 이번 턴 몰수 무효 {seat.CutShields}회";
                 }
                 default:
                     return $"{slot.Label} · 효과 없음";
@@ -591,7 +591,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 판돈을 터뜨린다. 상대 칩이 (판돈 − 상대 보험)만큼 줄고, 그만큼과 앤티가 내 칩으로 돌아온다(제로섬).
+        /// 판돈을 터뜨린다. 상대 칩이 (판돈 − 상대 보험)만큼 줄고, 그만큼과 베팅이 내 칩으로 돌아온다(제로섬).
         /// 딜러의 CASH OUT이 보험에 전부 막히면 토끼의 하우스 룰(전액 보장)이 달성된다.
         /// </summary>
         public CashOutResult CashOut()
@@ -645,7 +645,7 @@ namespace RouletteLike.Battle
             return result;
         }
 
-        /// <summary>딜러의 성향: 판돈이 기준 이상이면 CASH OUT. 튜토리얼 대본 라운드에는 앤티만으로 곧장 CASH OUT.</summary>
+        /// <summary>딜러의 성향: 판돈이 기준 이상이면 CASH OUT. 튜토리얼 대본 라운드에는 베팅만으로 곧장 CASH OUT.</summary>
         public bool DealerWantsToCashOut()
         {
             return IsScriptedInstantCashOutRound || Dealer.Pot >= Profile.CashOutAt;
@@ -655,7 +655,7 @@ namespace RouletteLike.Battle
 
         // ───────────── 역전 보정 ─────────────
         // 플레이어가 칩에서 크게 밀리면, SPIN 강도로 정한 착지 구역 안에서 좋은 칸(레이즈·배율·배당)이
-        // 조금 더 잘 걸리게 한다. 하우스 몫의 무게는 그대로 둬서 판돈이 털리는 상실감은 유지한다.
+        // 조금 더 잘 걸리게 한다. 몰수의 무게는 그대로 둬서 판돈이 털리는 상실감은 유지한다.
         // 보정 중에 좋은 칸이 한 번 걸리면 곧바로 꺼지고, 다음 라운드가 끝날 때까지 다시 켜지지 않는다.
 
         /// <summary>칩 차이가 이 값 이상일 때부터 보정이 켜진다.</summary>
@@ -680,7 +680,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 착지 칸을 고를 때의 상대 무게(헤드리스 추첨용). 하우스 몫은 이번 턴 SPIN 횟수만큼 무거워지고(HouseCutWeight),
+        /// 착지 칸을 고를 때의 상대 무게(헤드리스 추첨용). 몰수는 이번 턴 SPIN 횟수만큼 무거워지고(HouseCutWeight),
         /// 나머지 칸은 역전 보정 무게(ComebackWeight)를 쓴다.
         /// </summary>
         public float LandingWeight(Side side, Slot slot)
@@ -688,7 +688,7 @@ namespace RouletteLike.Battle
             return slot.Kind == SlotKind.HouseCut ? HouseCutWeight(side) : ComebackWeight(side, slot);
         }
 
-        /// <summary>역전 보정만 반영한 무게. 연출 쪽 회전은 하우스 몫 폭을 칸 크기로 그리고, 이 값만 착지 구역 안에서 반영한다.</summary>
+        /// <summary>역전 보정만 반영한 무게. 연출 쪽 회전은 몰수 폭을 칸 크기로 그리고, 이 값만 착지 구역 안에서 반영한다.</summary>
         public float ComebackWeight(Side side, Slot slot)
         {
             if (side != Side.Player) return 1f;
@@ -699,20 +699,20 @@ namespace RouletteLike.Battle
             return Math.Max(0.4f, 1f - boost * 0.5f);
         }
 
-        // ───────────── 하우스 몫 상승 (ADR 0012) ─────────────
-        // 한 턴 안에서 N번째 SPIN의 (안쪽) 하우스 몫 확률은 N × 5%, 최대 35%. 턴이 끝나면(CASH OUT·증발) 처음으로.
-        // 지금 판돈과 몇 번째 SPIN인지가 "한 번 더?"의 판단 재료가 된다. 딜러도 같은 규칙. 바깥 링 하우스 몫은 그대로.
+        // ───────────── 몰수 상승 (ADR 0012) ─────────────
+        // 한 턴 안에서 N번째 SPIN의 (안쪽) 몰수 확률은 N × 5%, 최대 35%. 턴이 끝나면(CASH OUT·증발) 처음으로.
+        // 지금 판돈과 몇 번째 SPIN인지가 "한 번 더?"의 판단 재료가 된다. 딜러도 같은 규칙. 바깥 링 몰수는 그대로.
 
-        /// <summary>SPIN 한 번마다 오르는 하우스 몫 확률.</summary>
+        /// <summary>SPIN 한 번마다 오르는 몰수 확률.</summary>
         public const float HouseCutChancePerSpin = 0.05f;
 
-        /// <summary>하우스 몫 확률의 상한.</summary>
+        /// <summary>몰수 확률의 상한.</summary>
         public const float HouseCutChanceMax = 0.35f;
 
-        /// <summary>이번 턴에 이미 돈 SPIN 횟수(앤티를 걸면 0).</summary>
+        /// <summary>이번 턴에 이미 돈 SPIN 횟수(베팅을 걸면 0).</summary>
         public int SpinsThisTurn { get; private set; }
 
-        /// <summary>그쪽의 다음 SPIN이 안쪽 하우스 몫에 걸릴 확률(0~1). 하우스 몫이 여러 칸이면 그만큼 곱한다.</summary>
+        /// <summary>그쪽의 다음 SPIN이 안쪽 몰수에 걸릴 확률(0~1). 몰수가 여러 칸이면 그만큼 곱한다.</summary>
         public float HouseCutChance(Side side)
         {
             IReadOnlyList<Slot> wheel = SeatOf(side).Wheel;
@@ -723,7 +723,7 @@ namespace RouletteLike.Battle
             return Math.Min(0.9f, perCut * cuts);
         }
 
-        /// <summary>하우스 몫 한 칸의 무게(다른 칸 = 1). 이 무게로 그린 칸 폭의 비율이 곧 HouseCutChance다.</summary>
+        /// <summary>몰수 한 칸의 무게(다른 칸 = 1). 이 무게로 그린 칸 폭의 비율이 곧 HouseCutChance다.</summary>
         public float HouseCutWeight(Side side)
         {
             IReadOnlyList<Slot> wheel = SeatOf(side).Wheel;
@@ -769,8 +769,8 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 딜러 칸 하나로 내 칸 하나를 영구히 덮어쓴다. 딜러 칸은 봉인되고, 하우스 몫을 뺀 모든 칸이 봉인되면 완전 강탈로 승리한다.
-        /// 하우스 몫은 양쪽 모두 빼앗을 수도, 덮어쓸 수도 없다.
+        /// 딜러 칸 하나로 내 칸 하나를 영구히 덮어쓴다. 딜러 칸은 봉인되고, 몰수를 뺀 모든 칸이 봉인되면 완전 강탈로 승리한다.
+        /// 몰수는 양쪽 모두 빼앗을 수도, 덮어쓸 수도 없다.
         /// </summary>
         public HijackError Hijack(int dealerIndex, int playerIndex)
         {
@@ -813,8 +813,8 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 역탈취: 플레이어가 하우스 몫에 걸린 직후 딜러가 플레이어 칸 하나를 압수한다.
-        /// 플레이어가 빼앗아 온 칸을 먼저 되찾고, 없으면 값이 가장 큰 칸을 가져간다. 하우스 몫은 대상이 아니다.
+        /// 역탈취: 플레이어가 몰수에 걸린 직후 딜러가 플레이어 칸 하나를 압수한다.
+        /// 플레이어가 빼앗아 온 칸을 먼저 되찾고, 없으면 값이 가장 큰 칸을 가져간다. 몰수는 대상이 아니다.
         /// 압수된 칸은 이 전투 동안 봉인되며, 플레이어가 이기면 원래대로 돌아온다.
         /// </summary>
         /// <returns>압수한 칸의 인덱스. 대상이 없으면 -1.</returns>
