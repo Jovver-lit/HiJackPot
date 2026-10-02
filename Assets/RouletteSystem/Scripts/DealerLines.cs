@@ -11,7 +11,7 @@ namespace RouletteLike.Roulette
         public string Opening;
         /// <summary>플레이어가 하우스 몫에 걸렸을 때.</summary>
         public string PlayerHouseCut;
-        /// <summary>플레이어가 큰 연쇄·잭팟 라인으로 판돈을 크게 불렸을 때.</summary>
+        /// <summary>플레이어가 배율·잭팟 라인으로 판돈을 크게 불렸을 때.</summary>
         public string BigCombo;
         /// <summary>플레이어의 큰 CASH OUT(피해 8 이상).</summary>
         public string BigCashOut;
@@ -46,7 +46,7 @@ namespace RouletteLike.Roulette
             {
                 Opening = "어서오세요, 첫 손님이시네요. 걸고, 돌리고, 적당할 때 터뜨리세요.",
                 PlayerHouseCut = "앗, 하우스 몫! 괜찮아요, 원래 다들 한 번씩 잃어요.",
-                BigCombo = "와아, 이어진 칸이 한꺼번에! 그게 연쇄예요.",
+                BigCombo = "와아, 판돈이 쑥 컸네요! 배율은 그렇게 쓰는 거예요.",
                 BigCashOut = "아야야... 그렇게 크게 터뜨리시면 제 귀가 쫑긋해요.",
                 SmallCashOut = "정산 완료! 작게라도 챙기는 거, 좋은 습관이에요.",
                 DealerCashOut = "제 차례였죠? 손님 칩에서 살짝 받아 갈게요.",
@@ -106,7 +106,7 @@ namespace RouletteLike.Roulette
             {
                 Opening = "층 매니저입니다. 손님의 그간 활약, 보고서로 잘 읽었습니다.",
                 PlayerHouseCut = "하우스 몫은 회사 방침입니다. 저도 어쩔 수 없어요.",
-                BigCombo = "그 연쇄, 감사팀에 회부하겠습니다.",
+                BigCombo = "그 판돈, 감사팀에 회부하겠습니다.",
                 BigCashOut = "손실 보고서를 쓰게 만드시는군요.",
                 SmallCashOut = "그 정도는 운영비로 처리하겠습니다.",
                 DealerCashOut = "이것이 하우스 엣지입니다, 손님.",
@@ -124,7 +124,7 @@ namespace RouletteLike.Roulette
         {
             "안내 방송: 첫 테이블은 무료 체험입니다. 미래의 행운은 나중에 청구됩니다.",
             "안내 방송: 손님의 행운 잔고가 확인되었습니다. 원하시는 딜러를 고르세요.",
-            "안내 방송: 연쇄를 지나치게 잘 만드는 손님은 보안팀이 지켜보고 있습니다.",
+            "안내 방송: 판돈을 지나치게 잘 키우는 손님은 보안팀이 지켜보고 있습니다.",
             "안내 방송: 다음 층부터 딜러들이 진지해집니다. 진지함은 무료입니다.",
             "안내 방송: 매니저실이 열렸습니다. 탈출구는 존재합니다. 당첨 확률은 공개하지 않습니다.",
             "안내 방송: 캐셔 라운지는 24시간 영업합니다. 슬롯머신의 당첨 확률도 공개하지 않습니다.",

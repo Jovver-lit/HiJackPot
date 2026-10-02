@@ -11,7 +11,7 @@ namespace RouletteLike.Roulette
     /// 딜러와의 전투 화면과 런 진행(층 → 문 선택 → 다음 전투)을 맡는다.
     /// 규칙은 전부 코어(<see cref="Run"/>, <see cref="PotBattle"/>)가 계산하고,
     /// 이 컴포넌트는 입력·룰렛 회전·텍스트 표시만 한다.
-    /// 한 턴: 앤티 → SPIN 반복(연쇄로 판돈 키우기) → CASH OUT 또는 하우스 몫.
+    /// 한 턴: 앤티 → SPIN 반복(판돈 키우기, SPIN할수록 하우스 몫 확률 상승) → CASH OUT 또는 하우스 몫.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class DealerBattleController : MonoBehaviour
@@ -1475,7 +1475,7 @@ namespace RouletteLike.Roulette
             int cap = _run.Exchange.MaxChipsPerVisit;
             string[] labels =
             {
-                $"위치 바꾸기 · 현금 {ShopPrices.Swap}\n두 칸의 자리를 맞바꿔 연쇄를 직접 설계",
+                $"위치 바꾸기 · 현금 {ShopPrices.Swap}\n같은 칸을 모아 노릴 구역을 설계",
                 $"칸 강화 · 현금 {ShopPrices.Upgrade} (배율 {ShopPrices.UpgradeMultiplier})\n레이즈·보험·배당 +1, 배율 ×+1 (하우스 몫 불가)",
                 $"HIJACK 되돌리기 · 현금 {ShopPrices.Revert}\n급하게 덮어쓴 칸을 시작 룰렛의 칸으로",
                 $"유물 · 현금 {ShopPrices.Relic}\n{relicText}",
@@ -1931,9 +1931,9 @@ namespace RouletteLike.Roulette
         }
 
         /// <summary>
-        /// 확률판: 다음 SPIN 한 번 뒤 판돈의 범위(하우스 몫이면 0, 레이즈·배율 연쇄면 최대). 바깥 링·유물 보너스는 넣지 않은 어림값.
+        /// 확률판: 다음 SPIN 한 번 뒤 판돈의 범위(하우스 몫이면 0, 가장 큰 레이즈·배율이면 최대). 바깥 링·유물 보너스는 넣지 않은 어림값.
         /// </summary>
-        private static (int low, int high) NextSpinPotRange(IReadOnlyList<Slot> wheel, int pot)
+        private (int low, int high) NextSpinPotRange(IReadOnlyList<Slot> wheel, int pot)
         {
             int low = int.MaxValue, high = 0;
             for (int i = 0; i < wheel.Count; i++)
@@ -1947,7 +1947,7 @@ namespace RouletteLike.Roulette
                 else if (slot.FiresOnLand && (slot.Kind == SlotKind.Raise || slot.Kind == SlotKind.Multiplier))
                 {
                     int sum = 0, product = 1;
-                    foreach (int index in PotBattle.FindChainGroup(wheel, i))
+                    foreach (int index in _battle.LandingGroup(Side.Player, i))
                     {
                         sum += wheel[index].Value;
                         product *= Mathf.Max(1, wheel[index].Value);
@@ -2460,16 +2460,14 @@ namespace RouletteLike.Roulette
         {
             if (chainPreviewText == null) return;
 
-            int bestRaise = 0;
-            for (int i = 0; i < _battle.Player.Wheel.Count; i++)
+            int raises = 0;
+            foreach (Slot slot in _battle.Player.Wheel)
             {
-                if (_battle.Player.Wheel[i].Kind != SlotKind.Raise) continue;
-                int sum = 0;
-                foreach (int index in PotBattle.FindChainGroup(_battle.Player.Wheel, i)) sum += _battle.Player.Wheel[index].Value;
-                bestRaise = Mathf.Max(bestRaise, sum);
+                if (slot.Kind == SlotKind.Raise && slot.FiresOnLand) raises++;
             }
 
-            chainPreviewText.text = $"이어진 같은 칸은 한 묶음 · 최대 레이즈 연쇄 +{bestRaise}";
+            // 연쇄는 기본 규칙이 아니다(ADR 0013). 칸 위치는 SPIN 강도로 노리는 구역으로 의미를 가진다.
+            chainPreviewText.text = $"칸은 하나씩 발동 · 같은 칸을 모아 두면 강도로 노리기 쉽다 (레이즈 {raises}칸)";
         }
 
         private void SyncWheels()

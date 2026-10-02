@@ -34,14 +34,32 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void RaiseChain_SumsAdjacentRaisesIntoPot()
+        public void Raise_FiresAlone_EvenNextToSameKind()
         {
             PotBattle battle = NewRabbitBattle();
             AdvanceTo(battle, Side.Player);
             battle.PlaceAnte(2);
 
+            LandingResult result = battle.Land(1); // 0·1번이 모두 레이즈 +2지만 연쇄는 기본 규칙이 아니다(ADR 0013)
+
+            CollectionAssert.AreEqual(new[] { 1 }, result.Group);
+            Assert.AreEqual(2, result.Amount);
+            Assert.AreEqual(4, battle.Player.Pot);
+        }
+
+        [Test]
+        public void ChainTableRule_SumsAdjacentRaisesIntoPot()
+        {
+            DealerProfile rabbit = BattlePresets.CreateRabbitDealer();
+            DealerProfile chainTable = new DealerProfile(rabbit.Name, rabbit.StartingChips, rabbit.TableLimit, rabbit.DealerAnte, rabbit.CashOutAt,
+                rabbit.HouseRule, false, false, rabbit.Wheel, tableChains: true);
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, chainTable, 1);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(2);
+
             LandingResult result = battle.Land(1);
 
+            Assert.IsTrue(battle.ChainsEnabled);
             CollectionAssert.AreEqual(new[] { 0, 1 }, result.Group);
             Assert.AreEqual(4, result.Amount);
             Assert.AreEqual(6, battle.Player.Pot);
@@ -53,11 +71,11 @@ namespace RouletteLike.Battle.Tests
             PotBattle battle = NewRabbitBattle();
             AdvanceTo(battle, Side.Player);
             battle.PlaceAnte(2);
-            battle.Land(0);
+            battle.Land(0); // 2 + 2
 
             battle.Land(2);
 
-            Assert.AreEqual(12, battle.Player.Pot);
+            Assert.AreEqual(8, battle.Player.Pot);
         }
 
         [Test]
@@ -98,7 +116,8 @@ namespace RouletteLike.Battle.Tests
             int playerBefore = battle.Player.Chips;
             int dealerBefore = battle.Dealer.Chips;
             battle.PlaceAnte(2);
-            battle.Land(0); // 판돈 2 + 4 = 6
+            battle.Land(0);
+            battle.Land(1); // 판돈 2 + 2 + 2 = 6
 
             CashOutResult result = battle.CashOut();
 
@@ -134,7 +153,8 @@ namespace RouletteLike.Battle.Tests
             PotBattle battle = NewRabbitBattle();
             PlayUntilDealerFacesInsurance(battle);
             battle.PlaceAnte(3);
-            battle.Land(0); // 딜러 판돈 3 + 4 = 7 > 보험 3
+            battle.Land(0);
+            battle.Land(1); // 딜러 판돈 3 + 2 + 2 = 7 > 보험 3
 
             CashOutResult result = battle.CashOut();
 
@@ -212,7 +232,7 @@ namespace RouletteLike.Battle.Tests
             if (battle.Active == Side.Dealer)
             {
                 battle.PlaceAnte(1);
-                battle.Land(3); // 딜러 레이즈 +1·+3 연쇄
+                battle.Land(3); // 딜러 레이즈 +1
                 battle.CashOut();
             }
 

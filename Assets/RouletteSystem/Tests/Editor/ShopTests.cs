@@ -22,8 +22,14 @@ namespace RouletteLike.Battle.Tests
             for (int guard = 0; guard < 200 && battle.Phase != BattlePhase.Ended; guard++)
             {
                 if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();
+                if (battle.Phase == BattlePhase.Ended) break;
                 battle.PlaceAnte(battle.Active == Side.Player ? 3 : 1);
-                if (battle.Active == Side.Player) battle.Land(0);
+                if (battle.Active == Side.Player)
+                {
+                    battle.Land(0);
+                    battle.Land(4);
+                    battle.Land(2); // (3 + 2 + 3) × 2 = 16
+                }
                 if (battle.Phase == BattlePhase.Spinning) battle.CashOut();
             }
 

@@ -63,7 +63,7 @@ namespace RouletteLike.Battle
             new Relic(RelicId.StringChip, "끈 달린 칩", "[개입]", "NUDGE 전투당 +1회", "끈"),
             new Relic(RelicId.HighRollerBadge, "하이 롤러 배지", "[테이블]", "내 테이블 한도 +1", "한도"),
             new Relic(RelicId.InsurancePolicy, "보험 약관 사본", "[CASH OUT]", "내 턴을 보험 1로 시작한다", "약관"),
-            new Relic(RelicId.StickyDivider, "끈적한 칸막이", "[인접]", $"연쇄(2칸 이상)로 착지하면 판돈 +{StickyDividerBonus}", "칸막"),
+            new Relic(RelicId.StickyDivider, "끈적한 칸막이", "[인접]", $"착지한 칸 바로 옆에 같은 종류 칸이 있으면 판돈 +{StickyDividerBonus}", "칸막"),
             new Relic(RelicId.DopamineShot, "도파민 주사기", "[하우스 몫]", "하우스 몫에 걸릴 때마다 도파민 +1. 내 CASH OUT 피해 + 도파민(이번 전투)", "도파"),
             new Relic(RelicId.Consolation, "위로금 봉투", "[하우스 몫]", "하우스 몫에 걸리면 앤티만은 돌려받는다", "위로"),
             new Relic(RelicId.MarkedCard, "표시된 카드", "[HIJACK]", $"HIJACK할 때마다 칩 +{MarkedCardChips}", "카드"),

@@ -77,16 +77,16 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void StickyDivider_AddsTwoOnChainLanding()
+        public void StickyDivider_AddsTwoWhenASameKindSlotIsNextDoor()
         {
             PotBattle battle = FoxBattle(RelicId.StickyDivider);
             AdvanceToPlayer(battle);
             battle.PlaceAnte(1);
-            battle.Land(RaisePairA); // 레이즈 2 + 2 연쇄
-            Assert.AreEqual(1 + 4 + RelicCatalog.StickyDividerBonus, battle.Player.Pot);
+            battle.Land(RaisePairA); // 레이즈 +2, 옆(1번)도 레이즈
+            Assert.AreEqual(1 + 2 + RelicCatalog.StickyDividerBonus, battle.Player.Pot);
 
-            battle.Land(Raise3); // 혼자인 칸은 보너스 없음
-            Assert.AreEqual(1 + 4 + 2 + 3, battle.Player.Pot);
+            battle.Land(Raise3); // 옆이 보험·하우스 몫인 칸은 보너스 없음
+            Assert.AreEqual(1 + 2 + 2 + 3, battle.Player.Pot);
         }
 
         [Test]
