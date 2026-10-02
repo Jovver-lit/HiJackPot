@@ -740,8 +740,8 @@ namespace RouletteLike.Roulette
 
             presentationUi?.SetHouseRuleHighlighted(false);
             ApplyDealerIdentity();
-            Say(Lines.Opening);
-            AddLog($"{_run.FloorIndex + 1}층: {_battle.Profile.Name} 전투 시작");
+            Say(_battle.DealerHasCasinoRing ? (Lines.CasinoRingOpening ?? DealerLines.For("").CasinoRingOpening) : Lines.Opening);
+            AddLog($"{_run.FloorIndex + 1}층: {_battle.Profile.Name} 전투 시작" + (_battle.DealerHasCasinoRing ? " · 딜러는 카지노 링(하우스 몫 없음)" : ""));
             StartCoroutine(HideOpeningSpeechBubbleAfterDelay());
             StartCoroutine(BeginRound());
         }
@@ -755,6 +755,11 @@ namespace RouletteLike.Roulette
             HideLandingFeedback(Side.Player);
             HideLandingFeedback(Side.Dealer);
             RefreshAllUi();
+            if (_battle.Round == 1 && _battle.DealerHasCasinoRing)
+            {
+                // 2회차 첫 라운드: 딜러 바깥 링이 손님 링과 다른 이유를 한 번 크게 보여 준다.
+                yield return PlayBanner("카지노 링", "딜러 바깥 링엔 하우스 몫이 없습니다. 하우스니까요.", new Color32(226, 170, 64, 255));
+            }
             resultText.text = _battle.Active == Side.Player ? "코인플립: 손님 선공" : $"코인플립: {DealerShortName} 선공";
             calculationText.text = _battle.RoundStartEffects.Count > 0
                 ? "[라운드 시작] " + string.Join("  ·  ", _battle.RoundStartEffects)
@@ -2001,7 +2006,8 @@ namespace RouletteLike.Roulette
 
             if (!_battle.Profile.Telegraphs)
             {
-                enemyNextIntentText.text = $"판돈 {threshold}+에서 CASH OUT · 기본 보험 {_battle.Profile.BaseInsurance}";
+                enemyNextIntentText.text = $"판돈 {threshold}+에서 CASH OUT · 기본 보험 {_battle.Profile.BaseInsurance}"
+                    + (_battle.DealerHasCasinoRing ? " · 카지노 링" : "");
                 return;
             }
 
@@ -2021,6 +2027,7 @@ namespace RouletteLike.Roulette
                         ? $"[!] 역탈취: 내가 하우스 몫에 걸리면 내 칸 1개 압수 (이번 전투 {_battle.CounterHijacksRemaining}회 남음, 이기면 반환)"
                         : "역탈취 소진: 이번 전투에는 더 압수하지 않음";
                 string specials = SlotDescriptions.DescribeSpecials(_battle.Dealer.Wheel, "");
+                if (_battle.DealerHasCasinoRing) specials = "카지노 링: 딜러 바깥 링엔 하우스 몫이 없다(손님 링과 다름)" + (string.IsNullOrEmpty(specials) ? "" : "\n" + specials);
                 dealerNoteText.text = string.IsNullOrEmpty(specials) ? warning : warning + "\n" + specials;
             }
 

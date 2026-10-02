@@ -362,11 +362,12 @@ namespace RouletteLike.Battle
         public const int DealerAnteBonusFromPosition = 3;
 
         /// <summary>
-        /// 2회차 딜러: 칩은 조금만 늘리고(딴 칩이 눈덩이가 되지 않게) 대신 더 아프게 친다 — 기본 칩 배율, 추가 앤티, CASH OUT 판돈 가산.
+        /// 2회차 딜러: 강해지는 몫은 주로 카지노 링(하우스 몫 없는 바깥 링)이 맡는다. 링만으로 7층 탈락이 4배가 되어
+        /// (시뮬레이션 2026-10-02) 기존 가산(칩 ×1.2·앤티 +2·성향 +4)을 칩 ×1.0·앤티 +1·성향 +0으로 줄였다.
         /// </summary>
-        public const float SecondStageChipBase = 1.2f;
-        public const int SecondStageAnteBonus = 2;
-        public const int SecondStageCashOutBonus = 4;
+        public const float SecondStageChipBase = 1.0f;
+        public const int SecondStageAnteBonus = 1;
+        public const int SecondStageCashOutBonus = 0;
 
         /// <summary>2회차 보스: 칩 배율·앤티·보험·성향 가산과 이름(시뮬레이션으로 정한 임시값).</summary>
         public const float SecondStageBossChipScale = 1.6f;
@@ -374,6 +375,9 @@ namespace RouletteLike.Battle
         public const int SecondStageBossInsuranceBonus = 2;
         public const int SecondStageBossCashOutBonus = 6;
         public const string SecondStageBossSuffix = " · 야간 근무";
+
+        /// <summary>2회차 딜러가 카지노 링(하우스 몫 없는 바깥 링)을 쓰는지. 시뮬레이션 비교용으로 끌 수 있다.</summary>
+        public static bool SecondStageDealersUseCasinoRing = true;
 
         /// <summary>회차 안에서 이 층이 몇 번째 딜러층인지(1부터). 1층 토끼는 0.</summary>
         private int DealerPositionInStage()
@@ -390,9 +394,11 @@ namespace RouletteLike.Battle
             float scale = baseScale + DealerChipsPerFloor * Math.Max(0, position - 1);
             int anteBonus = (position >= DealerAnteBonusFromPosition ? 1 : 0) + (Stage > 0 ? SecondStageAnteBonus : 0);
             int cashOutBonus = Stage > 0 ? SecondStageCashOutBonus : 0;
-            return Math.Abs(scale - 1f) < 0.001f && anteBonus == 0 && cashOutBonus == 0
+            DealerProfile scaled = Math.Abs(scale - 1f) < 0.001f && anteBonus == 0 && cashOutBonus == 0
                 ? dealer
                 : dealer.WithStakes(dealer.Name, (int)Math.Round(dealer.StartingChips * scale), anteBonus, 0, cashOutBonus);
+            // 2회차 딜러는 하우스 몫 없는 카지노 링을 쓴다(플레이어가 5층 보스에게서 바깥 링을 얻은 뒤의 맞대응).
+            return Stage > 0 && SecondStageDealersUseCasinoRing ? scaled.WithDealerOuterRing(BattlePresets.CreateCasinoRing()) : scaled;
         }
 
         private DealerProfile ScaleBoss(DealerProfile boss)
