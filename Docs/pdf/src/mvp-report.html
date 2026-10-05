@@ -1,0 +1,299 @@
+<!doctype html>
+<!-- HIJACKPOT 1차 MVP 개발·검증 보고서의 원본. build-pdf.sh로 Docs/pdf/HIJACKPOT-1차-MVP-개발-검증-보고서.pdf를 만든다. 근거 문서는 Docs/adr, Docs/design, Docs/playtest. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>HIJACKPOT 1차 MVP 개발·검증 보고서</title>
+<link rel="stylesheet" href="print.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="mermaid-fit.js"></script>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">HIJACKPOT: JACK THE RULES · 개발 보고서</div>
+  <h1>1차 MVP 개발·검증 보고서</h1>
+  <div class="sub">행운을 빼앗는 마법 카지노에서, 룰렛의 규칙을 훔쳐 탈출하라.</div>
+  <div class="meta">
+    기간: 2026-09-30 ~ 2026-10-01 · 브랜치 <code>feature/pot-battle</code> (PR #1) · 기준 커밋 1f3e80c<br>
+    엔진: Unity 6000.4.0f1 · URP · 그레이박스 UI<br>
+    무엇을 만들었고, 무엇을 결정했고, 시뮬레이션과 직접 플레이로 무엇을 확인했는지를 한 곳에 모은 문서다.
+  </div>
+</section>
+
+<section class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li>요약</li>
+    <li>게임 정체성(컨셉 인터뷰 결과)</li>
+    <li>구현된 시스템</li>
+    <li>화면과 연출</li>
+    <li>개발 타임라인(파트별 커밋)</li>
+    <li>설계 결정 기록(ADR 0001~0007)</li>
+    <li>밸런스 시뮬레이션 기록</li>
+    <li>직접 플레이테스트: 피드백 → 원인 → 조치</li>
+    <li>검증</li>
+    <li>MVP 범위 점검표</li>
+    <li>남은 과제와 다음 플레이테스트에서 볼 것</li>
+    <li>부록: 저장소 구조, 도구, 용어</li>
+  </ol>
+</section>
+
+<h2>1. 요약</h2>
+<ul>
+  <li><b>한 런을 처음부터 끝까지 플레이할 수 있다.</b> 타이틀 → 1층 토끼(튜토리얼) → 2~4층 문 두 개 중 딜러 선택(여우·고양이·까마귀, 문마다 유물 상금) → 5층 보스 「매니저」 → 탈출. 보스를 이기면 다음 런부터 바깥 링(룰렛 형식)이 해금된다.</li>
+  <li>CLAUDE.md 5장 MVP 범위(룰렛 8칸, 기본 칸 5종, 딜러 3종+보스, HIJACK, 키워드 6종, 유물 12개, NUDGE, 역탈취)를 모두 구현했다. 아트는 그레이박스다.</li>
+  <li>규칙은 화면과 분리된 순수 C# 코어에 있고 EditMode 테스트 66개가 통과한다. 같은 시드면 같은 결과가 나온다.</li>
+  <li>직접 플레이테스트 2회의 피드백(UI 인과 불명확, 역탈취 과다, 룰렛 판독성, 회전음)을 3단계에 걸쳐 반영했다.</li>
+  <li>런 전체 시뮬레이션에서 <b>칩 눈덩이</b>와 <b>끝나지 않는 전투</b>를 발견해 칩 경제를 재설계했다(ADR 0007, 테이블 마감).</li>
+</ul>
+<div class="callout warn"><b>사용자 확인이 필요한 결정</b> — 칩 경제(전투에서 입장 칩보다 많이 딴 칩은 하우스 회수), NUDGE는 하우스 몫에 걸렸을 때만, 유물은 문 카드 상금, 10라운드부터 테이블 마감 사용료. 모두 자율 진행 중 기본값으로 정했고 근거를 문서로 남겼다.</div>
+
+<div class="grid2">
+  <div class="figure"><img src="img/01-title.png"><div class="cap">타이틀</div></div>
+  <div class="figure"><img src="img/02-doors.png"><div class="cap">문 선택: 딜러 정보와 유물 상금</div></div>
+</div>
+
+<h2 class="page-break">2. 게임 정체성 (2026-09-30 컨셉 인터뷰)</h2>
+<p>"상대의 룰렛을 빼앗아 내 룰렛을 강하게"와 카지노 컨셉을 중심으로, 질문-추천-결정 방식의 인터뷰로 확정했다. 결정은 <code>CLAUDE.md</code>, 용어는 <code>CONTEXT.md</code>, 상세는 <code>Docs/design/feature-decisions.md</code>.</p>
+<table>
+  <tr><th>주제</th><th>결정</th></tr>
+  <tr><td>장르</td><td>판돈 배팅 + 플레이어 룰렛 구축 + 읽을 수 있는 딜러 룰렛 + 딜러 룰렛 강탈(HIJACK)을 결합한 결투형 휠빌더 로그라이트</td></tr>
+  <tr><td>한 턴</td><td>앤티 걸기 → SPIN으로 판돈 키우기 → 한 번 더 SPIN 또는 CASH OUT. 하우스 몫에 걸리면 판돈 증발(ADR 0001)</td></tr>
+  <tr><td>감정 흐름</td><td>걸기 → 기대감 → 연쇄로 판돈 폭증 → 한 번 더? → CASH OUT 또는 증발 → 하우스 룰 달성 → HIJACK으로 룰렛 수정</td></tr>
+  <tr><td>HIJACK</td><td>운(코인플립)이 아니라 딜러마다 공개된 하우스 룰 달성으로 얻는다(ADR 0002). 영구 덮어쓰기, 룰렛 8칸 고정, 전리품 칸 없음(ADR 0003)</td></tr>
+  <tr><td>하우스 몫</td><td>누구도 빼앗거나 덮어쓸 수 없다. 판돈의 위험이 런 내내 살아 있어야 한다(원칙 12)</td></tr>
+  <tr><td>용어</td><td>HP → 칩, 방어력 → 보험(블랙잭 인슈어런스), 전리품 → 없음, 코인플립은 선공에만</td></tr>
+  <tr><td>구조</td><td>MVP 1스테이지 5층(토끼 → 문 선택 ×3 → 보스). 정식판은 스테이지 2개 × 10층(상점층 포함)</td></tr>
+  <tr><td>메타</td><td>능력치 강화 없이 해금형(룰렛 형식, 이후 훔친 규칙 도감)</td></tr>
+</table>
+
+<h2>3. 구현된 시스템</h2>
+<h3>3.1 전투 코어 (<code>Core/PotBattle.cs</code>)</h3>
+<ul>
+  <li>판돈 모델: 앤티 → 착지 연쇄(이어진 같은 종류 칸이 한 묶음) → CASH OUT(판돈 − 상대 보험, 제로섬) 또는 하우스 몫.</li>
+  <li>기본 칸 5종: 레이즈(판돈 +N) · 배율(판돈 ×N) · 보험(+N) · 배당(칩 +N) · 하우스 몫. 꽝 없음.</li>
+  <li>선공 코인플립, [라운드 시작]·[CASH OUT] 특수 칸과 그 착지 효과(서비스 즉시 칩, 선불 선공 확정, 허풍 보험 무시).</li>
+  <li>HIJACK(라운드당 1회, 영구 덮어쓰기, 딜러 칸 봉인), 완전 강탈(하우스 몫 뺀 딜러 칸 전부 봉인 = 승리), 역탈취(전투당 1회, 이기면 반환).</li>
+  <li>역전 보정: 칩이 5 이상 밀리면 착지 구역 안에서 좋은 칸 무게 최대 +60%, 하우스 몫 무게는 그대로.</li>
+  <li>NUDGE(하우스 몫에 걸린 순간 옆 칸으로, 전투당 1회), 유물 효과, 도파민, 테이블 마감 사용료.</li>
+</ul>
+<h3>3.2 딜러와 보스 (<code>Core/BattlePresets.cs</code>)</h3>
+<table>
+  <tr><th>딜러</th><th>정체성</th><th>하우스 룰(HIJACK 조건)</th><th>JACKPOT 칸</th></tr>
+  <tr><td>토끼</td><td>튜토리얼. 예고를 하고, 하우스 몫이 없고, R3에 대본대로 앤티만으로 CASH OUT</td><td>전액 보장: 딜러 CASH OUT을 보험으로 전부 막기</td><td>「서비스」 매 라운드 칩 +1</td></tr>
+  <tr><td>여우</td><td>기본 보험 3으로 작은 판돈을 무력화</td><td>소액 손님: 판돈 4 이하로 CASH OUT 2번</td><td>「허풍」 CASH OUT 최소 피해 3</td></tr>
+  <tr><td>고양이</td><td>느긋하게 판돈 12까지 키워 한 방</td><td>배율 정산: 배율로 불린 판돈 CASH OUT</td><td>「더블 다운」 배율 ×3</td></tr>
+  <tr><td>까마귀</td><td>13칸, 선공을 노림</td><td>선제 정산: 내 선공 라운드에 피해 5+</td><td>「선불」 선공 75%</td></tr>
+  <tr><td>보스 매니저</td><td>테이블 규칙으로 양쪽에 바깥 링(이중 룰렛)</td><td>잭팟 라인 2번</td><td>「VIP 보호막」 하우스 몫 1회 무효</td></tr>
+</table>
+<h3>3.3 런 (<code>Core/Run.cs</code>)</h3>
+<ul>
+  <li>층·문 구성, 칩·룰렛·유물 이어가기, 상금, 완전 강탈 JACKPOT 배치, 보스 격파 시 바깥 링 해금(PlayerPrefs).</li>
+  <li>칩 정산(ADR 0007): 입장 칩까지 + 상금 30%. 층 강화: 딜러 칩 ×1.0/×1.3/×1.6, 4층 앤티 +1.</li>
+</ul>
+<h3>3.4 빌드 재료: 유물 12개 (<code>Core/Relic.cs</code>, ADR 0006)</h3>
+<table>
+  <tr><th>키워드</th><th>유물</th><th>효과</th></tr>
+  <tr><td>[개입]</td><td>끈 달린 칩</td><td>NUDGE 전투당 +1</td></tr>
+  <tr><td>[테이블]</td><td>하이 롤러 배지</td><td>테이블 한도 +1</td></tr>
+  <tr><td>[CASH OUT]</td><td>보험 약관 사본</td><td>내 턴을 보험 1로 시작</td></tr>
+  <tr><td>[인접]</td><td>끈적한 칸막이</td><td>연쇄 2칸+ 착지 시 판돈 +2</td></tr>
+  <tr><td>[하우스 몫]</td><td>도파민 주사기</td><td>하우스 몫마다 도파민 +1, CASH OUT 피해 + 도파민</td></tr>
+  <tr><td>[하우스 몫]</td><td>위로금 봉투</td><td>하우스 몫에 걸려도 앤티는 반환</td></tr>
+  <tr><td>[HIJACK]</td><td>표시된 카드</td><td>HIJACK마다 칩 +3</td></tr>
+  <tr><td>[CASH OUT]</td><td>이중 장부</td><td>판돈 8+ CASH OUT 피해 +2</td></tr>
+  <tr><td>[라운드 시작]</td><td>뒷면만 나오는 동전</td><td>후공 라운드에 칩 +1</td></tr>
+  <tr><td>[착지]</td><td>모서리 접힌 카드</td><td>배율 착지 시 곱하기 전 판돈 +1</td></tr>
+  <tr><td>[상금]</td><td>VIP 회원증</td><td>상금 ×1.5</td></tr>
+  <tr><td>[HIJACK]</td><td>압수 방지 봉인</td><td>역탈취 면제</td></tr>
+</table>
+
+<h2 class="page-break">4. 화면과 연출</h2>
+<ul>
+  <li><b>배치</b>: 상단 무대(칩 바·하우스 룰 카드·딜러) / 큰 내 룰렛 · 가운데 테이블(판돈 칩 더미·큰 판돈·보험·확률판·앤티·CASH OUT·딜러 한마디) · 딜러 룰렛 / 하단 사건 띠(누르면 전체 기록).</li>
+  <li><b>판독성</b>: 칸 위 기호 + 숫자(▲레이즈 ×배율 ◆보험 ●배당 몫), 글자 항상 똑바로, 착지 칸 고정 표시(착지·연쇄만 밝게), 포인터 위 착지 이름표(칸 이름 + 실제 효과).</li>
+  <li><b>소리</b>: 칸 경계마다 틱, 멈추면 멈춤 소리(룰렛 속도·칸 수와 자동으로 맞음).</li>
+  <li><b>연출</b>: CASH OUT 칩 비행·보험 튕김·피해 숫자, 큰 순간 배너(하우스 룰 달성·JACKPOT HIJACK·하우스 몫), 딜러 반응 대사·움찔, 층간 안내 방송.</li>
+  <li><b>조작</b>: SPIN 길게 누르기(강도), 앤티 ±, CASH OUT, 룰렛 위에서 직접 HIJACK, NUDGE 선택, 속도 ×1/×2.</li>
+</ul>
+<div class="grid2">
+  <div class="figure"><img src="img/09-before-readability.png"><div class="cap">개선 전: 까마귀 13칸에서 글자가 겹치고 착지 칸을 알 수 없음</div></div>
+  <div class="figure"><img src="img/03-crow-landing.png"><div class="cap">개선 후: 착지 칸만 밝게, 이름표 "까마귀 · 배당 +1 / 칩 +1"</div></div>
+  <div class="figure"><img src="img/04-player-landing.png"><div class="cap">내 착지: "레이즈 +3 / 판돈 1 → 4"</div></div>
+  <div class="figure"><img src="img/05-nudge.png"><div class="cap">NUDGE: 하우스 몫에 걸린 순간 양옆 칸 또는 그대로</div></div>
+  <div class="figure"><img src="img/06-hijack-on-wheel.png"><div class="cap">룰렛 위에서 직접 HIJACK: 고른 딜러 칸 설명 → 내 칸 클릭</div></div>
+  <div class="figure"><img src="img/07-house-cut-banner.png"><div class="cap">큰 순간 배너: 하우스 몫! 판돈 증발</div></div>
+</div>
+<div class="figure"><img src="img/08-boss-jackpot-line.png"><div class="cap">보스전: 바깥 링(룰렛 아래 띠), 잭팟 라인, 하우스 룰 달성</div></div>
+
+<h2 class="page-break">5. 개발 타임라인 (파트별 커밋)</h2>
+<p>모든 커밋은 <code>feature/pot-battle</code> 한 브랜치에 순서대로 쌓였고, 각 커밋은 한국어 한 줄 요약 + 본문(무엇을 왜)을 갖는다. 아래는 같은 내용을 파트별로 묶은 것이다.</p>
+<table>
+  <tr><th style="width:32mm">파트</th><th style="width:18mm">커밋</th><th>내용</th></tr>
+  <tr><td rowspan="3">기반·문서</td><td>f1b20af</td><td>기준 씬 고정과 폰트·빌더 작업 중이던 변경 저장</td></tr>
+  <tr><td>e540c69</td><td>컨셉 인터뷰 결과를 CLAUDE.md와 용어집(CONTEXT.md)에 반영</td></tr>
+  <tr><td>560c49b</td><td>저장소 문서화: 폴더별 README, Docs를 git에 포함, 파일 규칙</td></tr>
+  <tr><td rowspan="4">전투 코어(판돈 모델)</td><td>02c7df7</td><td>판돈 전투 규칙 코어와 EditMode 테스트</td></tr>
+  <tr><td>0949348</td><td>토끼 딜러 전투를 판돈 모델로 교체, 앤티·CASH OUT 조작</td></tr>
+  <tr><td>0719811</td><td>토끼 밸런스 조정과 역전 보정</td></tr>
+  <tr><td>debb2c4</td><td>템포 개선, 역탈취 규칙, 런 구조 코어</td></tr>
+  <tr><td rowspan="2">딜러</td><td>26fdfd8</td><td>일반 딜러 3종(여우·고양이·까마귀) 코어와 하우스 룰</td></tr>
+  <tr><td>f319786</td><td>일반 딜러 룰렛에 하우스 몫, 여우 수치 조정</td></tr>
+  <tr><td>런·화면</td><td>7538dbe</td><td>층 이동·문 선택·JACKPOT 배치, 전투 화면 일반화</td></tr>
+  <tr><td rowspan="2">보스·바깥 링</td><td>99272f9</td><td>보스 「매니저」와 바깥 링(이중 룰렛)</td></tr>
+  <tr><td>00c8ca8</td><td>바깥 링 보호막 → 하우스 몫, 보스전 흐름 검증</td></tr>
+  <tr><td rowspan="6">플레이테스트 반영(UI·피드백)</td><td>09c2897</td><td>1단계: 역탈취 제한·가시화, 특수 칸 설명, 딜러별 상세, 칩 바</td></tr>
+  <tr><td>dc8b598</td><td>특수 칸 착지 효과(서비스·선불·허풍)</td></tr>
+  <tr><td>9bd7521</td><td>2단계: 큰 룰렛, 가운데 테이블, 하단 사건 띠</td></tr>
+  <tr><td>aa086ee</td><td>회전음을 칸 경계 틱으로</td></tr>
+  <tr><td>559c375</td><td>룰렛 판독성: 착지 고정 표시, 착지 이름표, 기호 + 숫자</td></tr>
+  <tr><td>1cea9b3</td><td>3단계: CASH OUT 칩 비행, 큰 순간 배너, 룰렛 위 HIJACK</td></tr>
+  <tr><td>빌드 재료</td><td>a633a75</td><td>NUDGE와 유물 12개(키워드 6종)</td></tr>
+  <tr><td>내러티브·템포</td><td>93e51d8</td><td>딜러별 대사·안내 방송·딜러 움찔, 속도 ×2</td></tr>
+  <tr><td>경제·밸런스</td><td>6a62525</td><td>테이블 칩 회수·층별 강화·테이블 마감, 런 시뮬레이터</td></tr>
+  <tr><td rowspan="2">편의·검증</td><td>0361de1</td><td>타이틀, 전체 기록, 확률판 판돈 범위, 양쪽 보험</td></tr>
+  <tr><td>1f3e80c</td><td>자동 진행 회귀 점검, 연출 잔여물 정리, MVP 점검표</td></tr>
+</table>
+
+<h2 class="page-break">6. 설계 결정 기록 (ADR)</h2>
+<table>
+  <tr><th style="width:10mm">#</th><th style="width:52mm">결정</th><th>이유</th></tr>
+  <tr><td>0001</td><td>SPIN은 판돈을 쌓고, 피해는 CASH OUT이 낸다</td><td>연쇄 빌드의 재미와 push-your-luck(언제 멈출지)을 한 루프에. 착지 즉시 피해는 "멈출지" 판단이 없다.</td></tr>
+  <tr><td>0002</td><td>HIJACK은 운이 아니라 하우스 룰 달성으로</td><td>정체성인 빼앗기가 운이면 "내가 해냈다"는 감각과 패배 원인 이해가 무너진다.</td></tr>
+  <tr><td>0003</td><td>전리품 칸 없이 HIJACK이 영구 덮어쓰기(8칸 고정)</td><td>칸이 늘면 연쇄 적중률·하우스 몫 위험이 희석되어 후반 긴장이 사라진다.</td></tr>
+  <tr><td>0004</td><td>일반 딜러 룰렛에도 하우스 몫</td><td>딜러가 위험 없이 판돈을 만들어 승률 1~43%. 넣으니 59~62%, "딜러 판돈이 털리는" 통쾌함.</td></tr>
+  <tr><td>0005</td><td>바깥 링은 보호막 대신 하우스 몫</td><td>보호막이 큰 판돈 전략을 79~93%로 압도적으로 만듦. 교체 후 30~54%로 고름.</td></tr>
+  <tr><td>0006</td><td>유물은 문 카드 상금</td><td>상점층 없는 MVP에서 "전투 뒤 보상 선택 없음"을 지키며, 딜러 선택에 유물 선택을 묶음.</td></tr>
+  <tr><td>0007</td><td>전투에서 딴 칩은 테이블에 두고 나간다</td><td>제로섬 승리가 런 전체의 눈덩이(보스 입장 칩 137, 탈출 87~93%)가 됨. 성장은 칸·유물·상금으로만.</td></tr>
+</table>
+
+<h2>7. 밸런스 시뮬레이션 기록</h2>
+<p>코어 규칙만으로 수천 판을 돌리는 헤드리스 시뮬레이션. 플레이어 정책은 단순 휴리스틱(정한 앤티·목표 판돈)이라 사람보다 일관되다. 원본 표는 <code>Docs/playtest/</code>.</p>
+<h3>7.1 토끼(판돈 모델 첫 검증)</h3>
+<table>
+  <tr><th>시점</th><th>발견</th><th>조치</th><th>결과</th></tr>
+  <tr><td>초안</td><td>갉아먹기 전략 0.1%, 한 방 전략만 유효. HIJACK이 전투 절반 미만</td><td>토끼 보험 0 고정, 앤티 1, 성향 판돈 5, R3 대본(예고 후 즉시 CASH OUT → 전액 보장), 역전 보정</td><td>조금씩 78.5% · 중간 93.6% · 한 방 87.9%. 세 전략 모두 성립, 욕심이 과하면 오히려 손해</td></tr>
+</table>
+<h3>7.2 일반 딜러 3종</h3>
+<table>
+  <tr><th>시점</th><th>여우</th><th>고양이</th><th>까마귀</th><th>메모</th></tr>
+  <tr><td>초안(하우스 몫 없음)</td><td>1.3%</td><td>14.9%</td><td>43.2%</td><td>딜러가 위험 없이 판돈을 만듦</td></tr>
+  <tr><td>하우스 몫 추가 + 여우 조정</td><td>51.6%</td><td>58.5%</td><td>62.3%</td><td>ADR 0004. JACKPOT 탈취율 63~100%</td></tr>
+</table>
+<h3>7.3 보스와 바깥 링</h3>
+<table>
+  <tr><th>시점</th><th>한 방 전략 승률</th><th>판돈 6+ 증발/전투</th><th>조치</th></tr>
+  <tr><td>보호막 링</td><td>79~93%</td><td>0.4~0.6</td><td>—</td></tr>
+  <tr><td>바깥 하우스 몫 링</td><td>42~54%</td><td>0.8~1.3</td><td>ADR 0005</td></tr>
+</table>
+<h3>7.4 런 전체(유물·NUDGE 포함)</h3>
+<table>
+  <tr><th>시점</th><th>탈출률</th><th>보스 승률</th><th>교착</th><th>원인·조치</th></tr>
+  <tr><td>처음 측정</td><td>87~93%</td><td>98~99%</td><td>최대 451/2000런</td><td>칩 눈덩이(2층 입장 75, 보스 입장 137), 작게 치고받는 전투가 끝나지 않음</td></tr>
+  <tr><td>조정 후</td><td>47~68%</td><td>76~85%</td><td>0~3</td><td>테이블 칩 회수(ADR 0007), 상금 30%, 층 강화, 보스 48·보험 2·성향 10, 까마귀 성향 7, 테이블 마감</td></tr>
+</table>
+<p>조정 후: 일반 전투 평균 4~7라운드, 보스 8~11라운드, 탈락은 2층(첫 일반 딜러)과 보스에 몰림, 보스전 판돈 6+ 증발 2.2~2.8회/전투(하우스 몫 위험 유지), 유물 보유 시 탈출률 66~85%로 고름, NUDGE 전투당 0.4~0.8회 사용.</p>
+
+<h2 class="page-break">8. 직접 플레이테스트: 피드백 → 원인 → 조치</h2>
+<p>플레이: 김동윤. 그레이박스 빌드로 한 런을 설명 없이 플레이했다. 원본 <code>Docs/playtest/2026-09-30-first-run-user-playtest.md</code>.</p>
+<h3>좋았던 점 (유지)</h3>
+<ul>
+  <li>"한 번 더 돌릴까, CASH OUT할까" 고민하는 순간이 많았다 → push-your-luck 핵심 루프가 작동한다.</li>
+  <li>크게 키운 판돈으로 딜러를 한 번에 파산시킬 때의 쾌감이 컸다.</li>
+</ul>
+<h3>1차 피드백 (2026-09-30)</h3>
+<table>
+  <tr><th>피드백</th><th>원인</th><th>조치</th></tr>
+  <tr><td>내 공격이 어떻게 이어지는지 모르겠다</td><td>연쇄 → 판돈 → CASH OUT → 피해 흐름이 화면에 안 보임</td><td>가운데 "테이블"(칩 더미·큰 판돈·계산식·예상 피해), CASH OUT 칩 비행·피해 숫자, 착지 이름표</td></tr>
+  <tr><td>HIJACK이 어떻게 이루어지는지 모르겠다</td><td>하우스 룰 달성·선택·결과가 연결돼 보이지 않음</td><td>"하우스 룰 달성!" 배너, 룰렛 위에서 직접 고르기, 칸 설명 안내 띠, 칸이 날아가는 연출</td></tr>
+  <tr><td>왜 역탈취를 당하는지 모르겠다, 보스전 중도 포기</td><td>하우스 몫마다 발동, 보스전은 SPIN당 약 34%가 하우스 몫 → 거의 매 턴, 로그 한 줄로만 알림</td><td>전투당 1회 제한, 딜러 룰렛 아래 상시 경고, 반대 방향 연출 + 이유·반환 조건 표시</td></tr>
+  <tr><td>상세 페이지가 딜러에 맞게 안 바뀜</td><td>문구가 빌더에 고정</td><td>딜러별로 조건·진행도·보상·특수 칸·역탈취 주의를 채움</td></tr>
+  <tr><td>칩 바가 안 바뀜</td><td>기준이 시작 칩(20)이라 상금으로 넘으면 늘 가득</td><td>기준을 "이번 전투 시작 칩"으로</td></tr>
+  <tr><td>룰렛이 작다, 가운데 패널 용도 불명</td><td>상단 무대가 화면 31%</td><td>상단 20%로, 룰렛 지름 430 → 580px, 가운데를 테이블로 재정의</td></tr>
+  <tr><td>빼앗은 「서비스」「선불」이 작동한 적이 없다</td><td>효과는 발동했지만 로그 한 줄뿐, 착지하면 "효과 없음"</td><td>특수 칸 착지 효과 추가, 코인플립 아래 [라운드 시작] 효과 표시, 칸 설명</td></tr>
+</table>
+<h3>2차 피드백 (2026-10-01, 새 배치로 다시 플레이)</h3>
+<table>
+  <tr><th>피드백</th><th>원인</th><th>조치</th></tr>
+  <tr><td>새 배치는 마음에 든다</td><td>—</td><td>유지</td></tr>
+  <tr><td>회전음이 먼저 끊기거나 멈춘 뒤에도 울림, 연속 SPIN에서 끊김</td><td>감속·멈춤이 박힌 2.7초 녹음을 피치로만 맞춤 → 1초 안팎 SPIN에서 상한에 걸림</td><td>같은 녹음에서 틱·멈춤을 잘라 칸 경계마다 틱. 룰렛 움직임과 항상 일치</td></tr>
+  <tr><td>까마귀처럼 칸이 많으면 어느 칸에 멈췄는지 모르겠다</td><td>글자 겹침·잘림, 같은 색 칸이 덩어리, 착지 표시 0.9초</td><td>착지 고정 표시, 착지 이름표(효과 포함), 칸 위 기호 + 숫자(사용자 선택: B안, 아트로 다듬는 전제)</td></tr>
+</table>
+
+<h2 class="page-break">9. 검증</h2>
+<table>
+  <tr><th>방법</th><th>범위</th><th>결과</th></tr>
+  <tr><td>EditMode 테스트</td><td>판돈 전투, 딜러 하우스 룰, 바깥 링, 런, 유물·NUDGE, 칩 경제(66개)</td><td>66/66 통과, 콘솔 에러 0</td></tr>
+  <tr><td>Play 확인(스크린샷)</td><td>착지 표시·이름표, CASH OUT 칩 연출, 룰렛 위 HIJACK, NUDGE, 문 카드 유물, 전체 기록, 타이틀</td><td>동작 확인. 확인 중 보험 배지 넘침·유물 띠 넘침·연출 잔여물을 발견해 수정</td></tr>
+  <tr><td>자동 진행(Debug Autoplay)</td><td>타이틀 → 토끼 → 까마귀 → 고양이 → 까마귀(4층, 테이블 마감) → 보스(NUDGE·잭팟 라인·HIJACK) → 탈출 → 해금 저장 → 새 런</td><td>완주, 콘솔 에러 0 (흐름 점검용으로 칩을 넉넉히 주고 보스 칩을 낮춰 진행)</td></tr>
+  <tr><td>런 시뮬레이션</td><td>정책 4종 × 1,500런</td><td>7.4절</td></tr>
+</table>
+<div class="callout">확인하지 못한 것: 소리(직접 들을 수 없음), 사람의 첫 플레이 이해도(CLAUDE.md 8장 기준은 사람 플레이테스트로만 확인 가능).</div>
+
+<h2>10. MVP 범위 점검표</h2>
+<table>
+  <tr><th>CLAUDE.md 5장 항목</th><th>상태</th></tr>
+  <tr><td>플레이어 캐릭터 1명, 룰렛 8칸·기본 칸 5종·꽝 없음</td><td>완료</td></tr>
+  <tr><td>1스테이지 5층(토끼 → 문 선택 ×3 → 보스)</td><td>완료</td></tr>
+  <tr><td>일반 딜러 3종 + 보스 1종(룰렛 형식 1개)</td><td>완료</td></tr>
+  <tr><td>HIJACK 영구 덮어쓰기, 전투 뒤 보상 선택 없음, 보스 격파 시 룰렛 형식</td><td>완료</td></tr>
+  <tr><td>시너지 키워드 6개</td><td>완료(칸 3종 + 유물로 6종 모두). 딜러 고유 칸으로 더 늘리는 것은 Later</td></tr>
+  <tr><td>유물 12개 내외</td><td>완료</td></tr>
+  <tr><td>개입 수단 최소화(NUDGE, 횟수 제한)</td><td>완료</td></tr>
+  <tr><td>역탈취</td><td>완료(전투당 1회)</td></tr>
+  <tr><td>도파민은 [하우스 몫] 빌드 전용</td><td>완료</td></tr>
+  <tr><td>아트(ArtStyleBible·Gold Standard)</td><td><b>미착수</b> — 그레이박스</td></tr>
+</table>
+
+<h2 class="page-break">11. 남은 과제와 다음 플레이테스트에서 볼 것</h2>
+<h3>다음 플레이테스트에서 볼 것</h3>
+<ul>
+  <li>CLAUDE.md 8장: 10초 안에 기본 규칙 이해, 5분 안에 연쇄 폭증과 첫 HIJACK, 패배 원인 설명, 같은 행동 3턴 연속 없음, 후반에도 "한 번 더" 망설임, 다른 빌드로 재도전 의욕.</li>
+  <li>회수되는 테이블 칩이 억울하게 느껴지는지(종료 화면 문구).</li>
+  <li>보스가 "가장 어려운 상대"로 느껴지는지(시뮬 76~85%, 사람은 더 낮을 것). 길면 보스 칩 48 → 42.</li>
+  <li>테이블 마감 사용료를 이해하는지, NUDGE를 언제 쓰는지(바로 쓰나, 아끼나).</li>
+  <li>기호(▲ × ◆ ●)만으로 칸 종류가 금방 읽히는지, 새 회전음이 자연스러운지.</li>
+</ul>
+<h3>알려진 문제·후보</h3>
+<ul>
+  <li>완전 강탈 JACKPOT 확정 보상이 거의 발동하지 않음(이미 HIJACK한 경우가 많음) → 보상 재설계 필요.</li>
+  <li>여우 하우스 룰(소액 CASH OUT)은 휴리스틱이 노리지 않아 시뮬 HIJACK이 0에 가까움 → 사람 플레이로 확인.</li>
+  <li>[인접]·[하우스 몫]·[HIJACK] 키워드의 딜러 고유 칸은 아직 없음(유물이 대신).</li>
+  <li>효과음은 룰렛 틱·멈춤뿐(CASH OUT·HIJACK·하우스 몫 소리 없음).</li>
+</ul>
+<h3>Later</h3>
+<p>상점층(정식판 10층), 훔친 규칙 도감, 두 번째 룰렛 형식(칸 확장), 스테이지 2·카지노 오너, ArtStyleBible과 아트, 스팀 등급 표기(실제 돈 없음).</p>
+
+<h2>12. 부록</h2>
+<h3>저장소 구조</h3>
+<table>
+  <tr><th>경로</th><th>무엇</th></tr>
+  <tr><td><code>Assets/RouletteSystem/Core/</code></td><td>규칙 코어(순수 C#): PotBattle, Run, Relic, BattlePresets, Seat, Slot, DealerProfile</td></tr>
+  <tr><td><code>Assets/RouletteSystem/Scripts/</code></td><td>화면: DealerBattleController(전투·런 화면), 룰렛 위젯, 대사, 칸 설명, 클릭 영역</td></tr>
+  <tr><td><code>Assets/RouletteSystem/Editor/</code></td><td>씬 빌더(기준 씬을 코드로 생성), 런 밸런스 시뮬레이터</td></tr>
+  <tr><td><code>Assets/RouletteSystem/Tests/</code></td><td>EditMode 테스트 66개</td></tr>
+  <tr><td><code>Docs/</code></td><td>ADR, 기능 결정·MVP 점검표, 플레이테스트·시뮬레이션 기록, 이 PDF</td></tr>
+</table>
+<h3>도구</h3>
+<ul>
+  <li><code>Tools &gt; HIJACKPOT &gt; Build Battle Scene (SampleScene)</code> — 기준 씬 다시 만들기</li>
+  <li><code>Tools &gt; HIJACKPOT &gt; Simulate Runs (Balance Report)</code> — 런 밸런스 보고</li>
+  <li><code>DealerBattle</code> 오브젝트의 <code>Debug Autoplay</code> — 화면 흐름 자동 점검(기본 꺼짐)</li>
+</ul>
+<h3>핵심 용어 (CONTEXT.md 요약)</h3>
+<table>
+  <tr><th>용어</th><th>뜻</th></tr>
+  <tr><td>칩</td><td>목숨이자 화폐. 손님의 행운이 굳은 것</td></tr>
+  <tr><td>앤티 / 판돈</td><td>턴 시작에 거는 칩 / 앤티에 SPIN 결과가 붙어 쌓인 칩</td></tr>
+  <tr><td>보험</td><td>상대 CASH OUT 피해에서 빼는 값(방어력 대신)</td></tr>
+  <tr><td>하우스 몫</td><td>걸리면 판돈이 전부 증발하는 칸. 누구도 빼앗을 수 없다</td></tr>
+  <tr><td>하우스 룰</td><td>딜러마다 공개된, 달성하면 HIJACK 기회를 주는 조건</td></tr>
+  <tr><td>HIJACK / 역탈취</td><td>딜러 칸으로 내 칸을 영구히 덮어쓰기 / 하우스 몫에 걸렸을 때 딜러가 내 칸을 압수(이기면 반환)</td></tr>
+  <tr><td>완전 강탈</td><td>딜러 칸을 하우스 몫 빼고 전부 봉인해 이기기</td></tr>
+  <tr><td>NUDGE</td><td>하우스 몫에 걸린 순간 룰렛을 옆 칸으로 미는 개입(전투당 1회)</td></tr>
+  <tr><td>테이블 칩 회수 / 테이블 마감</td><td>입장 칩까지만 가지고 나가기 / 10라운드부터 양쪽 사용료</td></tr>
+</table>
+<div class="footer-note">원본: <code>Docs/pdf/src/mvp-report.html</code> · 다시 만들기: <code>Docs/pdf/build-pdf.sh</code> · 근거 문서: <code>Docs/adr</code>, <code>Docs/design</code>, <code>Docs/playtest</code></div>
+</body>
+</html>

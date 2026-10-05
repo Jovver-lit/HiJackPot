@@ -563,6 +563,64 @@ namespace RouletteLike.Roulette
             _highlightRoutine = StartCoroutine(HighlightRoutine(data.id, Mathf.Max(0f, duration)));
         }
 
+        /// <summary>
+        /// 착지 고정 표시: 착지 칸과 연쇄 묶음만 밝게 남기고 나머지 칸과 글자를 어둡게 한다.
+        /// 다음 회전을 시작할 때 ClearLanding으로 푼다. 짧은 깜빡임(HighlightSegment)과는 별개로 유지된다.
+        /// </summary>
+        /// <param name="tintGroup">false면 묶음 칸은 원래 색 그대로 두고 나머지만 어둡게 한다(HIJACK 고를 수 있는 칸 표시).</param>
+        public void ShowLanding(string landedId, ICollection<string> groupIds, bool tintGroup = true)
+        {
+            if (pixelWheelRenderer != null)
+            {
+                pixelWheelRenderer.SetLandingFocus(landedId, groupIds, tintGroup);
+            }
+
+            for (int i = 0; i < _graphics.Count; i++)
+            {
+                RouletteSegmentGraphic graphic = _graphics[i];
+                if (graphic == null || graphic.Data == null) continue;
+                bool active = landedId != null || (groupIds != null && groupIds.Count > 0);
+                bool focused = !active
+                               || graphic.Data.id == landedId
+                               || (groupIds != null && groupIds.Contains(graphic.Data.id));
+                graphic.SetDimmed(!focused);
+            }
+        }
+
+        public void ClearLanding()
+        {
+            ShowLanding(null, null);
+        }
+
+        /// <summary>
+        /// 화면 좌표 아래 칸의 순서(0부터)를 돌려준다. 룰렛 바깥이나 가운데 캡 위면 -1.
+        /// 회전 중인 Wheel 기준으로 계산하므로 룰렛이 어느 각도로 멈춰 있어도 맞다(룰렛 위에서 직접 HIJACK 고르기).
+        /// </summary>
+        public int GetSegmentIndexAtScreenPoint(Vector2 screenPoint, Camera eventCamera)
+        {
+            if (wheel == null || segments.Count == 0)
+            {
+                return -1;
+            }
+
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(wheel, screenPoint, eventCamera, out Vector2 local))
+            {
+                return -1;
+            }
+
+            Vector2 offset = local - wheel.rect.center;
+            float radius = Mathf.Min(wheel.rect.width, wheel.rect.height) * 0.5f;
+            float distance = offset.magnitude;
+            if (distance > radius || distance < radius * 0.2f)
+            {
+                return -1;
+            }
+
+            float angle = NormalizeAngle(Mathf.Atan2(offset.x, offset.y) * Mathf.Rad2Deg);
+            RouletteSegmentData data = GetSegmentAtLocalAngle(angle);
+            return data != null ? segments.IndexOf(data) : -1;
+        }
+
         public void ClearHighlights()
         {
             if (pixelWheelRenderer != null)
