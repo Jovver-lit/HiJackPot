@@ -82,7 +82,7 @@ namespace RouletteLike.Battle
             return slot.Kind == SlotKind.Multiplier ? ShopPrices.UpgradeMultiplier : ShopPrices.Upgrade;
         }
 
-        /// <summary>두 칸의 자리를 맞바꾼다(하우스 몫도 옮길 수 있다 — 같은 칸을 모아 SPIN 강도로 노릴 구역을 설계).</summary>
+        /// <summary>두 칸의 자리를 맞바꾼다(몰수도 옮길 수 있다 — 같은 칸을 모아 SPIN 강도로 노릴 구역을 설계).</summary>
         public ShopError SwapSlots(int a, int b)
         {
             if (!InShop) return ShopError.NotInShop;
@@ -95,7 +95,7 @@ namespace RouletteLike.Battle
             return ShopError.None;
         }
 
-        /// <summary>칸 수치 +1(레이즈 +2 → +3, 배율 ×2 → ×3). 하우스 몫·봉인·보호막·선불은 강화할 수 없다.</summary>
+        /// <summary>칸 수치 +1(레이즈 +2 → +3, 배율 ×2 → ×3). 몰수·봉인·보호막·선불은 강화할 수 없다.</summary>
         public ShopError UpgradeSlot(int index)
         {
             if (!InShop) return ShopError.NotInShop;

@@ -22,7 +22,7 @@ namespace RouletteLike.Roulette
                         ? $"[라운드 시작] 매 라운드 칩 +{slot.Value} · 착지하면 즉시 +{slot.Value}"
                         : $"[착지] 판돈을 거치지 않고 칩 +{slot.Value}";
                 case SlotKind.HouseCut: return "[착지] 판돈 전부 증발, 턴 종료. HIJACK 불가";
-                case SlotKind.CutShield: return "[착지] 이번 턴 하우스 몫 1회 무효";
+                case SlotKind.CutShield: return "[착지] 이번 턴 몰수 1회 무효";
                 case SlotKind.MinimumPayout: return $"[CASH OUT] 피해 최소 {slot.Value} · 착지하면 이번 턴 보험 무시";
                 case SlotKind.Initiative: return "[라운드 시작] 선공 확률 75% · 착지하면 다음 라운드 선공 확정";
                 case SlotKind.Sealed: return "봉인된 칸. 아무 효과 없음";
@@ -30,7 +30,7 @@ namespace RouletteLike.Roulette
             }
         }
 
-        /// <summary>일반 칸(레이즈·배율·보험·배당·하우스 몫)이 아닌 특수 칸인지. 룰렛 아래 안내에 모아 보여 준다.</summary>
+        /// <summary>일반 칸(레이즈·배율·보험·배당·몰수)이 아닌 특수 칸인지. 룰렛 아래 안내에 모아 보여 준다.</summary>
         public static bool IsSpecial(Slot slot)
         {
             return slot.IsJackpot

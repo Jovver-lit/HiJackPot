@@ -10,7 +10,7 @@ namespace RouletteLike.Battle.Tests
             return new PotBattle(BattlePresets.CreateStarterWheel(), 20, dealer, seed);
         }
 
-        /// <summary>원하는 쪽 차례가 올 때까지 상대 턴을 앤티 1 → CASH OUT으로 넘긴다.</summary>
+        /// <summary>원하는 쪽 차례가 올 때까지 상대 턴을 베팅 1 → CASH OUT으로 넘긴다.</summary>
         private static void AdvanceTo(PotBattle battle, Side side)
         {
             for (int guard = 0; guard < 10; guard++)
@@ -92,7 +92,7 @@ namespace RouletteLike.Battle.Tests
                 new System.Collections.Generic.List<Slot>
                 {
                     new Slot("x", SlotKind.Raise, 1, "레이즈 +1"),
-                    new Slot("x_cut", SlotKind.HouseCut, 0, "하우스 몫")
+                    new Slot("x_cut", SlotKind.HouseCut, 0, "몰수")
                 });
             PotBattle battle = Battle(tiny);
             for (int i = 0; i < 2; i++)

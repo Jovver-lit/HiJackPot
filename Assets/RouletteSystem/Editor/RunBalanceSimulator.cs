@@ -9,12 +9,12 @@ namespace RouletteLike.Roulette.EditorTools
 {
     /// <summary>
     /// 런 전체 헤드리스 밸런스 시뮬레이터(에디터 전용). 코어 규칙만으로 토끼 → 문 선택 → 보스까지 수천 런을 돌려
-    /// 탈출률·층별 탈락·전투 길이·HIJACK·하우스 몫·NUDGE·유물별 탈출률을 콘솔에 보고한다.
-    /// 플레이어 정책은 단순 휴리스틱(앤티·목표 판돈·NUDGE·HIJACK 선택)이며, 실제 사람의 판단을 대신하지 않는다.
+    /// 탈출률·층별 탈락·전투 길이·HIJACK·몰수·NUDGE·유물별 탈출률을 콘솔에 보고한다.
+    /// 플레이어 정책은 단순 휴리스틱(베팅·목표 판돈·NUDGE·HIJACK 선택)이며, 실제 사람의 판단을 대신하지 않는다.
     /// </summary>
     public static class RunBalanceSimulator
     {
-        /// <summary>한 정책: 원하는 앤티와 CASH OUT할 판돈.</summary>
+        /// <summary>한 정책: 원하는 베팅과 CASH OUT할 판돈.</summary>
         public readonly struct Policy
         {
             public readonly int Ante;
@@ -26,7 +26,7 @@ namespace RouletteLike.Roulette.EditorTools
                 TargetPot = targetPot;
             }
 
-            public override string ToString() => $"앤티 {(Ante >= 99 ? "최대" : Ante.ToString())} · 판돈 {TargetPot}";
+            public override string ToString() => $"베팅 {(Ante >= 99 ? "최대" : Ante.ToString())} · 판돈 {TargetPot}";
         }
 
         public static readonly Policy[] DefaultPolicies =
@@ -144,7 +144,7 @@ namespace RouletteLike.Roulette.EditorTools
             {
                 DealerStats s = pair.Value;
                 double n = Math.Max(1, s.Battles);
-                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 현금 {s.EntryCash / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · HIJACK {s.Hijacks / n:0.00} · 하우스 몫 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
+                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 현금 {s.EntryCash / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · HIJACK {s.Hijacks / n:0.00} · 몰수 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
             }
 
             List<string> relicLines = new List<string>();
@@ -260,7 +260,7 @@ namespace RouletteLike.Roulette.EditorTools
             }
         }
 
-        /// <summary>빼앗을 칸: JACKPOT 우선, 없으면 값이 큰 칸(봉인·하우스 몫 제외).</summary>
+        /// <summary>빼앗을 칸: JACKPOT 우선, 없으면 값이 큰 칸(봉인·몰수 제외).</summary>
         private static int BestDealerSlot(IReadOnlyList<Slot> wheel)
         {
             int best = -1;
@@ -274,7 +274,7 @@ namespace RouletteLike.Roulette.EditorTools
             return best;
         }
 
-        /// <summary>덮어쓸 내 칸: 봉인 칸 우선, 그다음 빼앗아 오지 않은 값이 작은 칸(하우스 몫 제외).</summary>
+        /// <summary>덮어쓸 내 칸: 봉인 칸 우선, 그다음 빼앗아 오지 않은 값이 작은 칸(몰수 제외).</summary>
         private static int WeakestSlot(IReadOnlyList<Slot> wheel)
         {
             int weakest = -1;

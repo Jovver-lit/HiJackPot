@@ -28,7 +28,7 @@ namespace RouletteLike.Battle
 
     /// <summary>
     /// 상점 미니게임 슬롯머신(ADR 0009). 현금을 걸고 세 릴을 돌려 배당을 받는다. 기대 환수율 약 93%로 카지노가 조금 유리하다
-    /// — 현금을 불릴 수도 있지만, 오래 당기면 줄어든다. 릴 하나라도 「몫」(하우스 몫)이면 건 돈을 잃는다.
+    /// — 현금을 불릴 수도 있지만, 오래 당기면 줄어든다. 릴 하나라도 「몰수」(몰수)이면 건 돈을 잃는다.
     /// 규칙과 확률만 담고 화면(릴 애니메이션)은 모른다. 같은 시드면 같은 결과.
     /// </summary>
     public static class SlotMachine
@@ -56,7 +56,7 @@ namespace RouletteLike.Battle
                 case ReelSymbol.Multiplier: return "×";
                 case ReelSymbol.Seven: return "7";
                 case ReelSymbol.Jackpot: return "JP";
-                default: return "몫";
+                default: return "몰수";
             }
         }
 
@@ -64,7 +64,7 @@ namespace RouletteLike.Battle
         public static string PayTable =>
             $"JP JP JP ×{JackpotTriplePayout}   7 7 7 ×{SevenTriplePayout}   × × × ×{MultiplierTriplePayout}\n" +
             $"▲▲▲ ◆◆◆ ●●● ×{BasicTriplePayout}   JP 두 개 ×{JackpotPairPayout}   같은 기호 두 개 ×{PairPayout}\n" +
-            "「몫」이 하나라도 나오면 건 돈을 잃음";
+            "「몰수」가 하나라도 나오면 건 돈을 잃음";
 
         public static ReelSymbol RollSymbol(Random rng)
         {
@@ -93,7 +93,7 @@ namespace RouletteLike.Battle
             ReelSymbol a = reels[0], b = reels[1], c = reels[2];
             if (a == ReelSymbol.HouseCut || b == ReelSymbol.HouseCut || c == ReelSymbol.HouseCut)
             {
-                outcome = "하우스 몫! 건 돈을 잃었다";
+                outcome = "몰수! 건 돈을 잃었다";
                 return 0;
             }
 
