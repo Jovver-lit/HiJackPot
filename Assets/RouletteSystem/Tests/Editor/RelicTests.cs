@@ -197,12 +197,12 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void Run_WinningGrantsDoorRelic_AndVipCardKeepsMoreWonChips()
+        public void Run_WinningWithHouseRuleGrantsDoorRelic_AndVipCardKeepsMoreWonChips()
         {
             Func<DealerProfile> weak = () =>
             {
                 DealerProfile fox = BattlePresets.CreateFoxDealer();
-                return new DealerProfile(fox.Name, 2, fox.TableLimit, 1, 99, fox.HouseRule, false, false, fox.Wheel);
+                return new DealerProfile(fox.Name, 6, fox.TableLimit, 1, 99, fox.HouseRule, false, false, fox.Wheel);
             };
             Run run = new Run(1, 20, BattlePresets.CreateStarterWheel(), weak, new List<Func<DealerProfile>> { weak }, weak,
                 floorCount: 3, startingRelics: new[] { RelicId.VipCard });
@@ -211,6 +211,37 @@ namespace RouletteLike.Battle.Tests
             Assert.AreNotEqual(RelicId.VipCard, prize.Value);
 
             PotBattle battle = run.EnterDoor(0);
+            // 여우 하우스 룰(판돈 4 이하로 CASH OUT 2번)을 채우며 이긴다: 앤티 1 + 레이즈 3 = 판돈 4로 CASH OUT.
+            for (int guard = 0; guard < 200 && battle.Phase != BattlePhase.Ended; guard++)
+            {
+                if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();
+                battle.PlaceAnte(1);
+                if (battle.Active == Side.Player) battle.Land(4);
+                if (battle.Phase == BattlePhase.Spinning) battle.CashOut();
+            }
+
+            Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
+            Assert.GreaterOrEqual(battle.HouseRulesAchieved, Run.RelicChallengeHouseRules);
+            int excess = Math.Max(0, battle.Player.Chips - 20);
+            int kept = Math.Min(battle.Player.Chips, 20) + (int)Math.Floor(excess * (ChipExchangeRules.Default.KeepShare + RelicCatalog.VipKeepShareBonus));
+            run.CompleteBattle();
+            Assert.AreEqual(prize, run.LastRelicGained);
+            Assert.Contains(prize.Value, new List<RelicId>(run.Relics));
+            Assert.AreEqual(kept, run.Chips);
+        }
+
+        [Test]
+        public void Run_WinningWithoutHouseRule_MissesDoorRelic()
+        {
+            Func<DealerProfile> weak = () =>
+            {
+                DealerProfile fox = BattlePresets.CreateFoxDealer();
+                return new DealerProfile(fox.Name, 2, fox.TableLimit, 1, 99, fox.HouseRule, false, false, fox.Wheel);
+            };
+            Run run = new Run(1, 20, BattlePresets.CreateStarterWheel(), weak, new List<Func<DealerProfile>> { weak }, weak, floorCount: 3);
+            RelicId? prize = run.DoorRelics[0];
+            PotBattle battle = run.EnterDoor(0);
+            // 판돈 7로 크게 한 방: 하우스 룰(작은 CASH OUT)을 채우지 않고 이긴다.
             for (int guard = 0; guard < 100 && battle.Phase != BattlePhase.Ended; guard++)
             {
                 if (battle.Phase == BattlePhase.RoundOver) battle.StartRound();
@@ -219,13 +250,12 @@ namespace RouletteLike.Battle.Tests
                 if (battle.Phase == BattlePhase.Spinning) battle.CashOut();
             }
 
-            Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
-            int excess = Math.Max(0, battle.Player.Chips - 20);
-            int kept = Math.Min(battle.Player.Chips, 20) + (int)Math.Floor(excess * (ChipExchangeRules.Default.KeepShare + RelicCatalog.VipKeepShareBonus));
+            Assume.That(battle.Outcome, Is.EqualTo(BattleOutcome.PlayerWinsByBankrupt));
+            Assert.AreEqual(0, battle.HouseRulesAchieved);
             run.CompleteBattle();
-            Assert.AreEqual(prize, run.LastRelicGained);
-            Assert.Contains(prize.Value, new List<RelicId>(run.Relics));
-            Assert.AreEqual(kept, run.Chips);
+            Assert.IsNull(run.LastRelicGained);
+            Assert.AreEqual(prize, run.LastRelicMissed);
+            Assert.AreEqual(0, run.Relics.Count);
         }
     }
 }

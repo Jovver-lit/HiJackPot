@@ -1734,9 +1734,14 @@ namespace RouletteLike.Roulette
             spinInput?.ShowUnavailableState("전투 종료");
             endPanel?.SetActive(true);
             bool lastFloor = _run.FloorIndex >= _run.FloorCount - 1;
-            string prize = _run.CurrentPrize.HasValue && _battle.Outcome != BattleOutcome.DealerWins
-                ? $"\n유물 획득: 「{RelicCatalog.Get(_run.CurrentPrize.Value).Name}」 {RelicCatalog.Get(_run.CurrentPrize.Value).Description}"
-                : "";
+            string prize = "";
+            if (_run.CurrentPrize.HasValue && _battle.Outcome != BattleOutcome.DealerWins)
+            {
+                Relic relic = RelicCatalog.Get(_run.CurrentPrize.Value);
+                prize = Run.RelicChallengeMet(_battle)
+                    ? $"\n유물 획득: 「{relic.Name}」 {relic.Description}"
+                    : $"\n유물 「{relic.Name}」은 하우스 룰을 달성하지 못해 받지 못했습니다";
+            }
             switch (_battle.Outcome)
             {
                 case BattleOutcome.PlayerWinsByCleanSweep:
@@ -2162,7 +2167,12 @@ namespace RouletteLike.Roulette
             if (dealerNameText != null) dealerNameText.text = dealer.Name;
             if (dealerHeaderText != null) dealerHeaderText.text = $"◆  상대 룰렛 · {dealer.Name}  ◆";
             if (houseRuleTitleText != null) houseRuleTitleText.text = $"하우스 룰  ·  {HouseRuleName(dealer.HouseRule)}";
-            if (houseRuleDescriptionText != null) houseRuleDescriptionText.text = $"{HouseRuleDescription(dealer)}  →  칸 1개 HIJACK";
+            if (houseRuleDescriptionText != null)
+            {
+                houseRuleDescriptionText.text = _run != null && _run.CurrentPrize.HasValue
+                    ? $"{HouseRuleDescription(dealer)}  →  칸 HIJACK + 이기면 유물"
+                    : $"{HouseRuleDescription(dealer)}  →  칸 1개 HIJACK";
+            }
             if (dealerSprite != null) dealerSprite.color = DealerTint(dealer.Name);
         }
 
@@ -2272,7 +2282,7 @@ namespace RouletteLike.Roulette
         {
             if (!prize.HasValue) return "";
             Relic relic = RelicCatalog.Get(prize.Value);
-            return $"\n이기면 유물: {relic.Keyword} 「{relic.Name}」 {relic.Description}";
+            return $"\n하우스 룰 달성 + 승리 시 유물: 「{relic.Name}」 {relic.Description}";
         }
 
         private static string DescribeDealer(DealerProfile dealer)

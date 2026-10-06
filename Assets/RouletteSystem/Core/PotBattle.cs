@@ -145,6 +145,9 @@ namespace RouletteLike.Battle
 
         public bool HasRelic(RelicId id) => _playerRelics.Contains(id);
 
+        /// <summary>이번 전투에서 하우스 룰을 달성한 횟수. 한 번 이상 달성하고 이기면 문 카드의 유물을 받는다(ADR 0010).</summary>
+        public int HouseRulesAchieved { get; private set; }
+
         /// <param name="playerOuterRing">플레이어 자신의 바깥 링(해금된 경우). 없으면 딜러의 테이블 바깥 링을 빌려 쓴다.</param>
         /// <param name="playerRelics">플레이어 유물. 효과는 이 전투 규칙 곳곳에서 확인한다.</param>
         public PotBattle(IEnumerable<Slot> playerWheel, int playerChips, DealerProfile dealer, int seed, IReadOnlyList<Slot> playerOuterRing = null, IEnumerable<RelicId> playerRelics = null)
@@ -918,6 +921,7 @@ namespace RouletteLike.Battle
 
             HouseRuleProgress = 0;
             HijackChances++;
+            HouseRulesAchieved++;
             Write($"하우스 룰 달성: {reason} → HIJACK 기회 +1");
         }
 
