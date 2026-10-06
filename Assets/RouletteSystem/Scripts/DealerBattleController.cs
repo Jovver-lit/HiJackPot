@@ -1038,7 +1038,7 @@ namespace RouletteLike.Roulette
         }
 
         /// <summary>
-        /// 역탈취: 압수되는 내 칸이 딜러 쪽으로 끌려가는 연출(HIJACK의 반대 방향) 뒤에 봉인을 반영한다.
+        /// 역탈취: 회수되는 내 칸이 딜러 쪽으로 끌려가는 연출(HIJACK의 반대 방향) 뒤에 봉인을 반영한다.
         /// 왜 당했는지(몰수)와 되찾는 법(이기면 반환)을 함께 알린다.
         /// </summary>
         private IEnumerator PlayCounterHijackThenContinue()
@@ -1048,7 +1048,7 @@ namespace RouletteLike.Roulette
             int preview = FindCounterHijackTarget();
             RouletteSegmentData token = preview >= 0 ? ToSegment(_battle.Player.Wheel[preview]) : null;
             resultText.text = "역탈취!";
-            calculationText.text = $"몰수에 걸려 {DealerShortName}가 내 칸 하나를 압수합니다 (이번 전투 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)";
+            calculationText.text = $"몰수에 걸려 {DealerShortName}가 내 칸 하나를 회수합니다 (이번 전투 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)";
 
             bool applied = false;
             void Apply()
@@ -1060,7 +1060,7 @@ namespace RouletteLike.Roulette
                 SyncWheels();
                 if (seized >= 0)
                 {
-                    dealerLineText.text = $"\"몰수에 이어 {seized + 1}번 칸도 압수하겠습니다. 이기시면 돌려드리죠.\"";
+                    dealerLineText.text = $"\"몰수에 이어 {seized + 1}번 칸도 회수하겠습니다. 이기시면 돌려드리죠.\"";
                 }
             }
 
@@ -2024,8 +2024,8 @@ namespace RouletteLike.Roulette
                 string warning = !_battle.Profile.CounterHijacks
                     ? (_battle.Profile.Telegraphs ? "역탈취 없음 (튜토리얼)" : "역탈취 없음 (1층)")
                     : _battle.CounterHijacksRemaining > 0
-                        ? $"[!] 역탈취: 내가 몰수에 걸리면 내 칸 1개 압수 (이번 전투 {_battle.CounterHijacksRemaining}회 남음, 이기면 반환)"
-                        : "역탈취 소진: 이번 전투에는 더 압수하지 않음";
+                        ? $"[!] 역탈취: 내가 몰수에 걸리면 내 칸 1개 회수 (이번 전투 {_battle.CounterHijacksRemaining}회 남음, 이기면 반환)"
+                        : "역탈취 소진: 이번 전투에는 더 회수하지 않음";
                 string specials = SlotDescriptions.DescribeSpecials(_battle.Dealer.Wheel, "");
                 if (_battle.DealerHasCasinoRing) specials = "카지노 링: 딜러 바깥 링엔 몰수가 없다(손님 링과 다름)" + (string.IsNullOrEmpty(specials) ? "" : "\n" + specials);
                 dealerNoteText.text = string.IsNullOrEmpty(specials) ? warning : warning + "\n" + specials;
@@ -2054,7 +2054,7 @@ namespace RouletteLike.Roulette
             if (houseRuleDetailWarningText != null)
             {
                 houseRuleDetailWarningText.text = dealer.CounterHijacks
-                    ? $"역탈취: 내가 몰수에 걸리면 {dealer.Name}가 내 칸 1개를 압수한다(전투당 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)."
+                    ? $"역탈취: 내가 몰수에 걸리면 {dealer.Name}가 내 칸 1개를 회수한다(전투당 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)."
                     : "1층 토끼는 역탈취하지 않습니다.";
             }
         }

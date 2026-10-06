@@ -813,11 +813,11 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 역탈취: 플레이어가 몰수에 걸린 직후 딜러가 플레이어 칸 하나를 압수한다.
+        /// 역탈취: 플레이어가 몰수에 걸린 직후 딜러가 플레이어 칸 하나를 회수한다.
         /// 플레이어가 빼앗아 온 칸을 먼저 되찾고, 없으면 값이 가장 큰 칸을 가져간다. 몰수는 대상이 아니다.
-        /// 압수된 칸은 이 전투 동안 봉인되며, 플레이어가 이기면 원래대로 돌아온다.
+        /// 회수된 칸은 이 전투 동안 봉인되며, 플레이어가 이기면 원래대로 돌아온다.
         /// </summary>
-        /// <returns>압수한 칸의 인덱스. 대상이 없으면 -1.</returns>
+        /// <returns>회수한 칸의 인덱스. 대상이 없으면 -1.</returns>
         public int ResolveCounterHijack()
         {
             if (!CounterHijackPending)
@@ -848,7 +848,7 @@ namespace RouletteLike.Battle
             Slot seized = Player.Wheel[target];
             _seizedSlots.Add(new KeyValuePair<int, Slot>(target, seized));
             Player.ReplaceSlot(target, Slot.Sealed($"seized_{_seizedSlots.Count}_{seized.Id}"));
-            Write($"역탈취: {Profile.Name}이(가) 내 {target + 1}번 칸({seized.Label})을 압수");
+            Write($"역탈취: {Profile.Name}이(가) 내 {target + 1}번 칸({seized.Label})을 회수");
             return target;
         }
 
@@ -976,7 +976,7 @@ namespace RouletteLike.Battle
                 for (int i = _seizedSlots.Count - 1; i >= 0; i--)
                 {
                     Player.ReplaceSlot(_seizedSlots[i].Key, _seizedSlots[i].Value);
-                    Write($"압수된 {_seizedSlots[i].Value.Label} 반환");
+                    Write($"회수된 {_seizedSlots[i].Value.Label} 반환");
                 }
 
                 _returnedSeizures += _seizedSlots.Count;
