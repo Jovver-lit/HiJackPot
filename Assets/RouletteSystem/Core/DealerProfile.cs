@@ -50,6 +50,12 @@ namespace RouletteLike.Battle
         /// </summary>
         public IReadOnlyList<Slot> TableOuterRing { get; }
 
+        /// <summary>
+        /// 테이블 규칙 「연쇄」: 이 딜러와 싸우는 동안 양쪽 룰렛에서 붙어 있는 같은 종류 칸이 한 묶음으로 발동한다.
+        /// 기본 규칙에서는 뺐고(ADR 0013), 이후 보스 기믹·빼앗는 테이블 규칙 후보로 남겨 둔다. 지금은 어떤 딜러도 쓰지 않는다.
+        /// </summary>
+        public bool TableChains { get; }
+
         /// <summary>다음 행동을 미리 보여주는지. 튜토리얼 딜러만 true.</summary>
         public bool Telegraphs { get; }
 
@@ -76,7 +82,8 @@ namespace RouletteLike.Battle
             IReadOnlyList<Slot> wheel,
             IReadOnlyCollection<int> scriptedInstantCashOutRounds = null,
             int baseInsurance = 0,
-            IReadOnlyList<Slot> tableOuterRing = null)
+            IReadOnlyList<Slot> tableOuterRing = null,
+            bool tableChains = false)
         {
             Name = name;
             StartingChips = startingChips;
@@ -90,6 +97,7 @@ namespace RouletteLike.Battle
             ScriptedInstantCashOutRounds = scriptedInstantCashOutRounds ?? System.Array.Empty<int>();
             BaseInsurance = baseInsurance;
             TableOuterRing = tableOuterRing ?? System.Array.Empty<Slot>();
+            TableChains = tableChains;
         }
 
         /// <summary>시작 칩·앤티를 바꾼 사본(층이 오를수록 딜러가 단단하고 아파진다).</summary>
@@ -102,7 +110,7 @@ namespace RouletteLike.Battle
         public DealerProfile WithStakes(string name, int startingChips, int anteBonus, int insuranceBonus, int cashOutAtBonus)
         {
             return new DealerProfile(name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt + cashOutAtBonus, HouseRule, Telegraphs, CounterHijacks,
-                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance + insuranceBonus, TableOuterRing);
+                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance + insuranceBonus, TableOuterRing, TableChains);
         }
     }
 }

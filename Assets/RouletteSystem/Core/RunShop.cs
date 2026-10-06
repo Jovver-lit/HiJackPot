@@ -82,7 +82,7 @@ namespace RouletteLike.Battle
             return slot.Kind == SlotKind.Multiplier ? ShopPrices.UpgradeMultiplier : ShopPrices.Upgrade;
         }
 
-        /// <summary>두 칸의 자리를 맞바꾼다(하우스 몫도 옮길 수 있다 — 연쇄를 직접 설계).</summary>
+        /// <summary>두 칸의 자리를 맞바꾼다(하우스 몫도 옮길 수 있다 — 같은 칸을 모아 SPIN 강도로 노릴 구역을 설계).</summary>
         public ShopError SwapSlots(int a, int b)
         {
             if (!InShop) return ShopError.NotInShop;

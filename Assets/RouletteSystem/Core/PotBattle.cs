@@ -300,7 +300,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 현재 차례인 쪽의 룰렛이 index 칸에 착지했다. 이어진 같은 종류 칸이 한 묶음(연쇄)으로 발동한다.
+        /// 현재 차례인 쪽의 룰렛이 index 칸에 착지했다. 칸은 혼자 발동한다(테이블 규칙 「연쇄」가 있을 때만 이어진 같은 종류 칸이 한 묶음으로).
         /// 바깥 링이 있으면 outerIndex 칸도 함께 멈춘다: 보호막은 착지보다 먼저, 레이즈·보험은 착지 뒤에 더하고,
         /// 배율 링은 안쪽 효과를 한 번 더 발동한다. 안쪽과 바깥이 같은 종류면 잭팟 라인으로 안쪽 효과가 또 한 번 발동한다.
         /// 바깥 하우스 몫은 안쪽 효과가 끝난 뒤 판돈을 증발시킨다(보호막이 있으면 막는다).
@@ -344,7 +344,7 @@ namespace RouletteLike.Battle
                 return FinishLanding(result, seat, parts);
             }
 
-            List<int> group = FindChainGroup(seat.Wheel, index);
+            List<int> group = LandingGroup(Active, index);
             result.Group = group;
 
             if (Active == Side.Player && ComebackBoost > 0f && IsGoodSlot(slot))
@@ -375,10 +375,10 @@ namespace RouletteLike.Battle
             }
 
             parts.Add(ApplyInnerEffect(seat, slot, group, result));
-            if (Active == Side.Player && group.Count >= 2 && HasRelic(RelicId.StickyDivider))
+            if (Active == Side.Player && HasSameKindNeighbor(seat.Wheel, index) && HasRelic(RelicId.StickyDivider))
             {
                 seat.Pot += RelicCatalog.StickyDividerBonus;
-                parts.Add($"끈적한 칸막이: 연쇄 {group.Count}칸 → 판돈 +{RelicCatalog.StickyDividerBonus} = {seat.Pot}");
+                parts.Add($"끈적한 칸막이: 옆에 같은 칸 → 판돈 +{RelicCatalog.StickyDividerBonus} = {seat.Pot}");
             }
 
             if (outer != null && outer.Kind == SlotKind.Multiplier)
@@ -869,6 +869,26 @@ namespace RouletteLike.Battle
         /// <summary>
         /// 한 칸에서 시작해 양옆으로 이어진, [착지]로 발동하는 같은 종류 칸의 인덱스(시계 방향 순서).
         /// </summary>
+        /// <summary>테이블 규칙 「연쇄」가 켜져 있는지(ADR 0013: 기본은 꺼짐).</summary>
+        public bool ChainsEnabled => Profile.TableChains;
+
+        /// <summary>이 칸에 착지하면 함께 발동하는 칸들. 기본은 그 칸 하나, 「연쇄」 테이블이면 이어진 같은 종류 칸 묶음.</summary>
+        public List<int> LandingGroup(Side side, int index)
+        {
+            return ChainsEnabled ? FindChainGroup(SeatOf(side).Wheel, index) : new List<int> { index };
+        }
+
+        /// <summary>바로 옆(양옆) 칸 중 같은 종류의 [착지] 칸이 있는지. 유물 「끈적한 칸막이」가 쓴다.</summary>
+        public static bool HasSameKindNeighbor(IReadOnlyList<Slot> wheel, int index)
+        {
+            Slot origin = wheel[index];
+            if (!origin.FiresOnLand || origin.Kind == SlotKind.HouseCut || wheel.Count < 2) return false;
+            Slot left = wheel[(index - 1 + wheel.Count) % wheel.Count];
+            Slot right = wheel[(index + 1) % wheel.Count];
+            return SameChain(origin, left) || SameChain(origin, right);
+        }
+
+        /// <summary>테이블 규칙 「연쇄」용: 한 칸에서 양옆으로 이어진 같은 종류 [착지] 칸 묶음.</summary>
         public static List<int> FindChainGroup(IReadOnlyList<Slot> wheel, int index)
         {
             int count = wheel.Count;

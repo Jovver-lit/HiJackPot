@@ -18,3 +18,4 @@
 | [0010](0010-relics-need-house-rule-and-win.md) | 문 카드 유물은 하우스 룰을 달성하고 이겨야 받는다 (0006 수정) |
 | [0011](0011-final-boss-at-30f-steals-house-cut.md) | 정식판은 30층, 최종 보스전에서만 하우스 몫을 HIJACK할 수 있다 |
 | [0012](0012-house-cut-chance-rises-each-spin.md) | 한 턴 안에서 SPIN할수록 하우스 몫 확률이 오른다 (N번째 = N × 5%, 최대 35%) |
+| [0013](0013-chains-are-a-table-rule-not-base.md) | 연쇄는 기본 규칙이 아니라 테이블 규칙이다 (칸은 하나씩 발동) |

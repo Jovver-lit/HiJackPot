@@ -11,7 +11,7 @@ namespace RouletteLike.Battle
 
         /// <summary>
         /// 시작 8칸: 레이즈 3 / 배율 1 / 보험 2 / 배당 1 / 하우스 몫 1.
-        /// 레이즈 두 칸을 붙여 첫 연쇄를 바로 보여주고, 배율은 그 뒤에 둔다.
+        /// 레이즈 칸을 모아 두어 SPIN 강도로 노리기 쉽게 하고, 배율은 그 뒤에 둔다.
         /// </summary>
         public static List<Slot> CreateStarterWheel()
         {
@@ -29,7 +29,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 토끼 딜러: 칩 15, 테이블 한도 3, 앤티 1, 판돈 5 이상이면 CASH OUT(소심한 튜토리얼 딜러), 하우스 룰은 전액 보장.
+        /// 토끼 딜러: 칩 12, 테이블 한도 3, 앤티 1, 판돈 4 이상이면 CASH OUT(소심한 튜토리얼 딜러), 하우스 룰은 전액 보장. 연쇄를 뺀 뒤(ADR 0013) 칩 15·판돈 5에서 낮췄다.
         /// JACKPOT 칸은 「서비스」([라운드 시작] 칩 +1).
         /// 보험 칸이 없다(보험 0 고정). 원안의 "토끼 방어력 0"처럼 작은 판돈 갉아먹기가 통하게 한다.
         /// R3는 대본: 예고 후 앤티만으로 곧장 CASH OUT → 보험이 1 이상이면 전액 보장.
@@ -48,10 +48,10 @@ namespace RouletteLike.Battle
 
             return new DealerProfile(
                 name: "토끼 딜러",
-                startingChips: 15,
+                startingChips: 12,
                 tableLimit: 3,
                 dealerAnte: 1,
-                cashOutAt: 5,
+                cashOutAt: 4,
                 houseRule: HouseRule.FullCoverage,
                 telegraphs: true,
                 counterHijacks: false,
@@ -158,7 +158,7 @@ namespace RouletteLike.Battle
 
         /// <summary>
         /// 고양이 딜러: 느긋해서 판돈 12까지 키운다 → 한 방이 크다.
-        /// 하우스 룰 "배율 칸으로 판돈을 불린 뒤 CASH OUT" → 연쇄 빌드를 시험한다.
+        /// 하우스 룰 "배율 칸으로 판돈을 불린 뒤 CASH OUT" → 배율 빌드를 시험한다.
         /// JACKPOT 「더블 다운」: 배율 ×3.
         /// </summary>
         public static DealerProfile CreateCatDealer()

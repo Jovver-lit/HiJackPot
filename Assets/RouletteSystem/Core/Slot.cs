@@ -76,7 +76,7 @@ namespace RouletteLike.Battle
             IsStolen = isStolen;
         }
 
-        /// <summary>[라운드 시작] 칸은 착지해도 발동하지 않고, 연쇄 묶음에도 끼지 않는다.</summary>
+        /// <summary>[라운드 시작] 칸은 착지해도 발동하지 않고, (테이블 규칙 「연쇄」에서) 묶음에도 끼지 않는다.</summary>
         public bool FiresOnLand => Trigger == SlotTrigger.Land && Kind != SlotKind.Sealed;
 
         public Slot AsStolen(string newId)
