@@ -60,6 +60,25 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
+        /// 튜토리얼을 마친 뒤의 1층 토끼: 칸·칩·하우스 룰은 같고, 예고·앤티 고정·R3 대본 같은 튜토리얼 장치만 뺐다.
+        /// 몸풀기 전투이자 「서비스」를 훔칠 기회로 남긴다.
+        /// </summary>
+        public static DealerProfile CreateRabbitWarmup()
+        {
+            DealerProfile tutorial = CreateRabbitDealer();
+            return new DealerProfile(
+                name: tutorial.Name,
+                startingChips: tutorial.StartingChips,
+                tableLimit: tutorial.TableLimit,
+                dealerAnte: tutorial.DealerAnte,
+                cashOutAt: tutorial.CashOutAt,
+                houseRule: tutorial.HouseRule,
+                telegraphs: false,
+                counterHijacks: false,
+                wheel: tutorial.Wheel);
+        }
+
+        /// <summary>
         /// 바깥 링 4칸: 레이즈 +3 / 배율 ×2(안쪽 효과 한 번 더) / 보험 +2 / 바깥 하우스 몫(판돈 증발).
         /// 바깥 링도 보상과 위험을 함께 가진다(ADR 0005). 보호막은 보스 JACKPOT 「VIP 보호막」에만 있다.
         /// 보스 매니저의 테이블 규칙이자, 보스를 이긴 뒤 다음 런부터 플레이어가 갖는 바깥 링이다.

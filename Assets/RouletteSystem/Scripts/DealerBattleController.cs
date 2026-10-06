@@ -124,13 +124,15 @@ namespace RouletteLike.Roulette
         [SerializeField] private UnityEngine.UI.Button endContinueButton;
         [SerializeField] private TMP_Text endContinueLabel;
 
-        [Header("Outer Ring (그레이박스 띠)")]
-        [SerializeField] private GameObject playerOuterRoot;
-        [SerializeField] private UnityEngine.UI.Image[] playerOuterBoxes = new UnityEngine.UI.Image[0];
-        [SerializeField] private TMP_Text[] playerOuterLabels = new TMP_Text[0];
-        [SerializeField] private GameObject dealerOuterRoot;
-        [SerializeField] private UnityEngine.UI.Image[] dealerOuterBoxes = new UnityEngine.UI.Image[0];
-        [SerializeField] private TMP_Text[] dealerOuterLabels = new TMP_Text[0];
+        [Header("Outer Ring (안쪽 룰렛을 감싸는 겹친 링)")]
+        [Tooltip("내 바깥 링: 안쪽 룰렛 뒤에 겹쳐 그린 큰 룰렛. 안쪽 룰렛을 줄여 바깥 띠만 보이게 한다.")]
+        [SerializeField] private RouletteController playerOuterRoulette;
+        [SerializeField] private RouletteSpinController playerOuterSpin;
+        [SerializeField] private RouletteController dealerOuterRoulette;
+        [SerializeField] private RouletteSpinController dealerOuterSpin;
+
+        /// <summary>바깥 링이 있을 때 안쪽 룰렛(틀·포인터·SPIN 버튼 포함)의 크기. 남는 테두리가 바깥 링 띠가 된다.</summary>
+        private const float OuterRingInnerScale = 0.84f;
 
         [Header("Landing Tag (포인터 위 착지 이름표)")]
         [SerializeField] private RectTransform playerLandingTag;
@@ -239,12 +241,19 @@ namespace RouletteLike.Roulette
         private int _runCount;
         private bool _placingJackpot;
         private int _lastPlayerOuter = -1;
+        private int _pendingPlayerOuter = -1;
+        private int _pendingDealerOuter = -1;
         private int _playerChipsBaseline = 1;
         private int _dealerChipsBaseline = 1;
         private int _lastDealerOuter = -1;
 
         /// <summary>보스를 이겨 해금한 바깥 링을 다음 런으로 넘기는 저장 키(메타 진행).</summary>
         private const string OuterRingUnlockedKey = "hijackpot.meta.outerRingUnlocked";
+
+        /// <summary>튜토리얼(1층 토끼의 예고·앤티 고정·대본)을 한 번 이겼는지. 다음 런부터 토끼는 대본 없이 나온다.</summary>
+        private const string TutorialDoneKey = "hijackpot.tutorialDone";
+
+        private static bool TutorialDone => PlayerPrefs.GetInt(TutorialDoneKey, 0) == 1;
         // ↑ 예전(5층 런) 해금 저장 키. 이제 바깥 링은 매 런 5층 보스를 이겨야 얻으므로(ADR 0009) 읽지 않고, 남아 있으면 지운다.
         private PotBattle _battle;
         private ViewState _state;
@@ -464,10 +473,17 @@ namespace RouletteLike.Roulette
 
             if (titleMetaText != null)
             {
-                titleMetaText.text = "5층 보스 「매니저」를 이기면 그 런에서 바깥 링(이중 룰렛)을 얻습니다";
+                titleMetaText.text = TutorialDone
+                    ? "튜토리얼 완료 · 1층 토끼는 대본 없이 나옵니다 · 5층 보스를 이기면 그 런에서 바깥 링을 얻습니다"
+                    : "5층 보스 「매니저」를 이기면 그 런에서 바깥 링(이중 룰렛)을 얻습니다";
             }
 
-            if (titleResetButton != null) titleResetButton.gameObject.SetActive(false);
+            if (titleResetButton != null)
+            {
+                titleResetButton.gameObject.SetActive(TutorialDone);
+                TMP_Text label = titleResetButton.GetComponentInChildren<TMP_Text>();
+                if (label != null) label.text = "튜토리얼 다시 하기";
+            }
         }
 
         private void OnTitleStart()
@@ -476,12 +492,12 @@ namespace RouletteLike.Roulette
             StartNewRun();
         }
 
-        /// <summary>해금 기록(바깥 링)을 지운다. 처음부터 다시 시험하고 싶을 때.</summary>
+        /// <summary>튜토리얼 완료 기록을 지우고 튜토리얼부터 새 런을 시작한다.</summary>
         private void OnTitleReset()
         {
-            PlayerPrefs.DeleteKey(OuterRingUnlockedKey);
+            PlayerPrefs.DeleteKey(TutorialDoneKey);
             PlayerPrefs.Save();
-            ShowTitle();
+            OnTitleStart();
         }
 
         private void OnDisable()
@@ -509,7 +525,7 @@ namespace RouletteLike.Roulette
                 battleSeed + _runCount * 1000,
                 BattlePresets.PlayerStartingChips,
                 BattlePresets.CreateStarterWheel(),
-                BattlePresets.CreateRabbitDealer,
+                TutorialDone ? BattlePresets.CreateRabbitWarmup : BattlePresets.CreateRabbitDealer,
                 BattlePresets.CreateDealerPool(),
                 BattlePresets.CreateStageBoss,
                 outerRing: null);
@@ -608,6 +624,12 @@ namespace RouletteLike.Roulette
             {
                 StartNewRun();
                 return;
+            }
+
+            if (_battle.Profile.Telegraphs && !TutorialDone)
+            {
+                PlayerPrefs.SetInt(TutorialDoneKey, 1);
+                PlayerPrefs.Save();
             }
 
             _run.CompleteBattle();
@@ -848,6 +870,17 @@ namespace RouletteLike.Roulette
             HideLandingFeedback(Side.Player);
             RefreshAllUi();
             spinController.Spin(power);
+            // 바깥 링도 같은 SPIN에 함께 돈다: 결과를 먼저 정하고, 안쪽보다 조금 일찍 그 칸에 멈춘다.
+            _pendingPlayerOuter = _battle.RollOuterIndex(Side.Player);
+            SpinOuterRing(playerOuterRoulette, playerOuterSpin, spinController, _pendingPlayerOuter);
+        }
+
+        private static void SpinOuterRing(RouletteController outer, RouletteSpinController outerSpin, RouletteSpinController innerSpin, int index)
+        {
+            if (outer == null || outerSpin == null || !outer.gameObject.activeInHierarchy || index < 0 || index >= outer.Count) return;
+            outer.ClearLanding();
+            outerSpin.DurationScale = innerSpin != null ? innerSpin.DurationScale : 1f;
+            outerSpin.SpinToSegment(index);
         }
 
         private void HandlePlayerSpinFinished(RouletteSegmentData result)
@@ -937,7 +970,8 @@ namespace RouletteLike.Roulette
         private void ResolvePlayerLanding(int index)
         {
             _state = ViewState.PlayerTurn;
-            _lastPlayerOuter = _battle.RollOuterIndex(Side.Player);
+            _lastPlayerOuter = _pendingPlayerOuter >= 0 ? _pendingPlayerOuter : _battle.RollOuterIndex(Side.Player);
+            _pendingPlayerOuter = -1;
             LandingResult landing = _battle.Land(index, _lastPlayerOuter);
             FlushCoreLog();
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
@@ -1099,7 +1133,8 @@ namespace RouletteLike.Roulette
 
                 spins++;
                 yield return SpinDealerWheel();
-                _lastDealerOuter = _battle.RollOuterIndex(Side.Dealer);
+                _lastDealerOuter = _pendingDealerOuter >= 0 ? _pendingDealerOuter : _battle.RollOuterIndex(Side.Dealer);
+                _pendingDealerOuter = -1;
                 LandingResult landing = _battle.Land(_dealerLandingIndex, _lastDealerOuter);
                 FlushCoreLog();
                 ShowLandingFeedback(Side.Dealer, landing);
@@ -1136,6 +1171,8 @@ namespace RouletteLike.Roulette
             enemyRoulette?.PixelWheelRenderer?.ClearHighlight();
             HideLandingFeedback(Side.Dealer);
             enemySpinController?.SpinToSegment(_dealerLandingIndex);
+            _pendingDealerOuter = _battle.RollOuterIndex(Side.Dealer);
+            SpinOuterRing(dealerOuterRoulette, dealerOuterSpin, enemySpinController, _pendingDealerOuter);
             yield return new WaitUntil(() => _dealerSpinFinished);
         }
 
@@ -1842,8 +1879,8 @@ namespace RouletteLike.Roulette
             RefreshOddsBoard();
             RefreshSpecialNotes();
             RefreshHouseRuleDetail();
-            RefreshOuterRing(_battle.Player, playerOuterRoot, playerOuterBoxes, playerOuterLabels, _lastPlayerOuter);
-            RefreshOuterRing(_battle.Dealer, dealerOuterRoot, dealerOuterBoxes, dealerOuterLabels, _lastDealerOuter);
+            ApplyOuterRingLayout(_battle.Player, playerOuterRoulette, roulette);
+            ApplyOuterRingLayout(_battle.Dealer, dealerOuterRoulette, enemyRoulette);
         }
 
         private void RefreshBetControls()
@@ -1979,7 +2016,7 @@ namespace RouletteLike.Roulette
             if (dealerNoteText != null)
             {
                 string warning = !_battle.Profile.CounterHijacks
-                    ? "역탈취 없음 (튜토리얼)"
+                    ? (_battle.Profile.Telegraphs ? "역탈취 없음 (튜토리얼)" : "역탈취 없음 (1층)")
                     : _battle.CounterHijacksRemaining > 0
                         ? $"[!] 역탈취: 내가 하우스 몫에 걸리면 내 칸 1개 압수 (이번 전투 {_battle.CounterHijacksRemaining}회 남음, 이기면 반환)"
                         : "역탈취 소진: 이번 전투에는 더 압수하지 않음";
@@ -2011,7 +2048,7 @@ namespace RouletteLike.Roulette
             {
                 houseRuleDetailWarningText.text = dealer.CounterHijacks
                     ? $"역탈취: 내가 하우스 몫에 걸리면 {dealer.Name}가 내 칸 1개를 압수한다(전투당 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)."
-                    : "튜토리얼 딜러는 역탈취하지 않습니다.";
+                    : "1층 토끼는 역탈취하지 않습니다.";
             }
         }
 
@@ -2058,6 +2095,12 @@ namespace RouletteLike.Roulette
             }
 
             wheel?.ShowLanding(slot.Id, groupIds);
+            RouletteController outerWheel = player ? playerOuterRoulette : dealerOuterRoulette;
+            if (outerWheel != null && landing.OuterIndex >= 0 && landing.OuterIndex < seat.OuterRing.Count)
+            {
+                string outerId = seat.OuterRing[landing.OuterIndex].Id;
+                outerWheel.ShowLanding(outerId, new List<string> { outerId });
+            }
 
             RectTransform tag = player ? playerLandingTag : dealerLandingTag;
             if (tag == null) return;
@@ -2089,6 +2132,7 @@ namespace RouletteLike.Roulette
         {
             bool player = side == Side.Player;
             (player ? roulette : enemyRoulette)?.ClearLanding();
+            (player ? playerOuterRoulette : dealerOuterRoulette)?.ClearLanding();
             RectTransform tag = player ? playerLandingTag : dealerLandingTag;
             if (tag != null) tag.gameObject.SetActive(false);
         }
@@ -2156,27 +2200,6 @@ namespace RouletteLike.Roulette
             if (landing.HouseCutHit) return landing.Kind == SlotKind.HouseCut ? "하우스 몫!" : "바깥 하우스 몫!";
             if (landing.KeywordTriggered) return $"특수 칸 발동!  {innerLabel}";
             return landing.JackpotLine ? $"잭팟 라인!  {innerLabel}" : $"착지  {innerLabel}";
-        }
-
-        /// <summary>바깥 링 띠(그레이박스): 칸 이름을 보여주고 방금 멈춘 칸을 금색으로 강조한다.</summary>
-        private static void RefreshOuterRing(Seat seat, GameObject root, UnityEngine.UI.Image[] boxes, TMP_Text[] labels, int highlighted)
-        {
-            if (root == null) return;
-            root.SetActive(seat.HasOuterRing);
-            if (!seat.HasOuterRing) return;
-            int count = Mathf.Min(seat.OuterRing.Count, boxes.Length);
-            for (int i = 0; i < boxes.Length; i++)
-            {
-                bool exists = i < count;
-                boxes[i].gameObject.SetActive(exists);
-                if (!exists) continue;
-                float step = boxes[i].rectTransform.sizeDelta.x + 6f;
-                boxes[i].rectTransform.anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * step, 0f);
-                labels[i].text = seat.OuterRing[i].Label;
-                boxes[i].color = i == highlighted
-                    ? new Color32(224, 168, 52, 255)
-                    : new Color32(61, 53, 79, 255);
-            }
         }
 
         // ───────────── 딜러 소개 ─────────────
@@ -2453,6 +2476,21 @@ namespace RouletteLike.Roulette
         {
             roulette?.SetSegments(ToSegments(_battle.Player.Wheel, _battle.HouseCutWeight(Side.Player)), false);
             enemyRoulette?.SetSegments(ToSegments(_battle.Dealer.Wheel, _battle.HouseCutWeight(Side.Dealer)), false);
+            ApplyOuterRingLayout(_battle.Player, playerOuterRoulette, roulette);
+            ApplyOuterRingLayout(_battle.Dealer, dealerOuterRoulette, enemyRoulette);
+            if (_battle.Player.HasOuterRing) playerOuterRoulette?.SetSegments(ToSegments(_battle.Player.OuterRing, 1f), false);
+            if (_battle.Dealer.HasOuterRing) dealerOuterRoulette?.SetSegments(ToSegments(_battle.Dealer.OuterRing, 1f), false);
+        }
+
+        /// <summary>
+        /// 바깥 링이 있으면 안쪽 룰렛을 줄이고 그 뒤의 큰 룰렛(바깥 링)을 보여 준다. 두 링이 같은 포인터 아래에서 함께 멈춰
+        /// 안쪽 칸과 바깥 칸을 한눈에 읽는다(사용자 피드백 2026-10-02: 띠로 따로 두니 바깥 결과를 놓쳤다).
+        /// </summary>
+        private static void ApplyOuterRingLayout(Seat seat, RouletteController outer, RouletteController inner)
+        {
+            bool show = seat.HasOuterRing && outer != null;
+            if (outer != null && outer.gameObject.activeSelf != show) outer.gameObject.SetActive(show);
+            if (inner != null) inner.transform.localScale = Vector3.one * (show ? OuterRingInnerScale : 1f);
         }
 
         /// <summary>
