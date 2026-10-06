@@ -14,3 +14,4 @@
 | [0006](0006-relics-are-door-prizes.md) | 유물은 문 카드에 걸린 상금으로 얻는다 |
 | [0007](0007-table-chips-stay-at-the-table.md) | ~~전투에서 딴 칩은 테이블에 두고 나간다~~ (0008로 대체) |
 | [0008](0008-won-chips-split-into-chips-and-cash.md) | 딴 칩은 일부는 칩으로, 나머지는 현금으로 환전된다 |
+| [0009](0009-run-continues-after-boss-into-shop.md) | 보스를 이기면 상점층을 지나 2회차로 이어진다 (10층 런) |
