@@ -56,6 +56,12 @@ namespace RouletteLike.Battle
         /// </summary>
         public bool TableChains { get; }
 
+        /// <summary>
+        /// 딜러만 쓰는 바깥 링(카지노 링). 테이블 규칙과 달리 플레이어에게 빌려주지 않는다.
+        /// 2회차 딜러가 받는다 — 하우스 몫이 없어 딜러에게 순수한 강화다("하우스니까요", 2026-10-02 사용자 결정).
+        /// </summary>
+        public IReadOnlyList<Slot> DealerOuterRing { get; }
+
         /// <summary>다음 행동을 미리 보여주는지. 튜토리얼 딜러만 true.</summary>
         public bool Telegraphs { get; }
 
@@ -83,7 +89,8 @@ namespace RouletteLike.Battle
             IReadOnlyCollection<int> scriptedInstantCashOutRounds = null,
             int baseInsurance = 0,
             IReadOnlyList<Slot> tableOuterRing = null,
-            bool tableChains = false)
+            bool tableChains = false,
+            IReadOnlyList<Slot> dealerOuterRing = null)
         {
             Name = name;
             StartingChips = startingChips;
@@ -98,6 +105,7 @@ namespace RouletteLike.Battle
             BaseInsurance = baseInsurance;
             TableOuterRing = tableOuterRing ?? System.Array.Empty<Slot>();
             TableChains = tableChains;
+            DealerOuterRing = dealerOuterRing ?? System.Array.Empty<Slot>();
         }
 
         /// <summary>시작 칩·앤티를 바꾼 사본(층이 오를수록 딜러가 단단하고 아파진다).</summary>
@@ -110,7 +118,14 @@ namespace RouletteLike.Battle
         public DealerProfile WithStakes(string name, int startingChips, int anteBonus, int insuranceBonus, int cashOutAtBonus)
         {
             return new DealerProfile(name, startingChips, TableLimit, DealerAnte + anteBonus, CashOutAt + cashOutAtBonus, HouseRule, Telegraphs, CounterHijacks,
-                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance + insuranceBonus, TableOuterRing, TableChains);
+                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance + insuranceBonus, TableOuterRing, TableChains, DealerOuterRing);
+        }
+
+        /// <summary>딜러만 쓰는 바깥 링(카지노 링)을 붙인 사본.</summary>
+        public DealerProfile WithDealerOuterRing(IReadOnlyList<Slot> ring)
+        {
+            return new DealerProfile(Name, StartingChips, TableLimit, DealerAnte, CashOutAt, HouseRule, Telegraphs, CounterHijacks,
+                Wheel, new List<int>(ScriptedInstantCashOutRounds), BaseInsurance, TableOuterRing, TableChains, ring);
         }
     }
 }

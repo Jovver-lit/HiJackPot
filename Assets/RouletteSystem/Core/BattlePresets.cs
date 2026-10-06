@@ -95,6 +95,21 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
+        /// 카지노 링: 2회차 딜러만 쓰는 바깥 링. 손님 바깥 링과 같되 하우스 몫 자리가 레이즈 +2다.
+        /// 카지노는 원래 불공정하다 — 플레이어는 칸과 유물로 강해지고, 딜러는 이 링으로 강해진다.
+        /// </summary>
+        public static List<Slot> CreateCasinoRing()
+        {
+            return new List<Slot>
+            {
+                new Slot("cr_raise_3", SlotKind.Raise, 3, "레이즈 +3"),
+                new Slot("cr_mult_2", SlotKind.Multiplier, 2, "배율 ×2"),
+                new Slot("cr_insurance_2", SlotKind.Insurance, 2, "보험 +2"),
+                new Slot("cr_raise_2", SlotKind.Raise, 2, "레이즈 +2")
+            };
+        }
+
+        /// <summary>
         /// 스테이지 1 보스 「매니저」. 테이블 규칙으로 양쪽 룰렛에 바깥 링이 붙는다.
         /// 하우스 룰 "잭팟 라인 2번"(안쪽과 바깥이 같은 종류로 멈추기). JACKPOT 「VIP 보호막」: [착지] 이번 턴 하우스 몫 1회 무효.
         /// 수치는 임시값이다.
