@@ -293,6 +293,7 @@ namespace RouletteLike.Battle
             seat.Chips -= ante;
             seat.Ante = ante;
             seat.Pot = ante;
+            SpinsThisTurn = 0;
             Phase = BattlePhase.Spinning;
             Write($"{Name(Active)} 앤티 {ante}");
             return ante;
@@ -307,6 +308,7 @@ namespace RouletteLike.Battle
         public LandingResult Land(int index, int outerIndex = -1)
         {
             RequirePhase(BattlePhase.Spinning);
+            SpinsThisTurn++;
             Seat seat = ActiveSeat;
             if (index < 0 || index >= seat.Wheel.Count)
             {
@@ -674,8 +676,17 @@ namespace RouletteLike.Battle
             }
         }
 
-        /// <summary>착지 칸을 고를 때의 상대 무게. 1이 기본이며, 연출 쪽 회전도 이 값을 쓴다.</summary>
+        /// <summary>
+        /// 착지 칸을 고를 때의 상대 무게(헤드리스 추첨용). 하우스 몫은 이번 턴 SPIN 횟수만큼 무거워지고(HouseCutWeight),
+        /// 나머지 칸은 역전 보정 무게(ComebackWeight)를 쓴다.
+        /// </summary>
         public float LandingWeight(Side side, Slot slot)
+        {
+            return slot.Kind == SlotKind.HouseCut ? HouseCutWeight(side) : ComebackWeight(side, slot);
+        }
+
+        /// <summary>역전 보정만 반영한 무게. 연출 쪽 회전은 하우스 몫 폭을 칸 크기로 그리고, 이 값만 착지 구역 안에서 반영한다.</summary>
+        public float ComebackWeight(Side side, Slot slot)
         {
             if (side != Side.Player) return 1f;
             float boost = ComebackBoost;
@@ -683,6 +694,52 @@ namespace RouletteLike.Battle
             if (IsGoodSlot(slot)) return 1f + boost;
             if (slot.Kind == SlotKind.HouseCut) return 1f;
             return Math.Max(0.4f, 1f - boost * 0.5f);
+        }
+
+        // ───────────── 하우스 몫 상승 (ADR 0012) ─────────────
+        // 한 턴 안에서 N번째 SPIN의 (안쪽) 하우스 몫 확률은 N × 5%, 최대 35%. 턴이 끝나면(CASH OUT·증발) 처음으로.
+        // 지금 판돈과 몇 번째 SPIN인지가 "한 번 더?"의 판단 재료가 된다. 딜러도 같은 규칙. 바깥 링 하우스 몫은 그대로.
+
+        /// <summary>SPIN 한 번마다 오르는 하우스 몫 확률.</summary>
+        public const float HouseCutChancePerSpin = 0.05f;
+
+        /// <summary>하우스 몫 확률의 상한.</summary>
+        public const float HouseCutChanceMax = 0.35f;
+
+        /// <summary>이번 턴에 이미 돈 SPIN 횟수(앤티를 걸면 0).</summary>
+        public int SpinsThisTurn { get; private set; }
+
+        /// <summary>그쪽의 다음 SPIN이 안쪽 하우스 몫에 걸릴 확률(0~1). 하우스 몫이 여러 칸이면 그만큼 곱한다.</summary>
+        public float HouseCutChance(Side side)
+        {
+            IReadOnlyList<Slot> wheel = SeatOf(side).Wheel;
+            int cuts = CountHouseCuts(wheel);
+            if (cuts == 0 || cuts == wheel.Count) return cuts == 0 ? 0f : 1f;
+            int nextSpin = side == Active && Phase == BattlePhase.Spinning ? SpinsThisTurn + 1 : 1;
+            float perCut = Math.Min(HouseCutChanceMax, HouseCutChancePerSpin * nextSpin);
+            return Math.Min(0.9f, perCut * cuts);
+        }
+
+        /// <summary>하우스 몫 한 칸의 무게(다른 칸 = 1). 이 무게로 그린 칸 폭의 비율이 곧 HouseCutChance다.</summary>
+        public float HouseCutWeight(Side side)
+        {
+            IReadOnlyList<Slot> wheel = SeatOf(side).Wheel;
+            int cuts = CountHouseCuts(wheel);
+            int others = wheel.Count - cuts;
+            if (cuts == 0 || others == 0) return 1f;
+            float chance = HouseCutChance(side);
+            return chance / (1f - chance) * others / cuts;
+        }
+
+        private static int CountHouseCuts(IReadOnlyList<Slot> wheel)
+        {
+            int cuts = 0;
+            foreach (Slot slot in wheel)
+            {
+                if (slot.Kind == SlotKind.HouseCut) cuts++;
+            }
+
+            return cuts;
         }
 
         public static bool IsGoodSlot(Slot slot)
@@ -851,6 +908,7 @@ namespace RouletteLike.Battle
             Seat seat = ActiveSeat;
             seat.Pot = 0;
             seat.Ante = 0;
+            SpinsThisTurn = 0;
             _turnsThisRound++;
 
             if (CheckBankrupt())

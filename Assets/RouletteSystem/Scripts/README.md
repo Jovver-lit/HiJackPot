@@ -14,7 +14,7 @@
 | `RelicIconHover.cs` | 유물 아이콘 한 칸의 마우스 반응(올리면 설명 카드, 누르면 전체 설명) |
 | `RouletteClickArea.cs` | 룰렛 위 클릭을 칸 순서로 바꿔 알림(HIJACK 때 룰렛에서 직접 칸 고르기) |
 | `RouletteController.cs` | 룰렛 칸 목록과 각도 계산, 포인터 아래 칸 판정, 착지 고정 표시(착지·연쇄만 밝게) |
-| `RouletteSpinController.cs` | 룰렛 회전·감속·착지(강도 구역 + 오차, 역전 보정 무게 반영), 시드 재현, 칸 경계 틱·멈춤 소리, NUDGE 한 칸 밀기 |
+| `RouletteSpinController.cs` | 룰렛 회전·감속·착지(강도 구역 + 오차, 역전 보정 무게 반영), 칸 폭이 바뀌어도 포인터 아래 칸 유지, 시드 재현, 칸 경계 틱·멈춤 소리, NUDGE 한 칸 밀기 |
 | `RoulettePixelWheelRenderer.cs` | 룰렛을 저해상도 텍스처에 픽셀 아트로 그림(착지 고정 표시 때 나머지 칸 어둡게) |
 | `RouletteSegmentGraphic.cs` | 칸 위 아이콘·텍스트 배치 |
 | `RouletteSegmentData.cs`, `RouletteSegmentType.cs` | 룰렛 위젯이 쓰는 칸 표시 데이터(전투 규칙의 `Core.Slot`을 화면용으로 변환한 것) |
