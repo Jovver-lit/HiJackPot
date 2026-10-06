@@ -16,3 +16,4 @@
 | [0008](0008-won-chips-split-into-chips-and-cash.md) | 딴 칩은 일부는 칩으로, 나머지는 현금으로 환전된다 |
 | [0009](0009-run-continues-after-boss-into-shop.md) | 보스를 이기면 상점층을 지나 2회차로 이어진다 (10층 런) |
 | [0010](0010-relics-need-house-rule-and-win.md) | 문 카드 유물은 하우스 룰을 달성하고 이겨야 받는다 (0006 수정) |
+| [0011](0011-final-boss-at-30f-steals-house-cut.md) | 정식판은 30층, 최종 보스전에서만 하우스 몫을 HIJACK할 수 있다 |
