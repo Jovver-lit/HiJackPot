@@ -4,13 +4,14 @@
 
 | 파일 | 무엇 |
 |---|---|
-| `DealerBattleController.cs` | 전투 화면과 런 진행(문 선택 화면의 환전 창구, 종료 화면의 딴 칩 정산, 상점층 화면과 슬롯머신 릴 연출 포함): 코어(`Run`·`PotBattle`) 호출, 턴 흐름, 문 선택, JACKPOT 배치, 바깥 링 띠, 딜러 정보·텍스트·버튼 갱신, 칸 위 기호 글자·착지 고정 표시·착지 이름표, CASH OUT 칩 연출·큰 순간 배너·룰렛 위 HIJACK 선택, NUDGE 선택, 유물 띠·설명·문 카드 유물, 딜러 반응(움찔), 속도 ×1/×2(PlayerPrefs), 타이틀(계약하기·해금 기록 지우기), 개발용 자동 진행(Debug Autoplay, 기본 꺼짐), 전체 전투 기록 펼치기, 확률판(다음 SPIN 판돈 범위)·양쪽 보험, 템포, 바깥 링 해금 저장(PlayerPrefs) |
+| `DealerBattleController.cs` | 전투 화면과 런 진행(문 선택 화면의 환전 창구, 종료 화면의 딴 칩 정산, 상점층 화면과 슬롯머신 릴 연출 포함): 코어(`Run`·`PotBattle`) 호출, 턴 흐름, 문 선택, JACKPOT 배치, 바깥 링 띠, 딜러 정보·텍스트·버튼 갱신, 칸 위 기호 글자·착지 고정 표시·착지 이름표, CASH OUT 칩 연출·큰 순간 배너·룰렛 위 HIJACK 선택, NUDGE 선택, 유물 띠·설명·문 카드 유물, 딜러 반응(움찔), 속도 ×1/×2(PlayerPrefs), 타이틀(계약하기·해금 기록 지우기), 판돈 흐름 한 줄(앤티 › ▲+4 = 5 › ×2 = 10), 유물 아이콘·설명 카드, 개발용 자동 진행(Debug Autoplay, 기본 꺼짐), 전체 전투 기록 펼치기, 확률판(다음 SPIN 판돈 범위)·양쪽 보험, 템포, 바깥 링 해금 저장(PlayerPrefs) |
 | `DealerLines.cs` | 딜러별 반응 대사(시작·하우스 몫·큰 연쇄·CASH OUT·HIJACK·NUDGE·패배)와 층간 안내 방송 문구(데이터) |
 | `SlotDescriptions.cs` | 칸 효과를 읽을 문장으로 바꿈(문 카드·HIJACK 선택·룰렛 아래 특수 칸 안내·상세 페이지 공용) |
 | `HoldToSpinInput.cs` | SPIN 버튼 길게 누르기 → 강도 게이지 → 놓으면 회전 |
 | `BattlePresentationUI.cs` | 단계 표시(준비·회전·결과·딜러)와 룰렛·하우스 룰 강조 |
 | `HijackTransferPresenter.cs` | HIJACK 때 칸 토큰이 딜러 룰렛에서 내 룰렛으로 날아가는 연출 |
 | `NaturalBlinkAnimator.cs` | 플레이어 캐릭터 눈 깜빡임 스프라이트 애니메이션 |
+| `RelicIconHover.cs` | 유물 아이콘 한 칸의 마우스 반응(올리면 설명 카드, 누르면 전체 설명) |
 | `RouletteClickArea.cs` | 룰렛 위 클릭을 칸 순서로 바꿔 알림(HIJACK 때 룰렛에서 직접 칸 고르기) |
 | `RouletteController.cs` | 룰렛 칸 목록과 각도 계산, 포인터 아래 칸 판정, 착지 고정 표시(착지·연쇄만 밝게) |
 | `RouletteSpinController.cs` | 룰렛 회전·감속·착지(강도 구역 + 오차, 역전 보정 무게 반영), 시드 재현, 칸 경계 틱·멈춤 소리, NUDGE 한 칸 밀기 |
