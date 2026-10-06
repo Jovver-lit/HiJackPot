@@ -290,7 +290,7 @@ namespace RouletteLike.Roulette.Editor
             TMP_Text dealerNoteText = AddText("DealerNote", dealerPanel, "", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
             RectTransform hijackPanel = BuildHijackPanel(canvasObject.transform, font, out TMP_Text hijackInstruction, out TMP_Text hijackSourceTitle, out UnityEngine.UI.Button[] hijackSourceButtons, out TMP_Text[] hijackSourceLabels, out UnityEngine.UI.Button[] hijackDestinationButtons, out TMP_Text[] hijackDestinationLabels);
             RectTransform endPanel = BuildEndPanel(canvasObject.transform, font, out TMP_Text endTitle, out TMP_Text endBody, out UnityEngine.UI.Button endContinueButton, out TMP_Text endContinueLabel);
-            RectTransform doorPanel = BuildDoorPanel(canvasObject.transform, font, out TMP_Text doorFloorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies);
+            RectTransform doorPanel = BuildDoorPanel(canvasObject.transform, font, out TMP_Text doorFloorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies, out TMP_Text exchangeText, out UnityEngine.UI.Button[] exchangeButtons);
 
             BindBattle(
                 battle, presentation, hijackTransferPresenter, roulette, enemyRoulette, spin, enemySpin, holdInput,
@@ -323,6 +323,8 @@ namespace RouletteLike.Roulette.Editor
             SetObjectArray(identitySo.FindProperty("doorButtons"), doorButtons);
             SetObjectArray(identitySo.FindProperty("doorTitleTexts"), doorTitles);
             SetObjectArray(identitySo.FindProperty("doorBodyTexts"), doorBodies);
+            SetObject(identitySo, "exchangeText", exchangeText);
+            SetObjectArray(identitySo.FindProperty("exchangeButtons"), exchangeButtons);
             RectTransform playerOuter = BuildOuterRingStrip("OuterRingStrip", playerPanel, new Vector2(0f, -302f), 96f, font, out UnityEngine.UI.Image[] playerOuterBoxes, out TMP_Text[] playerOuterLabels);
             RectTransform dealerOuter = BuildOuterRingStrip("OuterRingStrip", dealerPanel, new Vector2(0f, -302f), 92f, font, out UnityEngine.UI.Image[] dealerOuterBoxes, out TMP_Text[] dealerOuterLabels);
             SetObject(identitySo, "playerOuterRoot", playerOuter.gameObject);
@@ -608,7 +610,8 @@ namespace RouletteLike.Roulette.Editor
         }
 
         /// <summary>층 사이 문 선택 패널: 딜러 카드 두 장(이름·성향·하우스 룰·JACKPOT)과 층 안내.</summary>
-        private static RectTransform BuildDoorPanel(Transform parent, TMP_FontAsset font, out TMP_Text floorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies)
+        private static RectTransform BuildDoorPanel(Transform parent, TMP_FontAsset font, out TMP_Text floorText, out UnityEngine.UI.Button[] doorButtons, out TMP_Text[] doorTitles, out TMP_Text[] doorBodies,
+            out TMP_Text exchangeText, out UnityEngine.UI.Button[] exchangeButtons)
         {
             RectTransform overlay = AddPanel("DoorPanel", parent, Vector2.zero, new Vector2(1920f, 1080f), new Color32(10, 8, 14, 235));
             overlay.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
@@ -627,6 +630,17 @@ namespace RouletteLike.Roulette.Editor
                 doorBodies[i] = AddText("DealerInfo", doorButtons[i].transform, "", font, 19, Ink, TextAlignmentOptions.TopLeft, new Vector2(0f, 10f), new Vector2(480f, 300f));
                 doorBodies[i].lineSpacing = 18f;
                 AddText("Enter", doorButtons[i].transform, "이 문으로 들어가기", font, 20, Teal, TextAlignmentOptions.Center, new Vector2(0f, -215f), new Vector2(500f, 36f));
+            }
+
+            // 환전 창구: 딴 칩 중 현금으로 환전된 몫을 다시 칩(목숨)으로 바꾼다(ADR 0008). 현금이 없으면 컨트롤러가 숨긴다.
+            RectTransform window = AddFramedPanel("ExchangeWindow", overlay, new Vector2(0f, -380f), new Vector2(1220f, 92f), new Color32(30, 25, 39, 255), Gold, out _, out _);
+            exchangeText = AddText("Text", window, "환전 창구 · 현금 0", font, 19, Ink, TextAlignmentOptions.Left, new Vector2(-230f, 0f), new Vector2(720f, 80f));
+            exchangeButtons = new UnityEngine.UI.Button[3];
+            string[] labels = { "칩 +1", "칩 +5", "전부 환전" };
+            for (int i = 0; i < exchangeButtons.Length; i++)
+            {
+                exchangeButtons[i] = AddButton($"Buy{i + 1}", window, new Vector2(250f + i * 160f, 0f), new Vector2(148f, 60f), Gold, font, labels[i], 18, out TMP_Text label);
+                label.color = Background;
             }
 
             return overlay;
