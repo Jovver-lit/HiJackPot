@@ -8,4 +8,4 @@
 | `Characters/Rabbit/` | 토끼 딜러 70px 스프라이트(딜러 Gold Standard)와 원본 Aseprite(숨긴 레이어에 이전 AI 초안 보존) |
 | `Fonts/` | 픽셀 폰트 `neodgm.ttf`와 TextMesh Pro용 `neodgm SDF.asset` |
 
-캐릭터 도트는 [`Docs/design/ArtStyleBible.md`](../../../Docs/design/ArtStyleBible.md)(70px·공용 32색·1px 선택 윤곽)를 따른다. 기준이 아직 없는 분류(룰렛·UI)는 바이블을 먼저 확정한다. 이미지·폰트는 Git LFS로 관리된다.
+캐릭터 도트는 [`Docs/design/ArtStyleBible.md`](../../../Docs/design/ArtStyleBible.md)(70px·공용 32색·닫힌 1px 윤곽, 선명도 기준은 손님 스프라이트)를 따른다. 기준이 아직 없는 분류(룰렛·UI)는 바이블을 먼저 확정한다. 이미지·폰트는 Git LFS로 관리된다.
