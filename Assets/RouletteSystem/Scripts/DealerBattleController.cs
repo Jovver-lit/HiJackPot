@@ -106,6 +106,8 @@ namespace RouletteLike.Roulette
         [SerializeField] private UnityEngine.UI.Image dealerSprite;
         [SerializeField] private NaturalBlinkAnimator dealerAnimator;
         [SerializeField] private DealerArt[] dealerArts;
+        [SerializeField] private CharacterMotion playerMotion;
+        [SerializeField] private CharacterMotion dealerMotion;
         [SerializeField] private TMP_Text houseRuleTitleText;
         [SerializeField] private TMP_Text houseRuleDescriptionText;
         [SerializeField] private TMP_Text hijackSourceTitleText;
@@ -994,6 +996,7 @@ namespace RouletteLike.Roulette
             if (landing.EndedTurn)
             {
                 Say(Lines.PlayerHouseCut);
+                if (landing.HouseCutHit) playerMotion?.Slump(_tempo);
                 if (landing.HouseCutHit && landing.Amount > 0)
                 {
                     StartCoroutine(PlayBanner("몰수!", $"판돈 {landing.Amount} 증발", new Color32(230, 84, 84, 255)));
@@ -1027,7 +1030,7 @@ namespace RouletteLike.Roulette
             calculationText.text = result.RelicBonus > 0
                 ? $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} + 유물 {result.RelicBonus} = {result.Damage}"
                 : $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} = {result.Damage}";
-            Say(result.Damage >= 8 ? Lines.BigCashOut : Lines.SmallCashOut, result.Damage >= 8);
+            Say(result.Damage >= 8 ? Lines.BigCashOut : Lines.SmallCashOut);
             StartCoroutine(CashOutThenEndTurn(result));
         }
 
@@ -1066,12 +1069,14 @@ namespace RouletteLike.Roulette
                 }
             }
 
+            dealerMotion?.Strike(_tempo);
             if (hijackTransferPresenter != null && token != null && preview >= 0)
             {
                 yield return hijackTransferPresenter.PlayHijack(roulette, preview, enemyRoulette, 0, token, Apply);
             }
 
             Apply();
+            playerMotion?.Stagger(_tempo);
             RefreshAllUi();
             yield return Wait(resultPause * 1.5f);
             yield return ContinueTurnFlow();
@@ -1152,6 +1157,7 @@ namespace RouletteLike.Roulette
                 if (landing.HouseCutHit)
                 {
                     Say(Lines.DealerHouseCut);
+                    dealerMotion?.Slump(_tempo);
                     break;
                 }
                 calculationText.text = landing.Formula;
@@ -1334,6 +1340,7 @@ namespace RouletteLike.Roulette
                 SyncWheels();
             }
 
+            playerMotion?.Strike(_tempo);
             if (hijackTransferPresenter != null)
             {
                 yield return hijackTransferPresenter.PlayHijack(
@@ -1345,7 +1352,8 @@ namespace RouletteLike.Roulette
             presentationUi?.SetHouseRuleHighlighted(false);
             resultText.text = stolenSlot.IsJackpot ? $"JACKPOT HIJACK  {stolenSlot.Label}" : $"HIJACK  {stolenSlot.Label}";
             calculationText.text = $"{DealerShortName} {sourceIndex + 1}번 칸 → 내 {destinationIndex + 1}번 칸 (영구)";
-            Say(stolenSlot.IsJackpot ? Lines.JackpotHijacked : Lines.Hijacked, true);
+            Say(stolenSlot.IsJackpot ? Lines.JackpotHijacked : Lines.Hijacked);
+            dealerMotion?.Stagger(_tempo);
             _state = ViewState.Busy;
             if (stolenSlot.IsJackpot)
             {
@@ -1626,21 +1634,7 @@ namespace RouletteLike.Roulette
         private void Say(string line, bool react = false)
         {
             if (dealerLineText != null) dealerLineText.text = $"\"{line}\"";
-            if (react && dealerSprite != null) StartCoroutine(Flinch(dealerSprite.rectTransform));
-        }
-
-        private static IEnumerator Flinch(RectTransform target)
-        {
-            Vector2 origin = target.anchoredPosition;
-            const float duration = 0.32f;
-            for (float t = 0f; t < duration && target != null; t += Time.unscaledDeltaTime)
-            {
-                float k = 1f - t / duration;
-                target.anchoredPosition = origin + new Vector2(Mathf.Sin(t * 70f) * 9f * k, 0f);
-                yield return null;
-            }
-
-            if (target != null) target.anchoredPosition = origin;
+            if (react) dealerMotion?.Flinch(_tempo);
         }
 
         // ───────────── 큰 순간 ─────────────
@@ -1679,10 +1673,12 @@ namespace RouletteLike.Roulette
         /// </summary>
         private IEnumerator PlayCashOutFlight(Side cashingSide, CashOutResult result)
         {
+            MotionOf(cashingSide)?.Lunge(_tempo);
             RectTransform target = (cashingSide == Side.Player ? dealerChipsFill : playerChipsFill)?.rectTransform;
             if (fxLayer == null || target == null || potChipImages.Length == 0)
             {
                 RefreshAllUi();
+                PlayCashOutHit(cashingSide, result);
                 yield break;
             }
 
@@ -1743,6 +1739,7 @@ namespace RouletteLike.Roulette
 
             foreach (RectTransform chip in chips) Destroy(chip.gameObject);
             RefreshAllUi();
+            PlayCashOutHit(cashingSide, result);
             if (result.Damage > 0)
             {
                 StartCoroutine(FloatText($"−{result.Damage}", target.position + Vector3.up * 30f, new Color32(255, 96, 96, 255), 54));
@@ -1755,6 +1752,16 @@ namespace RouletteLike.Roulette
             }
 
             yield return Wait(0.35f);
+        }
+
+        private CharacterMotion MotionOf(Side side) => side == Side.Player ? playerMotion : dealerMotion;
+
+        /// <summary>칩이 닿는 순간 맞은 쪽이 반응한다. 보험으로 전부 막았으면 살짝만 밀린다.</summary>
+        private void PlayCashOutHit(Side cashingSide, CashOutResult result)
+        {
+            CharacterMotion defender = MotionOf(cashingSide == Side.Player ? Side.Dealer : Side.Player);
+            if (result.Damage > 0) defender?.Recoil(result.Damage, _tempo);
+            else defender?.Guard(_tempo);
         }
 
         /// <summary>
