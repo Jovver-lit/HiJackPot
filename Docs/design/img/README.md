@@ -14,3 +14,4 @@
 | `2026-11-02-battle-rabbit-128.png` | 128px 토끼를 넣은 실제 전투 화면 캡처(1600×900) |
 | `2026-11-02-businessman-reference.png` | 사용자가 준 손님 레퍼런스(ArtStyleBible의 손님 기준 원본, 눈만 다름) |
 | `2026-11-02-businessman-vs-rabbit.png` | 레퍼런스와 새 손님, 옛 손님·토끼와 게임 크기 비교, 눈 상태와 프레임 |
+| `2026-11-02-dealers-128-compare.png` | 다시 찍은 여우·고양이·까마귀·매니저 128px를 손님·토끼와 비교(회색 배경) |
