@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-11-02",
+  "purpose": "Four existing dealer designs for Claude redraw handoff; not runtime sprites or new Gold Standards",
+  "art_direction": "../ArtStyleBible.md",
+  "gold_standard": "../../../Assets/RouletteSystem/Art/Characters/Rabbit/bunny-dealer-128px.png",
+  "assets": [
+    {
+      "id": "fox",
+      "status": "reference-draft-for-redrawing",
+      "native": "fox-reference-128.png",
+      "native_dimensions": [
+        128,
+        128
+      ],
+      "native_sha256": "889781ede0428c3c56d333dc022ba119f2e41aad8780edf6ee7aecbc0d2f245e",
+      "design_master": "fox-design-master.png",
+      "master_dimensions": [
+        1254,
+        1254
+      ],
+      "master_sha256": "2cb50939e647dc614073dc9f60f41b037eff466c1521f993d3e090bcad7fe2a1",
+      "preview": "fox-reference-5x.png",
+      "preview_dimensions": [
+        640,
+        640
+      ],
+      "alpha_values": [
+        0,
+        255
+      ],
+      "opaque_colors": 30,
+      "colors_outside_current_style_bible": [
+        "#080b16",
+        "#141018",
+        "#24202a",
+        "#363540",
+        "#4e3533",
+        "#501a26",
+        "#694942",
+        "#816058",
+        "#8b222e",
+        "#8f422b",
+        "#8f929e",
+        "#987367",
+        "#ae6f56",
+        "#b65c34",
+        "#c4c5ce",
+        "#c92036",
+        "#d6975f",
+        "#d87743",
+        "#dd884f",
+        "#e39a66",
+        "#e73546",
+        "#e9a320",
+        "#f59f60",
+        "#f5b779",
+        "#f6ba7d",
+        "#fbd0a2",
+        "#ffd05a",
+        "#ffdfb4",
+        "#fff3df"
+      ],
+      "exact_5x_verified": true,
+      "source_kind": "AI-generated design; native grid normalization",
+      "later_edit": "stocking repair and selected v2 native palette",
+      "generation_tool": "image_gen.imagegen"
+    },
+    {
+      "id": "cat",
+      "status": "reference-draft-for-redrawing",
+      "native": "cat-reference-128.png",
+      "native_dimensions": [
+        128,
+        128
+      ],
+      "native_sha256": "5fee04d4a29a355b4891e082ce4056861d912f32cb227dfb7cd3679f8b131f3d",
+      "design_master": "cat-design-master.png",
+      "master_dimensions": [
+        1122,
+        1402
+      ],
+      "master_sha256": "909c2015b8499fde52b3df7544c2464c230f42139ede4d943d8b122359a518a0",
+      "preview": "cat-reference-5x.png",
+      "preview_dimensions": [
+        640,
+        640
+      ],
+      "alpha_values": [
+        0,
+        255
+      ],
+      "opaque_colors": 20,
+      "colors_outside_current_style_bible": [
+        "#b0702a"
+      ],
+      "exact_5x_verified": true,
+      "source_kind": "AI-generated design; native grid normalization",
+      "later_edit": "existing 128px review v1",
+      "generation_tool": "image_gen.imagegen"
+    },
+    {
+      "id": "crow",
+      "status": "reference-draft-for-redrawing",
+      "native": "crow-reference-128.png",
+      "native_dimensions": [
+        128,
+        128
+      ],
+      "native_sha256": "d240e7a42e9a9f9662e9aa06d11cf7396b18065e5dfc0b2cbc3184f22c2a8158",
+      "design_master": "crow-design-master.png",
+      "master_dimensions": [
+        1246,
+        1263
+      ],
+      "master_sha256": "88d3e80ed603f79ec24fc62c79351b626013f369801f3a62dd987e36f3cff907",
+      "preview": "crow-reference-5x.png",
+      "preview_dimensions": [
+        640,
+        640
+      ],
+      "alpha_values": [
+        0,
+        255
+      ],
+      "opaque_colors": 20,
+      "colors_outside_current_style_bible": [
+        "#b0702a"
+      ],
+      "exact_5x_verified": true,
+      "source_kind": "AI-generated design; native grid normalization",
+      "later_edit": "existing 128px review v1",
+      "generation_tool": "image_gen.imagegen"
+    },
+    {
+      "id": "manager",
+      "status": "reference-draft-for-redrawing",
+      "native": "manager-reference-128.png",
+      "native_dimensions": [
+        128,
+        128
+      ],
+      "native_sha256": "877e6c2063034d3cafe8fa0061a32d8a39e700632d8978abedf712e96e682f02",
+      "design_master": "manager-design-master.png",
+      "master_dimensions": [
+        1122,
+        1402
+      ],
+      "master_sha256": "6b8e9a54f5eb59f1eacf9e07667ca4aa3dc349b16bc34fdf86adb9b0afa727d0",
+      "preview": "manager-reference-5x.png",
+      "preview_dimensions": [
+        640,
+        640
+      ],
+      "alpha_values": [
+        0,
+        255
+      ],
+      "opaque_colors": 19,
+      "colors_outside_current_style_bible": [],
+      "exact_5x_verified": true,
+      "source_kind": "AI-generated design; native grid normalization",
+      "later_edit": "existing 128px review v1",
+      "generation_tool": "image_gen.imagegen"
+    }
+  ],
+  "in_engine_applied": false
+}
