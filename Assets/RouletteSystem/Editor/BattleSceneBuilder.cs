@@ -21,7 +21,7 @@ namespace RouletteLike.Roulette.Editor
         private const string FontAssetPath = "Assets/RouletteSystem/Art/Fonts/neodgm SDF.asset";
         private const string RouletteSpriteSheetPath = "Assets/RouletteSystem/Art/roulette_ui_sheet.png";
         private const string BusinessmanSpriteSheetPath = "Assets/RouletteSystem/Art/Characters/Businessman/businessman-70px-sheet.png";
-        private const string RabbitSpritePath = "Assets/RouletteSystem/Art/Characters/Rabbit/bunny-dealer-70px.png";
+        private const string RabbitSpritePath = "Assets/RouletteSystem/Art/Characters/Rabbit/bunny-dealer-128px.png";
         private const string RouletteTickSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_tick.wav";
         private const string RouletteStopSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_stop.wav";
 
@@ -140,7 +140,7 @@ namespace RouletteLike.Roulette.Editor
                 relicIcons[i] = relicIconImages[i].gameObject.AddComponent<RelicIconHover>();
             }
             RectTransform playerCharacter = AddRect("PlayerCharacter", playerArea, new Vector2(-160f, -4f), new Vector2(240f, 240f));
-            UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(236f, 236f));
+            UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(280f, 280f)); // 70px × 4배(정수 배율)
             businessmanImage.raycastTarget = false;
             AddRect("EffectRoot", playerCharacter, Vector2.zero, new Vector2(170f, 170f));
             NaturalBlinkAnimator blinkAnimator = businessmanImage.gameObject.AddComponent<NaturalBlinkAnimator>();
@@ -179,8 +179,9 @@ namespace RouletteLike.Roulette.Editor
             RectTransform dealerArea = AddRect("DealerArea", battleStage, new Vector2(640f, 0f), new Vector2(540f, 190f));
             TMP_Text dealerChipsText;
             UnityEngine.UI.Image dealerChipsFill = AddChipsWidget("DealerChips", dealerArea, new Vector2(-270f, 64f), "토끼 딜러", Red, font, out dealerChipsText, out TMP_Text dealerNameText, 600f, true);
-            RectTransform dealerCharacter = AddRect("DealerCharacter", dealerArea, new Vector2(160f, -4f), new Vector2(240f, 240f));
-            UnityEngine.UI.Image rabbitImage = AddSpriteImage("Sprite", dealerCharacter, rabbitSprite, new Vector2(236f, 236f));
+            // 발끝을 손님과 맞춤: 손님 발끝 y = -4 - 136, 토끼 발끝은 스프라이트 중심에서 -126이므로 -14.
+            RectTransform dealerCharacter = AddRect("DealerCharacter", dealerArea, new Vector2(160f, -14f), new Vector2(240f, 240f));
+            UnityEngine.UI.Image rabbitImage = AddSpriteImage("Sprite", dealerCharacter, rabbitSprite, new Vector2(256f, 256f)); // 128px × 2배(정수 배율)
             rabbitImage.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
             rabbitImage.raycastTarget = false;
             AddRect("EffectRoot", dealerCharacter, Vector2.zero, new Vector2(170f, 170f));
