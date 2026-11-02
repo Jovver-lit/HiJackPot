@@ -24,6 +24,34 @@ namespace RouletteLike.Roulette
         public string CurrentFrameName =>
             targetImage != null && targetImage.sprite != null ? targetImage.sprite.name : string.Empty;
 
+        /// <summary>보여 줄 프레임을 바꾸고 대기 루프를 처음부터 다시 돈다(딜러가 바뀔 때).</summary>
+        public void SetFrames(Sprite[] idle, Sprite[] blink)
+        {
+            idleFrames = idle;
+            blinkFrames = blink;
+            if (targetImage == null)
+            {
+                targetImage = GetComponent<UnityEngine.UI.Image>();
+            }
+
+            if (idle != null && idle.Length > 0)
+            {
+                targetImage.sprite = idle[0];
+            }
+
+            // 프레임 없이 켜졌다면 코루틴이 이미 끝나 있으므로, 켜져 있으면 항상 새로 시작한다.
+            if (_animationRoutine != null)
+            {
+                StopCoroutine(_animationRoutine);
+                _animationRoutine = null;
+            }
+
+            if (isActiveAndEnabled)
+            {
+                _animationRoutine = StartCoroutine(Animate());
+            }
+        }
+
         private void Reset()
         {
             targetImage = GetComponent<UnityEngine.UI.Image>();

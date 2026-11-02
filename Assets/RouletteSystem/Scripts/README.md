@@ -10,7 +10,8 @@
 | `HoldToSpinInput.cs` | SPIN 버튼 길게 누르기 → 강도 게이지 → 놓으면 회전 |
 | `BattlePresentationUI.cs` | 단계 표시(준비·회전·결과·딜러)와 룰렛·하우스 룰 강조 |
 | `HijackTransferPresenter.cs` | HIJACK 때 칸 토큰이 딜러 룰렛에서 내 룰렛으로 날아가는 연출 |
-| `NaturalBlinkAnimator.cs` | 플레이어 캐릭터 눈 깜빡임 스프라이트 애니메이션 |
+| `NaturalBlinkAnimator.cs` | 손님·딜러의 대기(숨쉬기)·눈 깜빡임 스프라이트 애니메이션 |
+| `DealerArt.cs` | 딜러 한 명의 대기·깜빡임 스프라이트 묶음(이름으로 찾는 연출 데이터) |
 | `RelicIconHover.cs` | 유물 아이콘 한 칸의 마우스 반응(올리면 설명 카드, 누르면 전체 설명) |
 | `RouletteClickArea.cs` | 룰렛 위 클릭을 칸 순서로 바꿔 알림(HIJACK 때 룰렛에서 직접 칸 고르기) |
 | `RouletteController.cs` | 룰렛 칸 목록과 각도 계산, 포인터 아래 칸 판정, 착지 고정 표시(착지·연쇄만 밝게) |

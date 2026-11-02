@@ -21,7 +21,14 @@ namespace RouletteLike.Roulette.Editor
         private const string FontAssetPath = "Assets/RouletteSystem/Art/Fonts/neodgm SDF.asset";
         private const string RouletteSpriteSheetPath = "Assets/RouletteSystem/Art/roulette_ui_sheet.png";
         private const string BusinessmanSpriteSheetPath = "Assets/RouletteSystem/Art/Characters/Businessman/businessman-128px-sheet.png";
-        private const string RabbitSpritePath = "Assets/RouletteSystem/Art/Characters/Rabbit/bunny-dealer-128px.png";
+        private static readonly (string nameKey, string sheetPath, string prefix)[] DealerSheets =
+        {
+            ("토끼", "Assets/RouletteSystem/Art/Characters/Rabbit/bunny-dealer-128px-sheet.png", "bunny"),
+            ("여우", "Assets/RouletteSystem/Art/Characters/Fox/fox-dealer-128px-sheet.png", "fox"),
+            ("고양이", "Assets/RouletteSystem/Art/Characters/Cat/cat-dealer-128px-sheet.png", "cat"),
+            ("까마귀", "Assets/RouletteSystem/Art/Characters/Crow/crow-dealer-128px-sheet.png", "crow"),
+            ("매니저", "Assets/RouletteSystem/Art/Characters/Manager/manager-dealer-128px-sheet.png", "manager")
+        };
         private const string RouletteTickSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_tick.wav";
         private const string RouletteStopSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_stop.wav";
 
@@ -62,7 +69,7 @@ namespace RouletteLike.Roulette.Editor
                 GetSprite(BusinessmanSpriteSheetPath, "businessman_blink_2"),
                 GetSprite(BusinessmanSpriteSheetPath, "businessman_blink_3")
             };
-            Sprite rabbitSprite = AssetDatabase.LoadAssetAtPath<Sprite>(RabbitSpritePath);
+            Sprite rabbitSprite = GetSprite(DealerSheets[0].sheetPath, "bunny_idle_0");
             AudioClip rouletteTick = AssetDatabase.LoadAssetAtPath<AudioClip>(RouletteTickSoundPath);
             AudioClip rouletteStop = AssetDatabase.LoadAssetAtPath<AudioClip>(RouletteStopSoundPath);
 
@@ -185,6 +192,10 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image rabbitImage = AddSpriteImage("Sprite", dealerCharacter, rabbitSprite, new Vector2(256f, 256f)); // 128px × 2배(정수 배율)
             rabbitImage.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
             rabbitImage.raycastTarget = false;
+            NaturalBlinkAnimator dealerAnimator = rabbitImage.gameObject.AddComponent<NaturalBlinkAnimator>();
+            SerializedObject dealerAnimatorSo = new SerializedObject(dealerAnimator);
+            dealerAnimatorSo.FindProperty("targetImage").objectReferenceValue = rabbitImage;
+            dealerAnimatorSo.ApplyModifiedPropertiesWithoutUndo();
             AddRect("EffectRoot", dealerCharacter, Vector2.zero, new Vector2(170f, 170f));
             // 딜러 한마디 말풍선(가운데 판에서 옮겨 옴): 딜러 왼쪽, 하우스 룰 카드 오른쪽.
             RectTransform dealerLineBubble = AddPanel("DealerLineBubble", dealerArea, new Vector2(-160f, -62f), new Vector2(320f, 84f), new Color32(232, 232, 228, 255));
@@ -363,6 +374,17 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "dealerNameText", dealerNameText);
             SetObject(identitySo, "dealerHeaderText", dealerHeaderText);
             SetObject(identitySo, "dealerSprite", rabbitImage);
+            SetObject(identitySo, "dealerAnimator", dealerAnimator);
+            SerializedProperty dealerArts = identitySo.FindProperty("dealerArts");
+            dealerArts.arraySize = DealerSheets.Length;
+            for (int i = 0; i < DealerSheets.Length; i++)
+            {
+                (string nameKey, string sheetPath, string prefix) = DealerSheets[i];
+                SerializedProperty art = dealerArts.GetArrayElementAtIndex(i);
+                art.FindPropertyRelative("nameKey").stringValue = nameKey;
+                SetObjectArray(art.FindPropertyRelative("idleFrames"), new Object[] { GetSprite(sheetPath, prefix + "_idle_0"), GetSprite(sheetPath, prefix + "_idle_1") });
+                SetObjectArray(art.FindPropertyRelative("blinkFrames"), new Object[] { GetSprite(sheetPath, prefix + "_blink_0"), GetSprite(sheetPath, prefix + "_blink_1"), GetSprite(sheetPath, prefix + "_blink_2"), GetSprite(sheetPath, prefix + "_blink_3") });
+            }
             SetObject(identitySo, "houseRuleTitleText", houseRuleTitleText);
             SetObject(identitySo, "houseRuleDescriptionText", houseRuleDescriptionText);
             SetObject(identitySo, "hijackSourceTitleText", hijackSourceTitle);
