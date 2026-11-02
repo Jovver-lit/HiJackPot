@@ -12,3 +12,5 @@
 | `2026-11-01-player-vs-rabbit.png` | 손님(4배)과 토끼 딜러(2배)를 전투 배치처럼 마주 세운 통일감 확인용. 게임 표시 배율의 2배 |
 | `2026-11-02-rabbit-reference.png` | 사용자가 준 토끼 딜러 레퍼런스(ArtStyleBible의 딜러 기준 원본) |
 | `2026-11-02-battle-rabbit-128.png` | 128px 토끼를 넣은 실제 전투 화면 캡처(1600×900) |
+| `2026-11-02-businessman-reference.png` | 사용자가 준 손님 레퍼런스(ArtStyleBible의 손님 기준 원본, 눈만 다름) |
+| `2026-11-02-businessman-vs-rabbit.png` | 레퍼런스와 새 손님, 옛 손님·토끼와 게임 크기 비교, 눈 상태와 프레임 |
