@@ -150,6 +150,7 @@ namespace RouletteLike.Roulette.Editor
             RectTransform playerCharacter = AddRect("PlayerCharacter", playerArea, new Vector2(-160f, -14f), new Vector2(240f, 240f));
             UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(256f, 256f)); // 128px × 2배(정수 배율)
             businessmanImage.raycastTarget = false;
+            CharacterMotion playerMotion = AddCharacterMotion(businessmanImage, 1f);
             AddRect("EffectRoot", playerCharacter, Vector2.zero, new Vector2(170f, 170f));
             NaturalBlinkAnimator blinkAnimator = businessmanImage.gameObject.AddComponent<NaturalBlinkAnimator>();
             SerializedObject blinkSo = new SerializedObject(blinkAnimator);
@@ -192,6 +193,7 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image rabbitImage = AddSpriteImage("Sprite", dealerCharacter, rabbitSprite, new Vector2(256f, 256f)); // 128px × 2배(정수 배율)
             rabbitImage.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
             rabbitImage.raycastTarget = false;
+            CharacterMotion dealerMotion = AddCharacterMotion(rabbitImage, -1f);
             NaturalBlinkAnimator dealerAnimator = rabbitImage.gameObject.AddComponent<NaturalBlinkAnimator>();
             SerializedObject dealerAnimatorSo = new SerializedObject(dealerAnimator);
             dealerAnimatorSo.FindProperty("targetImage").objectReferenceValue = rabbitImage;
@@ -375,6 +377,8 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "dealerHeaderText", dealerHeaderText);
             SetObject(identitySo, "dealerSprite", rabbitImage);
             SetObject(identitySo, "dealerAnimator", dealerAnimator);
+            SetObject(identitySo, "playerMotion", playerMotion);
+            SetObject(identitySo, "dealerMotion", dealerMotion);
             SerializedProperty dealerArts = identitySo.FindProperty("dealerArts");
             dealerArts.arraySize = DealerSheets.Length;
             for (int i = 0; i < DealerSheets.Length; i++)
@@ -1096,6 +1100,15 @@ namespace RouletteLike.Roulette.Editor
             image.color = color;
             image.raycastTarget = false;
             return image;
+        }
+
+        private static CharacterMotion AddCharacterMotion(UnityEngine.UI.Image image, float facing)
+        {
+            CharacterMotion motion = image.gameObject.AddComponent<CharacterMotion>();
+            SerializedObject motionSo = new SerializedObject(motion);
+            motionSo.FindProperty("facing").floatValue = facing;
+            motionSo.ApplyModifiedPropertiesWithoutUndo();
+            return motion;
         }
 
         private static UnityEngine.UI.Image AddSpriteImage(string name, Transform parent, Sprite sprite, Vector2 size)
