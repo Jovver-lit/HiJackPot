@@ -104,6 +104,8 @@ namespace RouletteLike.Roulette
         [SerializeField] private TMP_Text dealerNameText;
         [SerializeField] private TMP_Text dealerHeaderText;
         [SerializeField] private UnityEngine.UI.Image dealerSprite;
+        [SerializeField] private NaturalBlinkAnimator dealerAnimator;
+        [SerializeField] private DealerArt[] dealerArts;
         [SerializeField] private TMP_Text houseRuleTitleText;
         [SerializeField] private TMP_Text houseRuleDescriptionText;
         [SerializeField] private TMP_Text hijackSourceTitleText;
@@ -2224,17 +2226,21 @@ namespace RouletteLike.Roulette
                     ? $"{HouseRuleDescription(dealer)}  →  칸 HIJACK + 이기면 유물"
                     : $"{HouseRuleDescription(dealer)}  →  칸 1개 HIJACK";
             }
-            if (dealerSprite != null) dealerSprite.color = DealerTint(dealer.Name);
+            ApplyDealerArt(dealer.Name);
         }
 
-        /// <summary>그레이박스용: 딜러 전용 아트가 나오기 전까지 토끼 스프라이트를 색으로 구분한다.</summary>
-        private static Color DealerTint(string dealerName)
+        /// <summary>딜러 이름에 맞는 그림으로 바꾼다. 맞는 그림이 없으면(이후 추가될 딜러) 지금 그림을 유지한다.</summary>
+        private void ApplyDealerArt(string dealerName)
         {
-            if (dealerName.StartsWith("여우")) return new Color32(255, 170, 110, 255);
-            if (dealerName.StartsWith("고양이")) return new Color32(200, 190, 255, 255);
-            if (dealerName.StartsWith("까마귀")) return new Color32(120, 120, 140, 255);
-            if (dealerName.Contains("매니저")) return new Color32(255, 215, 120, 255);
-            return Color.white;
+            if (dealerAnimator == null || dealerArts == null) return;
+            foreach (DealerArt art in dealerArts)
+            {
+                if (dealerName.Contains(art.nameKey))
+                {
+                    dealerAnimator.SetFrames(art.idleFrames, art.blinkFrames);
+                    return;
+                }
+            }
         }
 
         private static string HouseRuleName(HouseRule rule)
