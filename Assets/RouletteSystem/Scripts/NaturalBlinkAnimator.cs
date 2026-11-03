@@ -125,10 +125,6 @@ namespace RouletteLike.Roulette
         {
             if (blinkFrames != null)
             {
-                float matchedFrameDuration = blinkFrames.Length > 0
-                    ? idleFrameDuration * idleFrames.Length / blinkFrames.Length
-                    : blinkFrameDuration;
-
                 for (int i = 0; i < blinkFrames.Length; i++)
                 {
                     if (blinkFrames[i] != null)
@@ -136,7 +132,7 @@ namespace RouletteLike.Roulette
                         targetImage.sprite = blinkFrames[i];
                     }
 
-                    yield return Wait(Mathf.Max(0.02f, matchedFrameDuration));
+                    yield return Wait(blinkFrameDuration);
                 }
             }
 
