@@ -141,7 +141,9 @@ namespace RouletteLike.Battle.Tests
                     battle.CashOut();
                 }
 
+                Assert.IsFalse(battle.InitiativeGuaranteedThisRound, $"seed {seed}: 첫 라운드는 동전");
                 Assert.AreEqual(Side.Player, battle.StartRound(), $"seed {seed}");
+                Assert.IsTrue(battle.InitiativeGuaranteedThisRound, $"seed {seed}: 선불 착지 뒤에는 동전 없음");
             }
         }
 

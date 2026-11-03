@@ -112,6 +112,9 @@ namespace RouletteLike.Battle
         public int Round { get; private set; }
         public Side Active { get; private set; }
         public Side FirstThisRound { get; private set; }
+
+        /// <summary>이번 라운드 선공이 동전 없이 정해졌는가(선불 착지 효과). 화면이 동전을 던지지 않는 데 쓴다.</summary>
+        public bool InitiativeGuaranteedThisRound { get; private set; }
         public BattlePhase Phase { get; private set; } = BattlePhase.RoundOver;
         public BattleOutcome Outcome { get; private set; } = BattleOutcome.None;
         public int HijackChances { get; private set; }
@@ -193,6 +196,7 @@ namespace RouletteLike.Battle
             _turnsThisRound = 0;
             _roundStartEffects.Clear();
             HijackUsedThisRound = false;
+            InitiativeGuaranteedThisRound = false;
 
             ApplyRoundStartSlots(Player);
             ApplyRoundStartSlots(Dealer);
@@ -205,6 +209,7 @@ namespace RouletteLike.Battle
             {
                 FirstThisRound = _guaranteedInitiative.Value;
                 _guaranteedInitiative = null;
+                InitiativeGuaranteedThisRound = true;
                 Active = FirstThisRound;
                 Phase = BattlePhase.AwaitingAnte;
                 Write($"라운드 {Round}: 선불 착지 효과 → {Name(Active)} 선공 확정");
