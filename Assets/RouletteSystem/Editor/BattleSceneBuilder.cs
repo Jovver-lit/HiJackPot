@@ -224,18 +224,18 @@ namespace RouletteLike.Roulette.Editor
             dealerAnimatorSo.FindProperty("targetImage").objectReferenceValue = rabbitImage;
             dealerAnimatorSo.ApplyModifiedPropertiesWithoutUndo();
             AddRect("EffectRoot", dealerCharacter, Vector2.zero, new Vector2(170f, 170f));
-            // 딜러 한마디: 오른쪽 무대, 딜러 머리 위의 세로로 긴 창. 폭이 좁아 한 줄이 짧고 글자가 커서 대사가 잘 읽힌다.
-            RectTransform dealerLineBubble = AddPanel("DealerLineBubble", characterStage, new Vector2(860f, 180f), new Vector2(184f, 360f), new Color32(232, 232, 228, 255));
-            TMP_Text dealerLineText = AddText("DealerLine", dealerLineBubble, "어서오세요, 첫 손님이시네요.", font, 22, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(160f, 336f));
+            // 딜러 한마디: 딜러 룰렛 바로 아래의 가로로 긴 창. 딜러 무대 옆이라 누가 말하는지 보이고, 줄이 길어 대사가 한눈에 읽힌다.
+            RectTransform dealerLineBubble = AddPanel("DealerLineBubble", characterStage, new Vector2(465f, -385f), new Vector2(510f, 84f), new Color32(232, 232, 228, 255));
+            TMP_Text dealerLineText = AddText("DealerLine", dealerLineBubble, "어서오세요, 첫 손님이시네요.", font, 20, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(486f, 72f));
             dealerLineText.enableAutoSizing = true;
             dealerLineText.fontSizeMin = 14f;
-            dealerLineText.fontSizeMax = 22f;
-            RectTransform openingSpeechBubble = AddFramedPanel("DialogueBubble", characterStage, new Vector2(860f, 180f), new Vector2(184f, 360f), new Color32(239, 235, 225, 255), DarkGold, out _, out _);
-            TMP_Text openingSpeechText = AddText("Text", openingSpeechBubble, "걸고, 돌리고, 적당할 때 터뜨리세요.\n\n보험으로 제 정산을 막으면 칸을 드려요.", font, 22, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(160f, 336f));
+            dealerLineText.fontSizeMax = 20f;
+            RectTransform openingSpeechBubble = AddFramedPanel("DialogueBubble", characterStage, new Vector2(465f, -385f), new Vector2(510f, 84f), new Color32(239, 235, 225, 255), DarkGold, out _, out _);
+            TMP_Text openingSpeechText = AddText("Text", openingSpeechBubble, "걸고, 돌리고, 적당할 때 터뜨리세요.\n보험으로 제 정산을 막으면 칸을 드려요.", font, 18, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(486f, 72f));
             openingSpeechText.enableAutoSizing = true;
             openingSpeechText.fontSizeMin = 14f;
-            openingSpeechText.fontSizeMax = 22f;
-            AddRect("AnimationRoot", openingSpeechBubble, Vector2.zero, new Vector2(184f, 360f));
+            openingSpeechText.fontSizeMax = 18f;
+            AddRect("AnimationRoot", openingSpeechBubble, Vector2.zero, new Vector2(510f, 84f));
 
             // ── 테이블: 내 룰렛 | 판돈 | 딜러 룰렛, 맨 아래 사건 띠. 좌표는 화면 중심 기준.
             RectTransform mainGameArea = AddStretchRect("MainGameArea", canvasObject.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
