@@ -151,6 +151,7 @@ namespace RouletteLike.Roulette
         [Header("Table Readability")]
         [Tooltip("이번 턴 판돈이 어떻게 커졌는지 한 줄로: 베팅 1 › ▲+4 = 5 › ×2 = 10")]
         [SerializeField] private TMP_Text potTrailText;
+        [SerializeField] private CoinFlipPresenter coinFlip;
         [SerializeField] private RelicIconHover[] relicIcons = new RelicIconHover[0];
         [SerializeField] private TMP_Text[] relicIconLabels = new TMP_Text[0];
         [SerializeField] private UnityEngine.UI.Image[] relicIconImages = new UnityEngine.UI.Image[0];
@@ -762,12 +763,44 @@ namespace RouletteLike.Roulette
                 // 2회차 첫 라운드: 딜러 바깥 링이 손님 링과 다른 이유를 한 번 크게 보여 준다.
                 yield return PlayBanner("카지노 링", "딜러 바깥 링엔 몰수가 없습니다. 하우스니까요.", new Color32(226, 170, 64, 255));
             }
-            resultText.text = _battle.Active == Side.Player ? "코인플립: 손님 선공" : $"코인플립: {DealerShortName} 선공";
-            calculationText.text = _battle.RoundStartEffects.Count > 0
-                ? "[라운드 시작] " + string.Join("  ·  ", _battle.RoundStartEffects)
-                : "선공은 매 라운드 동전으로 정합니다";
-            yield return Wait(resultPause);
+            if (_battle.Phase != BattlePhase.Ended)
+            {
+                yield return PlayCoinFlip();
+            }
+
             yield return ContinueTurnFlow();
+        }
+
+        /// <summary>선공을 보여 준다: 동전을 던지는 동안 "코인플립"을 띄우고, 면이 정해지면 결과와 [라운드 시작] 효과를 띄운다.</summary>
+        private IEnumerator PlayCoinFlip()
+        {
+            bool playerFirst = _battle.Active == Side.Player;
+            string first = playerFirst ? "손님" : DealerShortName;
+            string outcome = _battle.InitiativeGuaranteedThisRound ? $"{first} 선공 확정" : $"코인플립: {first} 선공";
+            string effects = _battle.RoundStartEffects.Count > 0
+                ? "[라운드 시작] " + string.Join("  ·  ", _battle.RoundStartEffects)
+                : "";
+            calculationText.text = effects.Length > 0 ? effects : "선공은 매 라운드 동전으로 정합니다";
+            if (coinFlip == null)
+            {
+                resultText.text = outcome;
+                yield return Wait(resultPause);
+                yield break;
+            }
+
+            resultText.text = "코인플립";
+            if (effects.Length > 0 && potTrailText != null) potTrailText.text = effects;
+            Transform target = playerFirst ? roulette.transform : enemyRoulette.transform;
+            float landsAt = _battle.InitiativeGuaranteedThisRound ? 0f : CoinFlipPresenter.DefaultTossDuration / _tempo;
+            StartCoroutine(ShowCoinOutcome(outcome, landsAt));
+            yield return coinFlip.Play(playerFirst, DealerShortName, !_battle.InitiativeGuaranteedThisRound, target, _tempo);
+            MotionOf(_battle.Active)?.Lunge(_tempo);
+        }
+
+        private IEnumerator ShowCoinOutcome(string outcome, float delay)
+        {
+            yield return Wait(delay);
+            resultText.text = outcome;
         }
 
         /// <summary>현재 코어 상태에 맞춰 다음 행동(플레이어 입력 대기, 딜러 턴, HIJACK, 다음 라운드, 종료)으로 넘어간다.</summary>

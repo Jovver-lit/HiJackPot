@@ -467,6 +467,7 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "shopLeaveButton", shop.LeaveButton);
             SetObject(identitySo, "relicStripButton", relicStripButton);
             SetObject(identitySo, "potTrailText", potTrailText);
+            SetObject(identitySo, "coinFlip", BuildCoinFlip(fxLayer, font));
             SetObjectArray(identitySo.FindProperty("relicIcons"), relicIcons);
             SetObjectArray(identitySo.FindProperty("relicIconLabels"), relicIconLabels);
             SetObjectArray(identitySo.FindProperty("relicIconImages"), relicIconImages);
@@ -587,6 +588,31 @@ namespace RouletteLike.Roulette.Editor
             spinSo.FindProperty("tickClip").objectReferenceValue = tickSound;
             spinSo.FindProperty("stopClip").objectReferenceValue = stopSound;
             spinSo.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>선공 동전: 테이블 위쪽 가운데. 라운드 시작에만 켜진다. 면은 색과 글자로 구분한다.</summary>
+        private static CoinFlipPresenter BuildCoinFlip(Transform parent, TMP_FontAsset font)
+        {
+            RectTransform root = AddRect("CoinFlip", parent, new Vector2(0f, 310f), new Vector2(96f, 96f));
+            Sprite disc = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+            UnityEngine.UI.Image rim = AddSpriteImage("Coin", root, disc, new Vector2(96f, 96f));
+            rim.color = Gold;
+            rim.raycastTarget = false;
+            UnityEngine.UI.Image face = AddSpriteImage("Face", rim.transform, disc, new Vector2(80f, 80f));
+            face.raycastTarget = false;
+            TMP_Text label = AddText("Label", rim.transform, "손님", font, 22, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(72f, 40f));
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 12f;
+            label.fontSizeMax = 22f;
+            CoinFlipPresenter presenter = root.gameObject.AddComponent<CoinFlipPresenter>();
+            SerializedObject so = new SerializedObject(presenter);
+            so.FindProperty("coin").objectReferenceValue = rim.rectTransform;
+            so.FindProperty("face").objectReferenceValue = face;
+            so.FindProperty("label").objectReferenceValue = label;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            root.gameObject.SetActive(false);
+            return presenter;
         }
 
         /// <summary>하우스 룰 상세 페이지. 문구는 컨트롤러가 딜러에 맞게 채운다(detailTexts: 이름·조건·보상·딜러 변화·주의).</summary>
