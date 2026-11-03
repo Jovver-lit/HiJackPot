@@ -1051,7 +1051,7 @@ namespace RouletteLike.Roulette
             _battle.PreviewCounterHijack(out int preview, out int dealerSlot);
             RouletteSegmentData token = preview >= 0 ? ToSegment(_battle.Player.Wheel[preview]) : null;
             resultText.text = "역탈취!";
-            calculationText.text = $"몰수에 걸려 {DealerShortName}가 내 칸 하나를 회수합니다 (이번 전투 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)";
+            calculationText.text = $"몰수에 걸려 {DealerShortName}가 내 칸 하나를 회수합니다 (이번 전투 {PotBattle.MaxCounterHijacksPerBattle}회, HIJACK이나 상점에서 되찾기)";
 
             bool applied = false;
             void Apply()
@@ -1990,20 +1990,32 @@ namespace RouletteLike.Roulette
 
             if (_battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning)
             {
-                enemyNextIntentText.text = $"판돈 {_battle.Dealer.Pot} → {threshold} 이상이면 CASH OUT";
+                enemyNextIntentText.text = $"판돈 {_battle.Dealer.Pot} → {threshold} 이상이면 CASH OUT" + CounterHijackNote();
                 return;
             }
 
             if (!_battle.Profile.Telegraphs)
             {
                 enemyNextIntentText.text = $"성향: 판돈 {threshold}+에서 CASH OUT · 기본 보험 {_battle.Profile.BaseInsurance}"
-                    + (_battle.DealerHasCasinoRing ? " · 카지노 링" : "");
+                    + (_battle.DealerHasCasinoRing ? " · 카지노 링" : "")
+                    + CounterHijackNote();
                 return;
             }
 
             enemyNextIntentText.text = needed > 0
                 ? $"성향: 판돈 {threshold}+에서 CASH OUT · 보험 {needed} 부족"
                 : $"성향: 판돈 {threshold}+에서 CASH OUT · 전액 보장 가능성";
+        }
+
+        /// <summary>역탈취 위험을 전투 중 늘 보이는 성향 줄에 덧붙인다: 빼앗긴 칸이 있으면 되찾으라고, 아직이면 몰수 때 빼앗긴다고.</summary>
+        private string CounterHijackNote()
+        {
+            foreach (KeyValuePair<string, Slot> _ in _battle.LostSlots)
+            {
+                return " · [!] 빼앗긴 내 칸 되찾기";
+            }
+
+            return _battle.CounterHijacksRemaining > 0 ? " · [!] 몰수 시 칸 빼앗김" : "";
         }
 
         /// <summary>룰렛 아래 안내: 내 특수 칸 효과, 딜러의 역탈취 경고와 특수 칸 효과.</summary>
