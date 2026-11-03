@@ -12,8 +12,8 @@ namespace RouletteLike.Roulette
     [RequireComponent(typeof(UnityEngine.UI.Image))]
     public sealed class CharacterMotion : MonoBehaviour
     {
-        /// <summary>도트 한 칸의 UI 크기(128px × 4배). 이 단위로 움직여 칸이 어긋나 보이지 않게 한다.</summary>
-        private const float CellSize = 4f;
+        /// <summary>도트 한 칸의 UI 크기(128px × 3배). 이 단위로 움직여 칸이 어긋나 보이지 않게 한다.</summary>
+        private const float CellSize = 3f;
 
         private static readonly Color HitTint = new Color32(255, 120, 120, 255);
         private static readonly Color CutTint = new Color32(130, 130, 150, 255);
