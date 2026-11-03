@@ -136,7 +136,7 @@ namespace RouletteLike.Roulette
         [SerializeField] private RouletteSpinController dealerOuterSpin;
 
         /// <summary>바깥 링이 있을 때 안쪽 룰렛(틀·포인터·SPIN 버튼 포함)의 크기. 남는 테두리가 바깥 링 띠가 된다.</summary>
-        private const float OuterRingInnerScale = 0.84f;
+        private const float OuterRingInnerScale = 0.78f;
 
         [Header("Landing Tag (포인터 위 착지 이름표)")]
         [SerializeField] private RectTransform playerLandingTag;
@@ -238,7 +238,6 @@ namespace RouletteLike.Roulette
         /// <summary>자동 진행으로 끝낸 런 수(탈출, 파산).</summary>
         public Vector2Int DebugAutoplayRuns { get; private set; }
 
-        private readonly Queue<string> _combatLog = new Queue<string>();
         private readonly List<string> _fullLog = new List<string>();
         private readonly List<string> _potTrail = new List<string>();
         private Run _run;
@@ -708,7 +707,6 @@ namespace RouletteLike.Roulette
             _lastDealerOuter = -1;
             _playerChipsBaseline = Mathf.Max(1, _battle.Player.Chips);
             _dealerChipsBaseline = Mathf.Max(1, _battle.Dealer.Chips);
-            _combatLog.Clear();
             _fullLog.Clear();
             _potTrail.Clear();
             if (potTrailText != null) potTrailText.text = "";
@@ -1982,8 +1980,8 @@ namespace RouletteLike.Roulette
             bool ready = _battle.HijackChances > 0;
             int goal = _battle.HouseRuleGoal;
             string progress = ready
-                ? $"{goal} / {goal}  ·  HIJACK 가능"
-                : $"{_battle.HouseRuleProgress} / {goal}  ·  {HouseRuleDescription(_battle.Profile)}";
+                ? $"{goal} / {goal}  HIJACK 가능"
+                : $"{_battle.HouseRuleProgress} / {goal}";
             houseRuleProgressFill.fillAmount = ready ? 1f : (float)_battle.HouseRuleProgress / goal;
             houseRuleProgressText.text = progress;
             if (houseRuleDetailProgressText != null)
@@ -2015,14 +2013,14 @@ namespace RouletteLike.Roulette
 
             if (!_battle.Profile.Telegraphs)
             {
-                enemyNextIntentText.text = $"판돈 {threshold}+에서 CASH OUT · 기본 보험 {_battle.Profile.BaseInsurance}"
+                enemyNextIntentText.text = $"성향: 판돈 {threshold}+에서 CASH OUT · 기본 보험 {_battle.Profile.BaseInsurance}"
                     + (_battle.DealerHasCasinoRing ? " · 카지노 링" : "");
                 return;
             }
 
             enemyNextIntentText.text = needed > 0
-                ? $"판돈 {threshold}+에서 CASH OUT · 보험 {needed} 부족"
-                : $"판돈 {threshold}+에서 CASH OUT · 전액 보장 가능성";
+                ? $"성향: 판돈 {threshold}+에서 CASH OUT · 보험 {needed} 부족"
+                : $"성향: 판돈 {threshold}+에서 CASH OUT · 전액 보장 가능성";
         }
 
         /// <summary>룰렛 아래 안내: 내 특수 칸 효과, 딜러의 역탈취 경고와 특수 칸 효과.</summary>
@@ -2057,7 +2055,9 @@ namespace RouletteLike.Roulette
             if (houseRuleDetailDealerText != null)
             {
                 string specials = SlotDescriptions.DescribeSpecials(dealer.Wheel, "");
-                houseRuleDetailDealerText.text = "빼앗긴 칸은 봉인. 몰수 외 전부 봉인하면 완전 강탈.\n" + specials;
+                string mine = SlotDescriptions.DescribeSpecials(_battle.Player.Wheel, "내 ");
+                houseRuleDetailDealerText.text = "빼앗긴 칸은 봉인. 몰수 외 전부 봉인하면 완전 강탈.\n" + specials
+                    + (string.IsNullOrEmpty(mine) ? "" : "\n" + mine);
             }
 
             if (houseRuleDetailWarningText != null)
@@ -2070,7 +2070,7 @@ namespace RouletteLike.Roulette
 
         /// <summary>
         /// 룰렛 칸 위 글자(그레이박스 아이콘): 일반 칸은 기호 + 숫자(▲레이즈 ×배율 ◆보험 ●배당, 몰수),
-        /// 특수·JACKPOT 칸은 고유 이름. 긴 이름은 착지 이름표와 설명이 맡는다. 기호 범례는 가운데 테이블 맨 위.
+        /// 특수·JACKPOT 칸은 고유 이름. 긴 이름은 착지 이름표와 설명이 맡는다. 기호 범례는 하우스 룰 상세.
         /// </summary>
         private static string WheelLabel(Slot slot)
         {
@@ -2287,7 +2287,7 @@ namespace RouletteLike.Roulette
             if (relicStripText == null) return;
             int nudges = _battle != null ? _battle.NudgesRemaining : PotBattle.BaseNudgesPerBattle;
             int cash = _run != null ? _run.Cash : 0;
-            relicStripText.text = $"현금 {cash}\nNUDGE {nudges}";
+            relicStripText.text = $"현금 {cash} · NUDGE {nudges}";
             IReadOnlyList<RelicId> owned = OwnedRelics;
             for (int i = 0; i < relicIconImages.Length; i++)
             {
@@ -2616,15 +2616,11 @@ namespace RouletteLike.Roulette
             }
         }
 
-        /// <summary>하단 사건 띠: 방금 일어난 일 3개를 한 줄로, 최신이 왼쪽.</summary>
+        /// <summary>하단 사건 띠: 방금 일어난 일 하나만. 전체 기록은 띠를 누르면 펼쳐진다.</summary>
         private void AddLog(string message)
         {
             _fullLog.Add(message);
-            _combatLog.Enqueue(message);
-            while (_combatLog.Count > 3) _combatLog.Dequeue();
-            string[] recent = _combatLog.ToArray();
-            System.Array.Reverse(recent);
-            combatLogText.text = string.Join("   ›   ", recent);
+            combatLogText.text = message;
         }
 
         private IEnumerator HideOpeningSpeechBubbleAfterDelay()
