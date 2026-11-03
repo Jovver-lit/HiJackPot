@@ -209,6 +209,7 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image dealerChipsFill = AddChipsWidget("DealerChips", dealerArea, new Vector2(0f, 34f), "토끼 딜러", Red, font, out dealerChipsText, out TMP_Text dealerNameText, 820f, true);
             // 성향: 딜러 칩 바 아래 한 줄(손님 쪽 현금·NUDGE와 대칭).
             TMP_Text enemyNextIntentText = AddText("DealerIntent", dealerArea, "판돈 5+에서 CASH OUT", font, 16, Muted, TextAlignmentOptions.Right, new Vector2(130f, -14f), new Vector2(540f, 30f));
+            enemyNextIntentText.textWrappingMode = TextWrappingModes.NoWrap;
             enemyNextIntentText.enableAutoSizing = true;
             enemyNextIntentText.fontSizeMin = 11f;
             enemyNextIntentText.fontSizeMax = 16f;
