@@ -58,6 +58,9 @@ namespace RouletteLike.Battle
         public bool IsJackpot { get; }
         public bool IsStolen { get; }
 
+        /// <summary>역탈취로 딜러 룰렛에 들어간 손님의 칸. 효과는 같고 표시만 다르다.</summary>
+        public bool IsSeized { get; }
+
         public Slot(
             string id,
             SlotKind kind,
@@ -65,7 +68,8 @@ namespace RouletteLike.Battle
             string label,
             SlotTrigger trigger = SlotTrigger.Land,
             bool isJackpot = false,
-            bool isStolen = false)
+            bool isStolen = false,
+            bool isSeized = false)
         {
             Id = id;
             Kind = kind;
@@ -74,6 +78,7 @@ namespace RouletteLike.Battle
             Trigger = trigger;
             IsJackpot = isJackpot;
             IsStolen = isStolen;
+            IsSeized = isSeized;
         }
 
         /// <summary>[라운드 시작] 칸은 착지해도 발동하지 않고, (테이블 규칙 「연쇄」에서) 묶음에도 끼지 않는다.</summary>
@@ -82,6 +87,11 @@ namespace RouletteLike.Battle
         public Slot AsStolen(string newId)
         {
             return new Slot(newId, Kind, Value, Label, Trigger, IsJackpot, true);
+        }
+
+        public Slot AsSeized()
+        {
+            return new Slot(Id, Kind, Value, Label, Trigger, IsJackpot, IsStolen, true);
         }
 
         public static Slot Sealed(string id)

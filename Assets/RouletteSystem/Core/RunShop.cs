@@ -114,13 +114,30 @@ namespace RouletteLike.Battle
         public ShopError RevertSlot(int index)
         {
             if (!InShop) return ShopError.NotInShop;
-            if (index < 0 || index >= _wheel.Count || index >= _startingWheel.Count) return ShopError.InvalidSlot;
-            if (!_wheel[index].IsStolen) return ShopError.NotStolen;
+            if (index < 0 || index >= _wheel.Count) return ShopError.InvalidSlot;
+            bool lost = IsLostSlot(index);
+            if (!lost && (index >= _startingWheel.Count || !_wheel[index].IsStolen)) return ShopError.NotStolen;
             if (Cash < ShopPrices.Revert) return ShopError.NotEnoughCash;
             Cash -= ShopPrices.Revert;
-            _wheel[index] = _startingWheel[index];
+            if (lost)
+            {
+                string sealId = _wheel[index].Id;
+                _wheel[index] = _lostSlots[sealId];
+                _lostSlots.Remove(sealId);
+            }
+            else
+            {
+                _wheel[index] = _startingWheel[index];
+            }
+
             return ShopError.None;
         }
+
+        /// <summary>역탈취로 잃어 봉인이 남은 자리인지.</summary>
+        public bool IsLostSlot(int index) => index >= 0 && index < _wheel.Count && _lostSlots.ContainsKey(_wheel[index].Id);
+
+        /// <summary>상점에서 되돌리거나 되찾을 수 있는 칸인지(빼앗아 온 칸 또는 잃은 칸).</summary>
+        public bool CanRevert(int index) => IsLostSlot(index) || (index >= 0 && index < _wheel.Count && index < _startingWheel.Count && _wheel[index].IsStolen);
 
         public ShopError BuyShopRelic()
         {

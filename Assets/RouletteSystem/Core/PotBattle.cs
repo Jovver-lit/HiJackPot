@@ -76,7 +76,8 @@ namespace RouletteLike.Battle
         InvalidIndex,
         SourceSealed,
         HouseCutProtected,
-        BattleEnded
+        BattleEnded,
+        MustReturnToOwnSlot
     }
 
     /// <summary>
@@ -87,7 +88,17 @@ namespace RouletteLike.Battle
     {
         private readonly Random _rng;
         private readonly List<string> _log = new List<string>();
-        private readonly List<KeyValuePair<int, Slot>> _seizedSlots = new List<KeyValuePair<int, Slot>>();
+        /// <summary>역탈취로 딜러에게 넘어간 칸 하나의 기록.</summary>
+        private sealed class Seizure
+        {
+            public int PlayerIndex;
+            public int DealerIndex;
+            public string SealId;
+            public Slot Original;
+        }
+
+        private readonly List<Seizure> _seizures = new List<Seizure>();
+        private int _counterHijacksUsed;
         private readonly List<string> _roundStartEffects = new List<string>();
 
         /// <summary>역탈취는 전투당 이 횟수까지만 일어난다(첫 플레이테스트: 보스전 봉인 과다로 중도 포기).</summary>
@@ -124,10 +135,9 @@ namespace RouletteLike.Battle
 
         /// <summary>이번 전투에 남은 역탈취 횟수.</summary>
         public int CounterHijacksRemaining => Profile.CounterHijacks && !HasRelic(RelicId.SeizureSeal)
-            ? MaxCounterHijacksPerBattle - _seizedSlots.Count - _returnedSeizures
+            ? MaxCounterHijacksPerBattle - _counterHijacksUsed
             : 0;
 
-        private int _returnedSeizures;
         private Side? _guaranteedInitiative;
         private readonly HashSet<RelicId> _playerRelics = new HashSet<RelicId>();
 
@@ -765,6 +775,8 @@ namespace RouletteLike.Battle
             if (Dealer.Wheel[dealerIndex].Kind == SlotKind.Sealed) return HijackError.SourceSealed;
             if (Dealer.Wheel[dealerIndex].Kind == SlotKind.HouseCut) return HijackError.HouseCutProtected;
             if (Player.Wheel[playerIndex].Kind == SlotKind.HouseCut) return HijackError.HouseCutProtected;
+            Seizure seizure = SeizureAtDealer(dealerIndex);
+            if (seizure != null && seizure.PlayerIndex != playerIndex) return HijackError.MustReturnToOwnSlot;
             return HijackError.None;
         }
 
@@ -783,7 +795,18 @@ namespace RouletteLike.Battle
             Slot stolen = Dealer.Wheel[dealerIndex];
             Slot replaced = Player.Wheel[playerIndex];
             _stolenCount++;
-            Player.ReplaceSlot(playerIndex, stolen.AsStolen($"hijacked_{_stolenCount}_{stolen.Id}"));
+            Seizure seizure = SeizureAtDealer(dealerIndex);
+            if (seizure != null)
+            {
+                // 되찾기: 원래 칸 그대로 원래 자리로 돌아온다.
+                Player.ReplaceSlot(playerIndex, seizure.Original);
+                _seizures.Remove(seizure);
+            }
+            else
+            {
+                Player.ReplaceSlot(playerIndex, stolen.AsStolen($"hijacked_{_stolenCount}_{stolen.Id}"));
+            }
+
             Dealer.ReplaceSlot(dealerIndex, Slot.Sealed($"sealed_{_stolenCount}_{stolen.Id}"));
             HijackChances--;
             HijackUsedThisRound = true;
@@ -813,11 +836,11 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>
-        /// 역탈취: 플레이어가 몰수에 걸린 직후 딜러가 플레이어 칸 하나를 회수한다.
-        /// 플레이어가 빼앗아 온 칸을 먼저 되찾고, 없으면 값이 가장 큰 칸을 가져간다. 몰수는 대상이 아니다.
-        /// 회수된 칸은 이 전투 동안 봉인되며, 플레이어가 이기면 원래대로 돌아온다.
+        /// 역탈취: 플레이어가 몰수에 걸린 직후 딜러가 플레이어 칸 하나를 빼앗아 자기 룰렛의 약한 칸에 넣는다(ADR 0014).
+        /// 내 자리는 봉인되고 딜러가 그 칸을 쓴다. HIJACK으로 되찾으면 원래 자리로 돌아오고,
+        /// 못 되찾은 채 이기면 봉인이 남아 상점에서 되찾아야 한다.
         /// </summary>
-        /// <returns>회수한 칸의 인덱스. 대상이 없으면 -1.</returns>
+        /// <returns>빼앗긴 내 칸의 인덱스. 대상이 없으면 -1.</returns>
         public int ResolveCounterHijack()
         {
             if (!CounterHijackPending)
@@ -826,30 +849,79 @@ namespace RouletteLike.Battle
             }
 
             CounterHijackPending = false;
-            int target = -1;
-            for (int i = 0; i < Player.Wheel.Count; i++)
-            {
-                Slot candidate = Player.Wheel[i];
-                if (candidate.Kind == SlotKind.HouseCut || candidate.Kind == SlotKind.Sealed) continue;
-                if (target < 0) { target = i; continue; }
-
-                Slot best = Player.Wheel[target];
-                bool better = candidate.IsStolen != best.IsStolen
-                    ? candidate.IsStolen
-                    : candidate.Value > best.Value;
-                if (better) target = i;
-            }
-
-            if (target < 0)
+            if (!PreviewCounterHijack(out int target, out int dealerIndex))
             {
                 return -1;
             }
 
             Slot seized = Player.Wheel[target];
-            _seizedSlots.Add(new KeyValuePair<int, Slot>(target, seized));
-            Player.ReplaceSlot(target, Slot.Sealed($"seized_{_seizedSlots.Count}_{seized.Id}"));
-            Write($"역탈취: {Profile.Name}이(가) 내 {target + 1}번 칸({seized.Label})을 회수");
+            _counterHijacksUsed++;
+            string sealId = $"seized_{Round}_{seized.Id}";
+            _seizures.Add(new Seizure { PlayerIndex = target, DealerIndex = dealerIndex, SealId = sealId, Original = seized });
+            Player.ReplaceSlot(target, Slot.Sealed(sealId));
+            Dealer.ReplaceSlot(dealerIndex, seized.AsSeized());
+            Write($"역탈취: {Profile.Name}이(가) 내 {target + 1}번 칸({seized.Label})을 빼앗아 자기 {dealerIndex + 1}번 칸에 넣음");
             return target;
+        }
+
+        /// <summary>
+        /// 역탈취 대상: 내 칸은 빼앗아 온 칸 먼저, 그다음 값이 가장 큰 칸. 딜러 쪽은 값이 가장 작은 일반 칸.
+        /// 몰수와 JACKPOT 칸은 덮어쓰지 않는다.
+        /// </summary>
+        public bool PreviewCounterHijack(out int playerIndex, out int dealerIndex)
+        {
+            playerIndex = -1;
+            for (int i = 0; i < Player.Wheel.Count; i++)
+            {
+                Slot candidate = Player.Wheel[i];
+                if (candidate.Kind == SlotKind.HouseCut || candidate.Kind == SlotKind.Sealed) continue;
+                if (playerIndex < 0) { playerIndex = i; continue; }
+
+                Slot best = Player.Wheel[playerIndex];
+                bool better = candidate.IsStolen != best.IsStolen
+                    ? candidate.IsStolen
+                    : candidate.Value > best.Value;
+                if (better) playerIndex = i;
+            }
+
+            dealerIndex = -1;
+            for (int i = 0; i < Dealer.Wheel.Count; i++)
+            {
+                Slot candidate = Dealer.Wheel[i];
+                if (candidate.Kind == SlotKind.HouseCut || candidate.IsJackpot || candidate.IsSeized) continue;
+                if (dealerIndex < 0) { dealerIndex = i; continue; }
+
+                // 이미 봉인된 칸이 있으면 그 자리부터 쓴다. 딜러의 남은 칸을 깎지 않는다.
+                Slot best = Dealer.Wheel[dealerIndex];
+                bool better = (candidate.Kind == SlotKind.Sealed) != (best.Kind == SlotKind.Sealed)
+                    ? candidate.Kind == SlotKind.Sealed
+                    : candidate.Value < best.Value;
+                if (better) dealerIndex = i;
+            }
+
+            return playerIndex >= 0 && dealerIndex >= 0;
+        }
+
+        /// <summary>전투가 끝날 때 아직 딜러에게 있는 내 칸(봉인 칸 Id → 원래 칸). 런이 상점 되찾기용으로 넘겨받는다.</summary>
+        public IEnumerable<KeyValuePair<string, Slot>> LostSlots
+        {
+            get
+            {
+                foreach (Seizure seizure in _seizures)
+                {
+                    yield return new KeyValuePair<string, Slot>(seizure.SealId, seizure.Original);
+                }
+            }
+        }
+
+        private Seizure SeizureAtDealer(int dealerIndex)
+        {
+            foreach (Seizure seizure in _seizures)
+            {
+                if (seizure.DealerIndex == dealerIndex) return seizure;
+            }
+
+            return null;
         }
 
         /// <summary>시뮬레이션·딜러 헤드리스 진행용. 연출 쪽은 자기 회전 RNG로 착지 칸을 정한다.</summary>
@@ -971,18 +1043,6 @@ namespace RouletteLike.Battle
             Outcome = outcome;
             Phase = BattlePhase.Ended;
             CounterHijackPending = false;
-            if (outcome != BattleOutcome.DealerWins)
-            {
-                for (int i = _seizedSlots.Count - 1; i >= 0; i--)
-                {
-                    Player.ReplaceSlot(_seizedSlots[i].Key, _seizedSlots[i].Value);
-                    Write($"회수된 {_seizedSlots[i].Value.Label} 반환");
-                }
-
-                _returnedSeizures += _seizedSlots.Count;
-                _seizedSlots.Clear();
-            }
-
             Write(outcome switch
             {
                 BattleOutcome.PlayerWinsByBankrupt => $"{Profile.Name} 파산 · 승리",

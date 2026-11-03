@@ -19,3 +19,4 @@
 | [0011](0011-final-boss-at-30f-steals-house-cut.md) | 정식판은 30층, 최종 보스전에서만 하우스 몫을 HIJACK할 수 있다 |
 | [0012](0012-house-cut-chance-rises-each-spin.md) | 한 턴 안에서 SPIN할수록 하우스 몫 확률이 오른다 (N번째 = N × 5%, 최대 35%) |
 | [0013](0013-chains-are-a-table-rule-not-base.md) | 연쇄는 기본 규칙이 아니라 테이블 규칙이다 (칸은 하나씩 발동) |
+| [0014](0014-counter-hijack-slot-goes-to-dealer.md) | 역탈취로 빼앗긴 칸은 딜러가 쓰고, 이겨도 자동으로 돌아오지 않는다 |
