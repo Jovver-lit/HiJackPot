@@ -1879,11 +1879,9 @@ namespace RouletteLike.Roulette
                 potChipImages[i].gameObject.SetActive(i < chipsShown);
             }
             string closing = _battle.TableFee > 0
-                ? $"   ·   마감 사용료 −{_battle.TableFee}"
-                : _battle.Round >= PotBattle.TableFeeStartRound - 2 ? $"   ·   {PotBattle.TableFeeStartRound}R부터 마감" : "";
-            roundText.text = _battle.Profile.Telegraphs
-                ? $"{_run.FloorIndex + 1}F · TUTORIAL TABLE   ·   ROUND {_battle.Round}{closing}"
-                : $"{_run.FloorIndex + 1}F · {_battle.Profile.Name}   ·   ROUND {_battle.Round}{closing}";
+                ? $" · 마감 −{_battle.TableFee}"
+                : _battle.Round >= PotBattle.TableFeeStartRound - 2 ? $" · {PotBattle.TableFeeStartRound}R 마감" : "";
+            roundText.text = $"{_run.FloorIndex + 1}F · ROUND {_battle.Round}{closing}";
             RefreshBetControls();
             RefreshHouseRuleUi();
             RefreshChainPreview();

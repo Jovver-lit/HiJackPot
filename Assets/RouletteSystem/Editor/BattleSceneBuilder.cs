@@ -35,6 +35,7 @@ namespace RouletteLike.Roulette.Editor
         // ── UI 1단계 와이어프레임 팔레트(2026-10-02): 장식 없이 배치와 위계만 본다. 최종 색·재질은 ArtStyleBible(아르데코 카지노) 확정 뒤.
         // 회색 단계로 정보의 중요도를 나누고, 강조색(Accent)은 판돈·CASH OUT·SPIN·내 차례에만, 위험색(Danger)은 몰수에만 쓴다.
         private static readonly Color Background = new Color32(24, 24, 26, 255);
+        private const string SolidSpritePath = "Assets/RouletteSystem/Art/solid-white.png";
         private static readonly Color Felt = new Color32(38, 50, 46, 255);
         private static readonly Color FloorColor = new Color32(34, 32, 38, 255);
         private static readonly Color TopBand = new Color32(26, 26, 30, 255);
@@ -173,7 +174,7 @@ namespace RouletteLike.Roulette.Editor
             AddText("Versus", battleStage, "VS", font, 40, Accent, TextAlignmentOptions.Center, new Vector2(0f, 24f), new Vector2(120f, 48f));
             RectTransform centerStage = AddRect("CenterStage", battleStage, Vector2.zero, new Vector2(760f, 160f));
             RectTransform roundHeader = AddRect("RoundHeader", centerStage, new Vector2(0f, 62f), new Vector2(190f, 24f));
-            TMP_Text roundText = AddText("RoundTitle", roundHeader, "TUTORIAL TABLE  ·  ROUND 1", font, 14, Muted, TextAlignmentOptions.Center, Vector2.zero, new Vector2(190f, 24f));
+            TMP_Text roundText = AddText("RoundTitle", roundHeader, "1F · ROUND 1", font, 14, Muted, TextAlignmentOptions.Center, Vector2.zero, new Vector2(190f, 24f));
             roundText.enableAutoSizing = true;
             roundText.fontSizeMin = 9f;
             roundText.fontSizeMax = 14f;
@@ -241,10 +242,10 @@ namespace RouletteLike.Roulette.Editor
             RectTransform playerRouletteContainer = AddRect("RouletteContainer", playerPanel, new Vector2(0f, 10f), new Vector2(620f, 620f));
             UnityEngine.UI.Image playerGlow = AddGlow("ActiveGlow", playerRouletteContainer, new Color32(226, 170, 64, 70), new Vector2(520f, 520f));
             // 바깥 링: 안쪽 룰렛 뒤에 겹친 큰 룰렛. 바깥 링이 있으면 안쪽 룰렛이 줄어들어 바깥 띠만 보인다(같은 포인터 아래).
-            RectTransform playerOuterRingRoot = AddRect("OuterRingWheel", playerRouletteContainer, Vector2.zero, new Vector2(520f, 520f));
+            RectTransform playerOuterRingRoot = AddRect("OuterRingWheel", playerRouletteContainer, Vector2.zero, new Vector2(510f, 510f));
             RouletteController playerOuterRoulette = playerOuterRingRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController playerOuterSpin = playerOuterRingRoot.gameObject.AddComponent<RouletteSpinController>();
-            BuildOuterRingWheel(playerOuterRingRoot, playerOuterRoulette, playerOuterSpin, legacyFont, pointerSprite, 520f);
+            BuildOuterRingWheel(playerOuterRingRoot, playerOuterRoulette, playerOuterSpin, legacyFont, pointerSprite, 510f);
             RectTransform rouletteRoot = AddRect("ExistingPlayerRoulette", playerRouletteContainer, Vector2.zero, new Vector2(580f, 580f));
             RouletteController roulette = rouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController spin = rouletteRoot.gameObject.AddComponent<RouletteSpinController>();
@@ -1040,7 +1041,7 @@ namespace RouletteLike.Roulette.Editor
         private static UnityEngine.UI.Image AddChipsWidget(string name, Transform parent, Vector2 position, string combatantName, Color fillColor, TMP_FontAsset font, out TMP_Text chipsText, out TMP_Text nameText, float width = 440f, bool mirrored = false)
         {
             RectTransform root = AddRect(name, parent, position, new Vector2(width, 78f));
-            float half = width * 0.5f - 90f;
+            float half = (width - 20f) * 0.5f - 90f; // 글자 끝을 바 끝에 맞춘다.
             nameText = AddText("NameText", root, combatantName, font, 22, Ink, mirrored ? TextAlignmentOptions.Right : TextAlignmentOptions.Left, new Vector2(mirrored ? half : -half, 22f), new Vector2(180f, 30f));
             chipsText = AddText("ChipsText", root, "칩 20", font, 22, Ink, mirrored ? TextAlignmentOptions.Left : TextAlignmentOptions.Right, new Vector2(mirrored ? -half : half, 22f), new Vector2(180f, 30f));
             UnityEngine.UI.Image background = AddImage("BarBackground", root, new Color32(58, 59, 63, 255));
@@ -1179,12 +1180,27 @@ namespace RouletteLike.Roulette.Editor
         private static void ConfigureFill(UnityEngine.UI.Image fill, float amount)
         {
             Stretch(fill.rectTransform);
-            fill.sprite = GetFilledImageSprite();
+            fill.sprite = GetSolidSprite();
             fill.type = UnityEngine.UI.Image.Type.Filled;
             fill.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal;
             fill.fillOrigin = 0;
             fill.fillClockwise = true;
             fill.fillAmount = amount;
+        }
+
+        /// <summary>채움 막대용 흰색 단색 스프라이트. 내장 UISprite는 가로로 늘리면 양 끝이 번진다.</summary>
+        private static Sprite GetSolidSprite()
+        {
+            TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(SolidSpritePath);
+            if (importer.textureType != TextureImporterType.Sprite)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.filterMode = FilterMode.Point;
+                importer.SaveAndReimport();
+            }
+
+            return AssetDatabase.LoadAssetAtPath<Sprite>(SolidSpritePath);
         }
 
         private static Sprite GetFilledImageSprite()
