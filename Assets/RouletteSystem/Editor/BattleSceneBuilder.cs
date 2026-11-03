@@ -467,7 +467,7 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "shopLeaveButton", shop.LeaveButton);
             SetObject(identitySo, "relicStripButton", relicStripButton);
             SetObject(identitySo, "potTrailText", potTrailText);
-            SetObject(identitySo, "coinFlip", BuildCoinFlip(fxLayer, font));
+            SetObject(identitySo, "coinFlip", BuildCoinFlip(fxLayer.parent, momentBanner.GetSiblingIndex(), font));
             SetObjectArray(identitySo.FindProperty("relicIcons"), relicIcons);
             SetObjectArray(identitySo.FindProperty("relicIconLabels"), relicIconLabels);
             SetObjectArray(identitySo.FindProperty("relicIconImages"), relicIconImages);
@@ -591,9 +591,11 @@ namespace RouletteLike.Roulette.Editor
         }
 
         /// <summary>선공 동전: 테이블 위쪽 가운데. 라운드 시작에만 켜진다. 면은 색과 글자로 구분한다.</summary>
-        private static CoinFlipPresenter BuildCoinFlip(Transform parent, TMP_FontAsset font)
+        private static CoinFlipPresenter BuildCoinFlip(Transform parent, int siblingIndex, TMP_FontAsset font)
         {
+            // FxLayer 자식은 연출이 끝나면 지워지므로 그 밖에 둔다. 배너와 오버레이 아래.
             RectTransform root = AddRect("CoinFlip", parent, new Vector2(0f, 310f), new Vector2(96f, 96f));
+            root.SetSiblingIndex(siblingIndex);
             Sprite disc = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
             UnityEngine.UI.Image rim = AddSpriteImage("Coin", root, disc, new Vector2(96f, 96f));
             rim.color = Gold;
