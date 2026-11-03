@@ -3,6 +3,7 @@
 | 경로 | 무엇 |
 |---|---|
 | `roulette_ui_sheet.png` | 룰렛 UI 스프라이트 시트(`roulette_frame`, `pointer`, `center_cap`) |
+| `solid-white.png` | 칩 바·진행 막대의 채움에 쓰는 4px 흰색 단색 스프라이트 |
 | `Source/` | 위 시트의 원본 Aseprite 파일 |
 | `Characters/Businessman/` | 플레이어(손님) 128px 시트 `businessman-128px-sheet.png`와 원본 Aseprite(대기 2·눈 깜빡임 4, 걷기 4칸은 대기 그림을 넣은 자리표시, 손님 Gold Standard). `businessman-70px*`는 옛 그림이며 쓰지 않는다(Legacy) |
 | `Characters/Rabbit/` | 토끼 딜러 128px 스프라이트(딜러 Gold Standard, 오른쪽을 보게 저장), 게임에 쓰는 6프레임 시트 `-sheet.png`(대기 2·깜빡임 4), 원본 Aseprite(숨긴 레이어에 이전 AI 초안·레퍼런스 보존) |
