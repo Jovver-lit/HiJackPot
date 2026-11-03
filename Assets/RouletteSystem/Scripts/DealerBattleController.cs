@@ -791,7 +791,7 @@ namespace RouletteLike.Roulette
             resultText.text = "코인플립";
             if (effects.Length > 0 && potTrailText != null) potTrailText.text = effects;
             Transform target = playerFirst ? roulette.transform : enemyRoulette.transform;
-            float landsAt = _battle.InitiativeGuaranteedThisRound ? 0f : CoinFlipPresenter.DefaultTossDuration / _tempo;
+            float landsAt = _battle.InitiativeGuaranteedThisRound ? 0f : CoinFlipPresenter.DefaultTossDuration;
             StartCoroutine(ShowCoinOutcome(outcome, landsAt));
             yield return coinFlip.Play(playerFirst, DealerShortName, !_battle.InitiativeGuaranteedThisRound, target, _tempo);
             MotionOf(_battle.Active)?.Lunge(_tempo);
