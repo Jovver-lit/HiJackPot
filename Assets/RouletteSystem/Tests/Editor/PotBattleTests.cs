@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 
@@ -380,7 +381,7 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void CounterHijack_SeizesStolenSlotFirst_AndReturnsItOnWin()
+        public void CounterHijack_SeizesStolenSlotFirst()
         {
             DealerProfile thief = new DealerProfile(
                 "도둑 딜러", 30, 3, 1, 99, HouseRule.FullCoverage, false, true,
@@ -402,7 +403,7 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void CounterHijack_SeizedSlotComesBackWhenPlayerWins()
+        public void CounterHijack_SlotMovesToDealerWheel_AndStaysLostOnWin()
         {
             DealerProfile thief = new DealerProfile(
                 "도둑 딜러", 2, 3, 1, 99, HouseRule.FullCoverage, false, true,
@@ -411,8 +412,22 @@ namespace RouletteLike.Battle.Tests
             AdvanceTo(battle, Side.Player);
             battle.PlaceAnte(1);
             battle.Land(5);
+            Assert.IsTrue(battle.PreviewCounterHijack(out int previewPlayer, out int previewDealer));
+            int weakest = int.MaxValue;
+            foreach (Slot slot in battle.Dealer.Wheel)
+            {
+                if (slot.Kind != SlotKind.HouseCut && !slot.IsJackpot) weakest = Math.Min(weakest, slot.Value);
+            }
+
+            Assert.AreEqual(weakest, battle.Dealer.Wheel[previewDealer].Value);
+            Slot before = battle.Player.Wheel[previewPlayer];
             int seized = battle.ResolveCounterHijack();
-            Slot before = BattlePresets.CreateStarterWheel()[seized];
+
+            Assert.AreEqual(previewPlayer, seized);
+            Assert.AreEqual(SlotKind.Sealed, battle.Player.Wheel[seized].Kind);
+            Assert.AreEqual(before.Id, battle.Dealer.Wheel[previewDealer].Id);
+            Assert.IsTrue(battle.Dealer.Wheel[previewDealer].IsSeized);
+
             FinishRound(battle);
             AdvanceTo(battle, Side.Player);
             battle.PlaceAnte(3);
@@ -420,7 +435,43 @@ namespace RouletteLike.Battle.Tests
             battle.CashOut(); // 판돈 7 ≥ 딜러 칩
 
             Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
-            Assert.AreEqual(before.Id, battle.Player.Wheel[seized].Id);
+            Assert.AreEqual(SlotKind.Sealed, battle.Player.Wheel[seized].Kind);
+            int lost = 0;
+            foreach (KeyValuePair<string, Slot> entry in battle.LostSlots)
+            {
+                lost++;
+                Assert.AreEqual(before.Id, entry.Value.Id);
+            }
+
+            Assert.AreEqual(1, lost);
+        }
+
+        [Test]
+        public void CounterHijack_HijackRecoversSlot_OnlyToItsOwnPlace()
+        {
+            DealerProfile thief = new DealerProfile(
+                "도둑 딜러", 30, 3, 1, 99, HouseRule.FullCoverage, false, true,
+                BattlePresets.CreateRabbitDealer().Wheel);
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, thief, 5);
+            GrantHijack(battle); // 보험 칸이 빼앗기기 전에 HIJACK 기회를 받아 둔다
+            FinishRound(battle);
+            AdvanceTo(battle, Side.Player);
+            battle.PlaceAnte(1);
+            battle.Land(5);
+            battle.PreviewCounterHijack(out int hole, out int dealerSlot);
+            Slot before = battle.Player.Wheel[hole];
+            battle.ResolveCounterHijack();
+            FinishRound(battle);
+            AdvanceTo(battle, Side.Player);
+
+            int other = hole == 0 ? 1 : 0;
+            Assert.AreEqual(HijackError.MustReturnToOwnSlot, battle.CanHijack(dealerSlot, other));
+            Assert.AreEqual(HijackError.None, battle.Hijack(dealerSlot, hole));
+
+            Assert.AreEqual(before.Id, battle.Player.Wheel[hole].Id);
+            Assert.IsFalse(battle.Player.Wheel[hole].IsSeized);
+            Assert.AreEqual(SlotKind.Sealed, battle.Dealer.Wheel[dealerSlot].Kind);
+            Assert.IsEmpty(new List<KeyValuePair<string, Slot>>(battle.LostSlots));
         }
 
         [Test]

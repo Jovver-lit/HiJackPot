@@ -37,6 +37,9 @@ namespace RouletteLike.Battle
         };
 
         private readonly List<FloorKind> _layout = new List<FloorKind>();
+
+        /// <summary>역탈취로 잃은 칸(봉인 칸 Id → 원래 칸). 상점에서 되찾으면 지운다.</summary>
+        private readonly Dictionary<string, Slot> _lostSlots = new Dictionary<string, Slot>();
         private readonly List<Slot> _startingWheel;
 
         /// <summary>층 구성(0부터). 0층은 언제나 튜토리얼 딜러.</summary>
@@ -245,6 +248,10 @@ namespace RouletteLike.Battle
             Cash += LastSettlement.Cash;
             _wheel.Clear();
             _wheel.AddRange(battle.Player.Wheel);
+            foreach (KeyValuePair<string, Slot> lost in battle.LostSlots)
+            {
+                _lostSlots[lost.Key] = lost.Value;
+            }
 
             if (battle.Outcome == BattleOutcome.PlayerWinsByCleanSweep)
             {

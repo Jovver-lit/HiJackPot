@@ -143,6 +143,41 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
+        public void Shop_RecoversSlotLostToCounterHijack()
+        {
+            Func<DealerProfile> thief = () => new DealerProfile(
+                "도둑", 40, 3, 1, 99, HouseRule.FullCoverage, false, true, BattlePresets.CreateRabbitDealer().Wheel).WithFloorScaling(40, 0);
+            Run run = new Run(3, 20, BattlePresets.CreateStarterWheel(), thief,
+                new List<Func<DealerProfile>> { thief, thief }, () => Weak("보스", BattlePresets.CreateStageBoss().TableOuterRing));
+            PotBattle first = run.EnterDoor(0);
+            if (first.Phase == BattlePhase.RoundOver) first.StartRound();
+            if (first.Active != Side.Player) { first.PlaceAnte(1); first.CashOut(); }
+            first.PlaceAnte(1);
+            first.Land(5); // 몰수
+            int index = first.ResolveCounterHijack();
+            Slot original = BattlePresets.CreateStarterWheel()[index];
+            Win(first);
+            run.CompleteBattle();
+            Assert.AreEqual(SlotKind.Sealed, run.Wheel[index].Kind);
+            Assert.IsTrue(run.IsLostSlot(index));
+            while (run.CurrentFloorKind != FloorKind.Shop)
+            {
+                if (run.PendingJackpot != null) run.PlacePendingJackpot(0);
+                Win(run.EnterDoor(0));
+                run.CompleteBattle();
+            }
+
+            Assert.AreEqual(SlotKind.Sealed, run.Wheel[index].Kind);
+            int cash = run.Cash;
+            Assert.GreaterOrEqual(cash, ShopPrices.Revert);
+            Assert.AreEqual(ShopError.None, run.RevertSlot(index));
+
+            Assert.AreEqual(original.Id, run.Wheel[index].Id);
+            Assert.IsFalse(run.IsLostSlot(index));
+            Assert.AreEqual(cash - ShopPrices.Revert, run.Cash);
+        }
+
+        [Test]
         public void Shop_NotEnoughCash_ChangesNothing()
         {
             Run run = RunToShop(2);

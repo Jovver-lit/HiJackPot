@@ -1042,13 +1042,13 @@ namespace RouletteLike.Roulette
 
         /// <summary>
         /// 역탈취: 회수되는 내 칸이 딜러 쪽으로 끌려가는 연출(HIJACK의 반대 방향) 뒤에 봉인을 반영한다.
-        /// 왜 당했는지(몰수)와 되찾는 법(이기면 반환)을 함께 알린다.
+        /// 왜 당했는지(몰수)와 되찾는 법(HIJACK, 못 하면 상점)을 함께 알린다.
         /// </summary>
         private IEnumerator PlayCounterHijackThenContinue()
         {
             _state = ViewState.Busy;
             spinInput?.ShowUnavailableState("역탈취");
-            int preview = FindCounterHijackTarget();
+            _battle.PreviewCounterHijack(out int preview, out int dealerSlot);
             RouletteSegmentData token = preview >= 0 ? ToSegment(_battle.Player.Wheel[preview]) : null;
             resultText.text = "역탈취!";
             calculationText.text = $"몰수에 걸려 {DealerShortName}가 내 칸 하나를 회수합니다 (이번 전투 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)";
@@ -1063,14 +1063,14 @@ namespace RouletteLike.Roulette
                 SyncWheels();
                 if (seized >= 0)
                 {
-                    dealerLineText.text = $"\"몰수에 이어 {seized + 1}번 칸도 회수하겠습니다. 이기시면 돌려드리죠.\"";
+                    dealerLineText.text = $"\"몰수에 이어 {seized + 1}번 칸도 제가 쓰겠습니다. 되찾으실 수 있다면요.\"";
                 }
             }
 
             dealerMotion?.Strike(_tempo);
             if (hijackTransferPresenter != null && token != null && preview >= 0)
             {
-                yield return hijackTransferPresenter.PlayHijack(roulette, preview, enemyRoulette, 0, token, Apply);
+                yield return hijackTransferPresenter.PlayHijack(roulette, preview, enemyRoulette, dealerSlot, token, Apply);
             }
 
             Apply();
@@ -1081,21 +1081,6 @@ namespace RouletteLike.Roulette
         }
 
         /// <summary>코어의 역탈취 대상 규칙(빼앗아 온 칸 우선, 없으면 값이 큰 칸)을 연출용으로 미리 계산한다.</summary>
-        private int FindCounterHijackTarget()
-        {
-            int target = -1;
-            IReadOnlyList<Slot> wheel = _battle.Player.Wheel;
-            for (int i = 0; i < wheel.Count; i++)
-            {
-                if (wheel[i].Kind == SlotKind.HouseCut || wheel[i].Kind == SlotKind.Sealed) continue;
-                if (target < 0) { target = i; continue; }
-                bool better = wheel[i].IsStolen != wheel[target].IsStolen ? wheel[i].IsStolen : wheel[i].Value > wheel[target].Value;
-                if (better) target = i;
-            }
-
-            return target;
-        }
-
         private IEnumerator AfterPlayerTurnEnded()
         {
             _state = ViewState.Busy;
@@ -1412,7 +1397,7 @@ namespace RouletteLike.Roulette
                     break;
                 case 2:
                     _shopMode = ShopMode.Revert;
-                    ShopMessage($"HIJACK 되돌리기(현금 {ShopPrices.Revert}): 빼앗아 온 칸(H)을 고르면 시작 룰렛의 칸으로 돌아갑니다");
+                    ShopMessage($"되돌리기·되찾기(현금 {ShopPrices.Revert}): 빼앗아 온 칸(H)은 시작 칸으로, 잃은 칸(봉인)은 원래 칸으로 돌아갑니다");
                     break;
                 case 3:
                     _shopMode = ShopMode.None;
@@ -1455,7 +1440,7 @@ namespace RouletteLike.Roulette
                     break;
                 case ShopMode.Revert:
                     error = _run.RevertSlot(index);
-                    if (error == ShopError.None) ShopMessage($"{index + 1}번 칸을 「{_run.Wheel[index].Label}」로 되돌렸습니다");
+                    if (error == ShopError.None) ShopMessage($"{index + 1}번 칸을 「{_run.Wheel[index].Label}」로 돌려놓았습니다");
                     break;
                 default:
                     ShopMessage("먼저 왼쪽에서 서비스를 고르세요");
@@ -1490,7 +1475,7 @@ namespace RouletteLike.Roulette
             {
                 $"위치 바꾸기 · 현금 {ShopPrices.Swap}\n같은 칸을 모아 노릴 구역을 설계",
                 $"칸 강화 · 현금 {ShopPrices.Upgrade} (배율 {ShopPrices.UpgradeMultiplier})\n레이즈·보험·배당 +1, 배율 ×+1 (몰수 불가)",
-                $"HIJACK 되돌리기 · 현금 {ShopPrices.Revert}\n급하게 덮어쓴 칸을 시작 룰렛의 칸으로",
+                $"되돌리기·되찾기 · 현금 {ShopPrices.Revert}\n덮어쓴 칸을 시작 칸으로, 잃은 칸을 원래대로",
                 $"유물 · 현금 {ShopPrices.Relic}\n{relicText}",
                 $"칩 사기 · 현금 {_run.Exchange.CashPerChip} = 칩 1\n이번 층 {_run.ChipsBoughtThisVisit}/{(cap > 0 ? cap.ToString() : "∞")}칩"
             };
@@ -1518,7 +1503,7 @@ namespace RouletteLike.Roulette
                 {
                     ShopMode.Swap => i != _swapFirst,
                     ShopMode.Upgrade => _run.UpgradePrice(i) >= 0 && _run.UpgradePrice(i) <= _run.Cash,
-                    ShopMode.Revert => slot.IsStolen && _run.Cash >= ShopPrices.Revert,
+                    ShopMode.Revert => _run.CanRevert(i) && _run.Cash >= ShopPrices.Revert,
                     _ => false
                 };
                 shopSlotButtons[i].interactable = selectable;
@@ -1600,7 +1585,7 @@ namespace RouletteLike.Roulette
             {
                 case ShopError.NotEnoughCash: return "현금이 모자랍니다";
                 case ShopError.CannotUpgrade: return "그 칸은 더 강화할 수 없습니다(몰수·봉인·특수 칸·최대치)";
-                case ShopError.NotStolen: return "빼앗아 온 칸(H)만 되돌릴 수 있습니다";
+                case ShopError.NotStolen: return "빼앗아 온 칸(H)과 잃은 칸만 고를 수 있습니다";
                 case ShopError.SoldOut: return "다 팔렸습니다";
                 case ShopError.InvalidSlot: return "다른 칸을 고르세요";
                 default: return "상점에서만 할 수 있습니다";
@@ -2029,7 +2014,7 @@ namespace RouletteLike.Roulette
                 string warning = !_battle.Profile.CounterHijacks
                     ? (_battle.Profile.Telegraphs ? "역탈취 없음 (튜토리얼)" : "역탈취 없음 (1층)")
                     : _battle.CounterHijacksRemaining > 0
-                        ? $"[!] 역탈취: 내가 몰수에 걸리면 내 칸 1개 회수 (이번 전투 {_battle.CounterHijacksRemaining}회 남음, 이기면 반환)"
+                        ? $"[!] 역탈취: 내가 몰수에 걸리면 내 칸 1개 회수 (이번 전투 {_battle.CounterHijacksRemaining}회 남음, HIJACK으로 되찾기)"
                         : "역탈취 소진: 이번 전투에는 더 회수하지 않음";
                 string specials = SlotDescriptions.DescribeSpecials(_battle.Dealer.Wheel, "");
                 if (_battle.DealerHasCasinoRing) specials = "카지노 링: 딜러 바깥 링엔 몰수가 없다(손님 링과 다름)" + (string.IsNullOrEmpty(specials) ? "" : "\n" + specials);
@@ -2061,7 +2046,7 @@ namespace RouletteLike.Roulette
             if (houseRuleDetailWarningText != null)
             {
                 houseRuleDetailWarningText.text = dealer.CounterHijacks
-                    ? $"역탈취: 내가 몰수에 걸리면 {dealer.Name}가 내 칸 1개를 회수한다(전투당 {PotBattle.MaxCounterHijacksPerBattle}회, 이기면 반환)."
+                    ? $"역탈취: 내가 몰수에 걸리면 {dealer.Name}가 내 칸 1개를 빼앗아 쓴다(전투당 {PotBattle.MaxCounterHijacksPerBattle}회). HIJACK으로 되찾거나, 못 되찾으면 상점에서 되찾는다."
                     : "1층 토끼는 역탈취하지 않습니다.";
             }
         }
@@ -2570,7 +2555,13 @@ namespace RouletteLike.Roulette
             }
 
             string label = WheelLabel(slot);
-            if (slot.IsStolen)
+            if (slot.IsSeized)
+            {
+                // 딜러가 빼앗아 쓰는 내 칸: 되찾을 대상이라 한눈에 보이게 한다.
+                label = "내" + label;
+                color = Color.Lerp(color, new Color32(240, 240, 245, 255), 0.45f);
+            }
+            else if (slot.IsStolen)
             {
                 label = "H" + label;
                 color = Color.Lerp(color, new Color32(224, 168, 52, 255), 0.35f);
