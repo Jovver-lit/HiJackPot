@@ -1,0 +1,13 @@
+{
+  "files_copied_byte_identically": true,
+  "all_native_128x128": true,
+  "binary_alpha_all": true,
+  "exact_5x_all": true,
+  "native_scale_and_lineup_reviewed": true,
+  "in_engine_reviewed": false,
+  "palette_requires_manual_review": [
+    "fox",
+    "cat",
+    "crow"
+  ]
+}

@@ -11,3 +11,4 @@
 | [ui-direction.md](ui-direction.md) | UI·아트 방향(아르데코 카지노 + 손맛 연출)과 진행 7단계, 1단계 와이어프레임 규칙(색 토큰·바꾼 것·남은 것) |
 | [ArtStyleBible.md](ArtStyleBible.md) | 캐릭터 도트 스타일 기준(2026-11-02): 캐릭터 128px 규격과 표시 배율, 선명도 규칙, 공용 33색 팔레트, 금지 요소, 임포트 설정, Gold Standard(토끼·손님)와 제작 순서 |
 | [img/](img/) | 기획 문서용 화면 캡처 |
+| [dealer-references/](dealer-references/) | 여우·고양이·까마귀·매니저 재작화 인계: 128px 원본, 5배 확대, 고해상도 디자인 원본, Claude 작업 기준과 검증 기록 |
