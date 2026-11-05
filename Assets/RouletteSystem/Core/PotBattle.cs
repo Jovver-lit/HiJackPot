@@ -566,7 +566,18 @@ namespace RouletteLike.Battle
         public int RollOuterIndex(Side side)
         {
             Seat seat = SeatOf(side);
-            return seat.HasOuterRing ? _rng.Next(seat.OuterRing.Count) : -1;
+            if (!seat.HasOuterRing) return -1;
+            float cutWeight = OuterHouseCutWeight(side);
+            double total = 0d;
+            foreach (Slot slot in seat.OuterRing) total += slot.Kind == SlotKind.HouseCut ? cutWeight : 1f;
+            double roll = _rng.NextDouble() * total;
+            for (int i = 0; i < seat.OuterRing.Count; i++)
+            {
+                roll -= seat.OuterRing[i].Kind == SlotKind.HouseCut ? cutWeight : 1f;
+                if (roll < 0d) return i;
+            }
+
+            return seat.OuterRing.Count - 1;
         }
 
         /// <summary>CASH OUT 했을 때 상대가 받을 피해 미리보기(판돈 − 상대 보험, 허풍 최소 피해, 유물 보너스).</summary>
@@ -715,8 +726,9 @@ namespace RouletteLike.Battle
         }
 
         // ───────────── 몰수 상승 (ADR 0012) ─────────────
-        // 한 턴 안에서 N번째 SPIN의 (안쪽) 몰수 확률은 N × 5%, 최대 35%. 턴이 끝나면(CASH OUT·증발) 처음으로.
-        // 지금 판돈과 몇 번째 SPIN인지가 "한 번 더?"의 판단 재료가 된다. 딜러도 같은 규칙. 바깥 링 몰수는 그대로.
+        // 한 턴 안에서 N번째 SPIN의 몰수 확률은 N × 5%, 최대 35%. 턴이 끝나면(CASH OUT·증발) 처음으로.
+        // 지금 판돈과 몇 번째 SPIN인지가 "한 번 더?"의 판단 재료가 된다. 딜러도 같은 규칙.
+        // 바깥 링에도 몰수가 있으면 안쪽과 바깥을 합친 확률이 N × 5%다(ADR 0015). 화면의 숫자가 곧 실제 위험이다.
 
         /// <summary>SPIN 한 번마다 오르는 몰수 확률.</summary>
         public const float HouseCutChancePerSpin = 0.05f;
@@ -727,25 +739,46 @@ namespace RouletteLike.Battle
         /// <summary>이번 턴에 이미 돈 SPIN 횟수(베팅을 걸면 0).</summary>
         public int SpinsThisTurn { get; private set; }
 
-        /// <summary>그쪽의 다음 SPIN이 안쪽 몰수에 걸릴 확률(0~1). 몰수가 여러 칸이면 그만큼 곱한다.</summary>
+        /// <summary>그쪽의 다음 SPIN이 몰수(안쪽이나 바깥)에 걸릴 확률(0~1). 몰수가 여러 칸이면 그만큼 곱한다.</summary>
         public float HouseCutChance(Side side)
         {
-            IReadOnlyList<Slot> wheel = SeatOf(side).Wheel;
-            int cuts = CountHouseCuts(wheel);
-            if (cuts == 0 || cuts == wheel.Count) return cuts == 0 ? 0f : 1f;
+            Seat seat = SeatOf(side);
+            int innerCuts = CountHouseCuts(seat.Wheel);
+            if (innerCuts > 0 && innerCuts == seat.Wheel.Count) return 1f;
+            int cuts = innerCuts > 0 ? innerCuts : seat.HasOuterRing ? CountHouseCuts(seat.OuterRing) : 0;
+            if (cuts == 0) return 0f;
             int nextSpin = side == Active && Phase == BattlePhase.Spinning ? SpinsThisTurn + 1 : 1;
             float perCut = Math.Min(HouseCutChanceMax, HouseCutChancePerSpin * nextSpin);
             return Math.Min(0.9f, perCut * cuts);
         }
 
-        /// <summary>몰수 한 칸의 무게(다른 칸 = 1). 이 무게로 그린 칸 폭의 비율이 곧 HouseCutChance다.</summary>
-        public float HouseCutWeight(Side side)
+        /// <summary>
+        /// 룰렛 한 판이 몰수에 걸릴 확률. 안쪽과 바깥 둘 다 몰수가 있으면 두 판이 같은 몫을 나눠
+        /// 합친 확률이 HouseCutChance가 되게 한다(1 − (1 − p)² = 전체).
+        /// </summary>
+        private float WheelHouseCutChance(Side side)
         {
-            IReadOnlyList<Slot> wheel = SeatOf(side).Wheel;
+            Seat seat = SeatOf(side);
+            float total = HouseCutChance(side);
+            bool both = CountHouseCuts(seat.Wheel) > 0 && seat.HasOuterRing && CountHouseCuts(seat.OuterRing) > 0;
+            return both ? 1f - (float)Math.Sqrt(1f - total) : total;
+        }
+
+        /// <summary>안쪽 몰수 한 칸의 무게(다른 칸 = 1). 이 무게로 그린 칸 폭의 비율이 곧 안쪽 판의 몰수 확률이다.</summary>
+        public float HouseCutWeight(Side side) => CutWeight(SeatOf(side).Wheel, WheelHouseCutChance(side));
+
+        /// <summary>바깥 몰수 한 칸의 무게(다른 칸 = 1). 바깥 링이 없거나 몰수가 없으면 1.</summary>
+        public float OuterHouseCutWeight(Side side)
+        {
+            Seat seat = SeatOf(side);
+            return seat.HasOuterRing ? CutWeight(seat.OuterRing, WheelHouseCutChance(side)) : 1f;
+        }
+
+        private static float CutWeight(IReadOnlyList<Slot> wheel, float chance)
+        {
             int cuts = CountHouseCuts(wheel);
             int others = wheel.Count - cuts;
             if (cuts == 0 || others == 0) return 1f;
-            float chance = HouseCutChance(side);
             return chance / (1f - chance) * others / cuts;
         }
 
