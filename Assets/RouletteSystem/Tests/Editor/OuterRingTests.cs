@@ -65,6 +65,49 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
+        public void InnerMultiplier_WithOuterMultiplier_MultipliesOnlyOnce()
+        {
+            PotBattle battle = BossBattle();
+            AdvanceToPlayer(battle);
+            battle.PlaceAnte(2);
+
+            LandingResult result = battle.Land(2, OuterMultiplier); // 안쪽 배율 ×2, 바깥 배율
+
+            Assert.IsTrue(result.JackpotLine); // 잭팟 라인 자체는 하우스 룰에 계속 센다
+            Assert.AreEqual(4, battle.Player.Pot); // ×8이 아니라 ×2
+            Assert.AreEqual(1, battle.MultipliersThisTurn);
+        }
+
+        [Test]
+        public void Multiplier_RaisesHouseCutChanceUntilTurnEnds()
+        {
+            PotBattle battle = BossBattle();
+            AdvanceToPlayer(battle);
+            battle.PlaceAnte(2);
+            Assert.AreEqual(0.05f, battle.HouseCutChance(Side.Player), 0.0001f);
+
+            battle.Land(0, OuterInsurance); // 레이즈: SPIN 횟수만 오른다
+            Assert.AreEqual(0.10f, battle.HouseCutChance(Side.Player), 0.0001f);
+
+            battle.Land(2, OuterInsurance); // 배율 착지: 3번째 SPIN 15% + 배율 10%
+            Assert.AreEqual(0.25f, battle.HouseCutChance(Side.Player), 0.0001f);
+
+            battle.CashOut();
+            Assert.AreEqual(0, battle.MultipliersThisTurn);
+        }
+
+        [Test]
+        public void HouseCutChance_AfterMultiplier_IsCappedAtSixtyPercent()
+        {
+            PotBattle battle = BossBattle();
+            AdvanceToPlayer(battle);
+            battle.PlaceAnte(1);
+            for (int i = 0; i < 8 && battle.Active == Side.Player; i++) battle.Land(2, OuterInsurance);
+
+            Assert.AreEqual(PotBattle.HouseCutChanceMaxAfterMultiplier, battle.HouseCutChance(Side.Player), 0.0001f);
+        }
+
+        [Test]
         public void JackpotLine_CountsTowardBossHouseRule()
         {
             PotBattle battle = BossBattle();

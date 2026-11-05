@@ -1976,7 +1976,7 @@ namespace RouletteLike.Roulette
             {
                 (int low, int high) = NextSpinPotRange(_battle.Player.Wheel, _battle.Player.Pot);
                 riskSummaryText.text =
-                    $"다음 SPIN 판돈 {low}~{high}  ·  몰수 {houseCutChance:0.#}%";
+                    $"다음 SPIN 판돈 {low}~{high}  ·  몰수 {houseCutChance:0.#}%" + (_battle.MultipliersThisTurn > 0 ? $" (배율 {_battle.MultipliersThisTurn}번)" : "");
                 riskSummaryText.color = new Color32(242, 194, 110, 255);
             }
             else
