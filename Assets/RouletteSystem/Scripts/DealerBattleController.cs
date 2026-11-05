@@ -964,8 +964,41 @@ namespace RouletteLike.Roulette
                 return;
             }
 
+            int before = _chosenAnte;
             _chosenAnte = Mathf.Clamp(_chosenAnte + delta, 1, Mathf.Max(1, CurrentMaxAnte()));
             RefreshBetControls();
+            RefreshPotDisplay();
+            RefreshOddsBoard();
+            if (_chosenAnte != before) StartCoroutine(PopPot());
+        }
+
+        /// <summary>판돈 숫자와 칩 더미. 베팅을 고르는 동안에는 걸 금액을 판돈으로 미리 보여 준다.</summary>
+        private void RefreshPotDisplay()
+        {
+            Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
+            bool choosingBet = _state == ViewState.PlayerTurn && _battle.Active == Side.Player && _battle.Phase == BattlePhase.AwaitingAnte;
+            int pot = choosingBet ? _chosenAnte : potSeat.Pot;
+            potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {pot}" : $"판돈 {pot}";
+            int chipsShown = Mathf.Min(potChipImages.Length, pot);
+            for (int i = 0; i < potChipImages.Length; i++)
+            {
+                potChipImages[i].gameObject.SetActive(i < chipsShown);
+            }
+        }
+
+        /// <summary>베팅을 바꾸면 판돈 숫자가 잠깐 튄다.</summary>
+        private IEnumerator PopPot()
+        {
+            RectTransform rect = potText.rectTransform;
+            const float duration = 0.14f;
+            for (float t = 0f; t < duration; t += Time.unscaledDeltaTime)
+            {
+                float s = 1f + 0.25f * Mathf.Sin(t / duration * Mathf.PI);
+                rect.localScale = new Vector3(s, s, 1f);
+                yield return null;
+            }
+
+            rect.localScale = Vector3.one;
         }
 
         public void PreviewSpinPower(float power)
@@ -2016,13 +2049,7 @@ namespace RouletteLike.Roulette
                 : $"◆ 보험 {_battle.Player.Insurance}";
             if (dealerInsuranceText != null) dealerInsuranceText.text = $"◆ 보험 {_battle.Dealer.Insurance}";
             RefreshRelicStrip();
-            Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
-            potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {potSeat.Pot}" : $"판돈 {potSeat.Pot}";
-            int chipsShown = Mathf.Min(potChipImages.Length, (potSeat.Pot + 1) / 2);
-            for (int i = 0; i < potChipImages.Length; i++)
-            {
-                potChipImages[i].gameObject.SetActive(i < chipsShown);
-            }
+            RefreshPotDisplay();
             string closing = _battle.TableFee > 0
                 ? $" · 마감 −{_battle.TableFee}"
                 : _battle.Round >= PotBattle.TableFeeStartRound - 2 ? $" · {PotBattle.TableFeeStartRound}R 마감" : "";
@@ -2824,7 +2851,7 @@ namespace RouletteLike.Roulette
         {
             _fullLog.Add(message);
             _combatLog.Enqueue(message);
-            while (_combatLog.Count > 4) _combatLog.Dequeue();
+            while (_combatLog.Count > 2) _combatLog.Dequeue();
             string[] recent = _combatLog.ToArray();
             System.Array.Reverse(recent);
             combatLogText.text = string.Join("\n", recent);

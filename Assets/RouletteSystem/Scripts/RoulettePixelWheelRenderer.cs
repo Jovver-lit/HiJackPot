@@ -279,28 +279,16 @@ namespace RouletteLike.Roulette
                 float toArc = Mathf.Deg2Rad * _pixelDistance[i];
                 float fromStart = (angle - _startAngles[segment]) * toArc;
                 float fromEnd = (_endAngles[segment] - angle) * toArc;
-                // 황동 칸막이: 가운데 어두운 홈, 양옆에 밝은 금속 한 칸. 바깥 끝에는 징을 박는다.
+                // 칸막이는 어두운 선 하나로 두고, 양옆에 빛과 그림자 한 칸을 준다.
                 if (fromStart < dividerThickness || fromEnd < dividerThickness)
                 {
                     _pixels[i] = _segmentFret[segment];
                     continue;
                 }
 
-                if (fromStart < dividerThickness + 1f)
-                {
-                    _pixels[i] = FretLight;
-                    continue;
-                }
-
-                if (fromEnd < dividerThickness + 1f)
-                {
-                    _pixels[i] = FretShadow;
-                    continue;
-                }
-
                 int shade = tone;
-                if (fromStart < dividerThickness + 2f) shade--;
-                else if (fromEnd < dividerThickness + 2f) shade--;
+                if (fromStart < dividerThickness + 1f) shade++;
+                else if (fromEnd < dividerThickness + 1f) shade--;
                 else if (_segmentSunburst[segment] && (int)((angle - _startAngles[segment]) / SunburstDegrees) % 2 == 0) shade++;
 
                 _pixels[i] = _segmentPalette[segment * ToneCount + Mathf.Clamp(shade, 0, ToneCount - 1)];
@@ -346,10 +334,10 @@ namespace RouletteLike.Roulette
                     _pixelAngle[index] = angle < 0f ? angle + 360f : angle;
                     _pixelDistance[index] = distance;
 
-                    // 금속 고리 두 줄: 칸 바깥 가장자리와 안쪽 원뿔의 경계.
+                    // 금속 고리: 칸 바깥 가장자리 한 줄.
                     float normalized = distance / Mathf.Max(1f, radius);
                     float ringWidth = 1.5f / Mathf.Max(1f, radius);
-                    if (Mathf.Abs(normalized - 0.945f) < ringWidth || Mathf.Abs(normalized - 0.44f) < ringWidth)
+                    if (Mathf.Abs(normalized - 0.945f) < ringWidth)
                     {
                         _pixelTone[index] = ToneMetal;
                         _pixelMetal[index] = MetalColor(_pixelAngle[index]);
@@ -359,21 +347,16 @@ namespace RouletteLike.Roulette
                     // 칸 위로 비스듬한 윤이 지나간다(화면에 고정이라 판이 돌 때 빛이 흐르는 듯 보인다).
                     float sheen = Mathf.Cos((_pixelAngle[index] - 315f) * 2f * Mathf.Deg2Rad);
                     int tone = ToneBase;
-                    if (sheen > 0.86f && normalized > 0.46f) tone += 2;
-                    else if (sheen > 0.45f) tone++;
-                    else if (sheen < -0.55f) tone--;
+                    if (sheen > 0.7f) tone++;
+                    else if (sheen < -0.7f) tone--;
                     // 바깥 가장자리와 안쪽 원뿔은 어둡게, 칸 안쪽 끝에 그림자 띠.
                     if (normalized > 0.97f) tone -= 2;
                     else if (normalized > 0.9f) tone--;
-                    if (normalized < 0.44f) tone -= 2;
-                    else if (normalized < 0.5f) tone--;
+                    if (normalized < 0.44f) tone--;
                     _pixelTone[index] = (sbyte)Mathf.Clamp(tone, 0, ToneCount - 1);
                 }
             }
         }
-
-        private static readonly Color32 FretLight = new Color32(240, 180, 60, 255);
-        private static readonly Color32 FretShadow = new Color32(138, 92, 30, 255);
 
         private static Color32 MetalColor(float angle)
         {

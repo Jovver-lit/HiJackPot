@@ -101,8 +101,8 @@ namespace RouletteLike.Roulette
             bool large = size >= 200;
             float brassWidth = large ? 5f : 2f;
             float studRadius = (outer - brassWidth - 1f + inner + 3f) * 0.5f;
-            int studs = large ? 24 : 12;
-            int largeStud = large ? 3 : 1;
+            int studs = large ? 16 : 8;
+            int largeStud = large ? 2 : 1;
             for (int y = 0; y < size; y++)
             {
                 float dy = y + 0.5f - center;
@@ -124,17 +124,12 @@ namespace RouletteLike.Roulette
                     if (distance > outer - 1f) pixels[index] = Ink;
                     else if (distance > outer - brassWidth)
                     {
-                        // 황동 띠 가운데 한 줄을 어둡게 눌러 두 겹으로 보이게 한다.
-                        bool groove = large && Mathf.Abs(distance - (outer - brassWidth * 0.55f)) < 0.5f;
-                        pixels[index] = groove ? Metal(angle + 180f, -0.2f) : Metal(angle, 0f);
+                        pixels[index] = Metal(angle, -0.12f);
                     }
                     else if (distance > outer - brassWidth - 1f) pixels[index] = Ink;
                     else if (distance > inner + 3f)
                     {
-                        // 결이 도는 나무: 반지름마다 한 단계씩 어긋난다.
-                        int grain = (Mathf.FloorToInt(distance) + Mathf.FloorToInt(angle / 9f)) % 3;
-                        float tone = light + (grain == 0 ? 0.22f : grain == 1 ? 0f : -0.18f);
-                        pixels[index] = tone > 0.5f ? Wood3 : tone > -0.4f ? Wood2 : Wood1;
+                        pixels[index] = light > 0.6f ? Wood3 : light > -0.5f ? Wood2 : Wood1;
                     }
                     else if (distance > inner + 2f) pixels[index] = Ink;
                     else if (distance > inner) pixels[index] = Metal(angle + 180f, 0f);
@@ -147,7 +142,7 @@ namespace RouletteLike.Roulette
                 float angle = i * Mathf.PI * 2f / studs;
                 int cx = Mathf.FloorToInt(center + Mathf.Sin(angle) * studRadius);
                 int cy = Mathf.FloorToInt(center + Mathf.Cos(angle) * studRadius);
-                int radius = i % 2 == 0 ? largeStud : 1;
+                int radius = largeStud;
                 for (int oy = -radius; oy <= radius; oy++)
                 {
                     for (int ox = -radius; ox <= radius; ox++)

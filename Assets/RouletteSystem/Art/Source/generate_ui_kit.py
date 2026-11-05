@@ -236,7 +236,6 @@ CARPET_R = [(26, 7, 16), (42, 10, 22), (62, 13, 28), (92, 15, 34), (118, 21, 40)
 WOOD_R = [(25, 18, 22), (38, 26, 28), (51, 36, 36), (74, 54, 50), (94, 69, 64), (114, 86, 78)]
 STEEL_R = [(10, 14, 22), (25, 25, 31), (39, 40, 48), (77, 78, 86), (143, 146, 164), (196, 198, 212)]
 FELT_R = [(12, 32, 28), (18, 46, 38), (26, 68, 54), (34, 84, 66), (42, 102, 80), (58, 124, 96)]
-LEATHER_R = [(30, 8, 18), (48, 10, 24), (72, 13, 30), (104, 18, 38), (140, 26, 46)]
 ENAMEL_GOLD = [(138, 92, 30), (196, 140, 40), (240, 180, 60), (250, 204, 96), (255, 224, 138), (251, 251, 252)]
 ENAMEL_WINE = [(48, 9, 22), (92, 15, 34), (130, 20, 42), (168, 28, 48), (216, 44, 56), (247, 184, 196)]
 
@@ -354,17 +353,14 @@ def sconce(img, cx, lit=True):
     rect(img, cx + 2, 39, cx + 4, 55, BRASS)
 
 
-def chandelier(img, cx):
-    rect(img, cx, 14, cx + 1, 24, GOLD_R[2] + (255,))
+def mute(img, y0, y1, amount):
+    """한 구역의 색을 어두운 자주로 끌어당겨 대비를 줄인다."""
     px = img.load()
-    for row, half in ((24, 8), (27, 14), (30, 18)):
-        rect(img, cx - half, row, cx + half + 1, row + 1, BRASS)
-        rect(img, cx - half, row + 1, cx + half + 1, row + 2, GOLD_R[2] + (255,))
-        for k in range(-half, half + 1, 4):
-            px[cx + k, row + 2] = CREAM3
-            px[cx + k, row + 3] = BRASS_LIGHT
-            if k % 8 == 0:
-                px[cx + k, row + 4] = WHITE
+    base = (22, 13, 26)
+    for y in range(y0, y1):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            px[x, y] = (int(r + (base[0] - r) * amount), int(g + (base[1] - g) * amount), int(b + (base[2] - b) * amount), a)
 
 
 def stage():
@@ -378,10 +374,8 @@ def stage():
         for x in range(w):
             t = room_light(x, y)
             u, v = (x + (y // 16) % 2 * 8) % 16 - 8, y % 16 - 8
-            if abs(u) + abs(v) in (6, 7):
-                t += 0.09
-            if abs(u) + abs(v) <= 1:
-                t += 0.14
+            if abs(u) + abs(v) == 7:
+                t += 0.05
             px[x, y] = ramp(WALL_R, t * 0.8, x, y)
 
     # 아래 벽판
@@ -431,8 +425,9 @@ def stage():
                     px[x, y] = ramp(CURT_R, t * (0.6 + room_light(cx + side * r, y) * 0.5), x, y)
             rect(img, cx + side * (r - 16) - 7, 91, cx + side * (r - 16) + 8, 95, BRASS)
             rect(img, cx + side * (r - 16) - 7, 94, cx + side * (r - 16) + 8, 95, GOLD_R[2] + (255,))
-        slot_machine(img, cx, FLOOR_Y - 4)
-        chandelier(img, cx)
+        # 양 끝 아치는 작은 룰렛에 가리므로 비워 둔다. 슬롯머신은 가운데 둘만.
+        if 240 < cx < 720:
+            slot_machine(img, cx, FLOOR_Y - 4)
 
     # 천장 몰딩: 치아 장식
     rect(img, 0, 0, w, 14, (25, 18, 22, 255))
@@ -441,12 +436,13 @@ def stage():
         px[x, 11] = ramp(GOLD_R, metal(x * 0.75) * 0.9)
         px[x, 12] = ramp(GOLD_R, metal(x * 0.75, -0.2) * 0.7)
     rect(img, 0, 13, w, 14, INK)
-    for gx in range(0, w, 8):
-        rect(img, gx + 2, 5, gx + 6, 10, (74, 54, 50, 255))
-        rect(img, gx + 2, 5, gx + 6, 6, (114, 86, 78, 255))
 
     for cx in SCONCES:
         column(img, cx)
+
+    # 벽 쪽은 통째로 어둡고 차분하게 눌러 인물과 룰렛이 먼저 보이게 한다.
+    mute(img, 0, FLOOR_Y, 0.58)
+    for cx in SCONCES:
         sconce(img, cx)
 
     # 걸레받이
@@ -461,18 +457,7 @@ def stage():
             for sx in SCONCES:
                 t += 0.2 * math.exp(-((x - sx) / 80.0) ** 2) * (1 - depth * 0.6)
             px[x, y] = ramp(CARPET_R, t)
-    for y0, size, step, off in ((136, 2, 24, 0), (145, 4, 40, 20), (157, 6, 60, 0)):
-        for gx in range(off - step, w + step, step):
-            for y in range(y0 - size, y0 + size + 1):
-                for x in range(gx - size, gx + size + 1):
-                    if 0 <= x < w and FLOOR_Y <= y < h:
-                        m = abs(x - gx) + abs(y - y0)
-                        if m == size:
-                            px[x, y] = GOLD_R[2] + (255,)
-                        elif m == size - 1:
-                            px[x, y] = CARPET_R[1] + (255,)
-                        elif m <= 1:
-                            px[x, y] = BRASS
+    mute(img, FLOOR_Y, h, 0.25)
     # 인물 그림자
     for cx in (200, 760):
         for y in range(155, 166):
@@ -489,93 +474,44 @@ def stage():
 
 
 def stage_lights():
-    # 번갈아 켜는 불빛 두 장(나머지는 투명): 벽등 깜빡임, 슬롯머신 전구, 샹들리에 반짝임.
+    # 번갈아 켜는 불빛 두 장(나머지는 투명): 벽등 둘레의 잔잔한 깜빡임과 슬롯머신 간판 하나.
     w, h = 960, 170
     for phase in (0, 1):
         img = new(w, h)
         px = img.load()
-        for cx in ALCOVES:
-            top = FLOOR_Y - 4 - 72
-            for k in range(-20, 21, 4):
-                on = ((k // 4) + phase) % 2 == 0
-                c = BRASS_LIGHT if on else (92, 66, 48, 255)
-                px[cx + k, top - 10] = c
-            # 릴 위 표시등과 상단 간판
-            rect(img, cx - 14, top - 5, cx + 14, top - 1, (255, 224, 138, 255) if phase == 0 else (240, 180, 60, 255))
-            for k in range(-16, 17, 8):
-                x = cx + k + phase * 4
-                px[x, 30 + (abs(k) % 3)] = WHITE
-                px[x, 31 + (abs(k) % 3)] = BRASS_LIGHT
         for cx in SCONCES:
             if phase == 0:
-                for y in range(30, 66):
-                    for x in range(max(0, cx - 14), min(w, cx + 15)):
+                for y in range(34, 62):
+                    for x in range(max(0, cx - 10), min(w, cx + 11)):
                         d = abs(x - cx) + abs(y - 47)
-                        if 11 < d < 15 and (x + y) % 2 == 0:
-                            px[x, y] = (255, 224, 138, 255)
+                        if 9 < d < 12 and (x + y) % 2 == 0:
+                            px[x, y] = (138, 92, 48, 255)
+        for cx in (360, 600):
+            top = FLOOR_Y - 4 - 72
+            rect(img, cx - 14, top - 5, cx + 14, top - 1, (196, 140, 40, 255) if phase == 0 else (138, 92, 30, 255))
         save(img, "stage_lights_%d.png" % phase)
 
 
 def board():
-    # 아래 보드 960×370: 가죽 쿠션 난간, 짜임이 보이는 펠트, 룰렛을 향한 아르데코 빛살, 양쪽 판.
+    # 아래 보드 960×370: 차분한 펠트 한 판과 어두운 양쪽 판. 장식 없이 룰렛이 가장 밝게 보이게 한다.
     w, h = 960, 370
     img = new(w, h, FELT_DARK)
     px = img.load()
     cx, cy = w / 2.0, 188.0
     for y in range(h):
         for x in range(w):
-            dx, dy = x + 0.5 - cx, y + 0.5 - cy
-            d = math.hypot(dx, dy * 1.05)
-            t = 0.72 - d / 620.0
-            th = (math.degrees(math.atan2(dx, -dy)) + 360) % 360
-            if (x % 4 == 0 and y % 2 == 0) or (x % 4 == 2 and y % 2 == 1):
-                t -= 0.04
-            px[x, y] = ramp(FELT_R, t, x, y)
-    # 룰렛 자리 황동 상감 고리
-    for y in range(h):
-        for x in range(224, 736):
-            d = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
-            if 187 <= d < 189:
-                px[x, y] = ramp(GOLD_R, metal(math.degrees(math.atan2(x - cx, cy - y)), -0.18) * 0.8)
-            elif 183 <= d < 187:
-                px[x, y] = FELT_R[0] + (255,)
-    # 가죽 난간과 황동 징
-    for y in range(0, 12):
-        for x in range(w):
-            t = 0.72 - abs(y - 4) * 0.12
-            px[x, y] = ramp(LEATHER_R, t, x, y)
-    rect(img, 0, 12, w, 13, INK)
-    for y in range(13, 19):
-        for x in range(w):
-            if (x + y) % 2 == 0 or y < 15:
-                px[x, y] = FELT_R[0] + (255,)
-    for gx in range(12, w, 24):
-        rect(img, gx - 1, 4, gx + 2, 7, BRASS)
-        px[gx - 1, 4] = BRASS_LIGHT
-        rect(img, gx - 1, 7, gx + 2, 8, GOLD_R[1] + (255,))
-    # 양쪽 판: 어두운 가죽 위 황동 테두리와 모서리 장식
+            d = math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.05)
+            t = 0.5 if d < 230 else 0.34 if d < 340 else 0.2
+            px[x, y] = ramp(FELT_R, t)
+    # 위쪽 그림자와 얇은 경계
+    rect(img, 0, 0, w, 2, INK)
+    rect(img, 0, 2, w, 6, FELT_R[0] + (255,))
     for x0, x1 in ((8, 222), (738, 952)):
-        y0, y1 = 22, h - 8
-        rect(img, x0 - 1, y0 - 1, x1 + 2, y1 + 2, INK)
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                t = 0.42 - (y - y0) / float(y1 - y0) * 0.2
-                px[x, y] = ramp(STEEL_R, t * 0.62, x, y)
-        for k in range(2):
-            c = GOLD_R[4 - k] + (255,) if k == 0 else GOLD_R[2] + (255,)
-            rect(img, x0 + k, y0 + k, x1 - k, y0 + k + 1, c)
-            rect(img, x0 + k, y0 + k, x0 + k + 1, y1 - k, c)
-            c2 = GOLD_R[2] + (255,) if k == 0 else GOLD_R[1] + (255,)
-            rect(img, x0 + k, y1 - k - 1, x1 - k, y1 - k, c2)
-            rect(img, x1 - k - 1, y0 + k, x1 - k, y1 - k, c2)
-        for ax, ay, sx, sy in ((x0 + 5, y0 + 5, 1, 1), (x1 - 6, y0 + 5, -1, 1), (x0 + 5, y1 - 6, 1, -1), (x1 - 6, y1 - 6, -1, -1)):
-            for k in range(9):
-                px[ax + sx * k, ay] = BRASS
-                px[ax, ay + sy * k] = BRASS
-                if k < 6:
-                    px[ax + sx * k, ay + sy * 3] = GOLD_R[2] + (255,)
-                    px[ax + sx * 3, ay + sy * k] = GOLD_R[2] + (255,)
-            px[ax + sx, ay + sy] = BRASS_LIGHT
+        y0, y1 = 14, h - 8
+        rect(img, x0 - 1, y0 - 1, x1 + 1, y1 + 1, INK)
+        rect(img, x0, y0, x1, y1, (22, 22, 28, 255))
+        rect(img, x0, y0, x1, y0 + 1, BLACK3)
+        rect(img, x0, y0, x0 + 1, y1, BLACK2)
     save(img, "board_bg.png")
 
 
@@ -650,7 +586,7 @@ if __name__ == "__main__":
     medallion("dealer_button.png", 84, ENAMEL_WINE)
     hub("hub.png", 100)
     ring("ring.png", 100, 7)
-    ring("glow_ring.png", 360, 6)
+    ring("glow_ring.png", 360, 3)
     bevel()
     deco_frame()
     bar_fill()
