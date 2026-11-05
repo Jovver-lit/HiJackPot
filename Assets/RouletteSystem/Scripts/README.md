@@ -21,6 +21,7 @@
 | `RouletteSpinController.cs` | 룰렛 회전·감속·착지(강도 구역 + 오차, 역전 보정 무게 반영), 칸 폭이 바뀌어도 포인터 아래 칸 유지, 시드 재현, 칸 경계 틱·멈춤 소리, NUDGE 한 칸 밀기 |
 | `RoulettePixelWheelRenderer.cs` | 룰렛을 회전각에 맞춰 화면 격자에 다시 그림. 표시 크기에 해상도를 맞춰 도트가 깨지지 않게 함(착지 고정 표시 때 나머지 칸 어둡게) |
 | `PixelWheelRim.cs` | 룰렛의 황동·나무 테두리를 표시 크기에 맞는 해상도로 그림 |
+| `StageLights.cs` | 전투 띠의 불빛 그림 두 장을 번갈아 켜는 연출 |
 | `RouletteSegmentGraphic.cs` | 칸 위 아이콘·텍스트 배치 |
 | `RouletteSegmentData.cs`, `RouletteSegmentType.cs` | 룰렛 위젯이 쓰는 칸 표시 데이터(전투 규칙의 `Core.Slot`을 화면용으로 변환한 것) |
 | `RouletteTest.cs` | 룰렛 위젯 단독 개발용 키보드 테스트(데모 씬 전용, 게임에서는 쓰지 않음) |

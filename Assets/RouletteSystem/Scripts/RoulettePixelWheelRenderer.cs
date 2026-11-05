@@ -46,12 +46,14 @@ namespace RouletteLike.Roulette
         private const int ToneBase = 2;
         private const sbyte ToneOutside = -1;
         private const sbyte ToneBorder = -2;
+        private const sbyte ToneMetal = -3;
         private const float LookupPerDegree = 2f;
         private const float SunburstDegrees = 6f;
 
         private float _renderedAngle;
         private float _cachedRadiusRatio = -1f;
         private sbyte[] _pixelTone;
+        private Color32[] _pixelMetal;
         private float[] _pixelAngle;
         private float[] _pixelDistance;
         private int[] _segmentLookup;
@@ -264,7 +266,7 @@ namespace RouletteLike.Roulette
                 sbyte tone = _pixelTone[i];
                 if (tone < 0)
                 {
-                    _pixels[i] = tone == ToneOutside ? new Color32(0, 0, 0, 0) : (Color32)outerBorderColor;
+                    _pixels[i] = tone == ToneOutside ? new Color32(0, 0, 0, 0) : tone == ToneMetal ? _pixelMetal[i] : (Color32)outerBorderColor;
                     continue;
                 }
 
@@ -277,16 +279,28 @@ namespace RouletteLike.Roulette
                 float toArc = Mathf.Deg2Rad * _pixelDistance[i];
                 float fromStart = (angle - _startAngles[segment]) * toArc;
                 float fromEnd = (_endAngles[segment] - angle) * toArc;
+                // 황동 칸막이: 가운데 어두운 홈, 양옆에 밝은 금속 한 칸. 바깥 끝에는 징을 박는다.
                 if (fromStart < dividerThickness || fromEnd < dividerThickness)
                 {
                     _pixels[i] = _segmentFret[segment];
                     continue;
                 }
 
-                // 칸막이가 왼쪽 위 빛을 받는 듯이 칸 양 끝에 밝은 줄과 어두운 줄을 한 칸씩 둔다.
+                if (fromStart < dividerThickness + 1f)
+                {
+                    _pixels[i] = FretLight;
+                    continue;
+                }
+
+                if (fromEnd < dividerThickness + 1f)
+                {
+                    _pixels[i] = FretShadow;
+                    continue;
+                }
+
                 int shade = tone;
-                if (fromStart < dividerThickness + 1f) shade++;
-                else if (fromEnd < dividerThickness + 1f) shade--;
+                if (fromStart < dividerThickness + 2f) shade--;
+                else if (fromEnd < dividerThickness + 2f) shade--;
                 else if (_segmentSunburst[segment] && (int)((angle - _startAngles[segment]) / SunburstDegrees) % 2 == 0) shade++;
 
                 _pixels[i] = _segmentPalette[segment * ToneCount + Mathf.Clamp(shade, 0, ToneCount - 1)];
@@ -303,6 +317,7 @@ namespace RouletteLike.Roulette
 
             _cachedRadiusRatio = _radiusRatio;
             _pixelTone = new sbyte[_pixels.Length];
+            _pixelMetal = new Color32[_pixels.Length];
             _pixelAngle = new float[_pixels.Length];
             _pixelDistance = new float[_pixels.Length];
             float center = textureResolution * 0.5f;
@@ -331,16 +346,42 @@ namespace RouletteLike.Roulette
                     _pixelAngle[index] = angle < 0f ? angle + 360f : angle;
                     _pixelDistance[index] = distance;
 
+                    // 금속 고리 두 줄: 칸 바깥 가장자리와 안쪽 원뿔의 경계.
                     float normalized = distance / Mathf.Max(1f, radius);
-                    float light = (localY - localX) * 0.7071f / Mathf.Max(1f, radius);
+                    float ringWidth = 1.5f / Mathf.Max(1f, radius);
+                    if (Mathf.Abs(normalized - 0.945f) < ringWidth || Mathf.Abs(normalized - 0.44f) < ringWidth)
+                    {
+                        _pixelTone[index] = ToneMetal;
+                        _pixelMetal[index] = MetalColor(_pixelAngle[index]);
+                        continue;
+                    }
+
+                    // 칸 위로 비스듬한 윤이 지나간다(화면에 고정이라 판이 돌 때 빛이 흐르는 듯 보인다).
+                    float sheen = Mathf.Cos((_pixelAngle[index] - 315f) * 2f * Mathf.Deg2Rad);
                     int tone = ToneBase;
-                    if (light > 0.42f) tone++;
-                    else if (light < -0.42f) tone--;
-                    if (normalized < 0.3f || normalized > 0.9f) tone--;
-                    if (normalized > 0.955f) tone--;
+                    if (sheen > 0.86f && normalized > 0.46f) tone += 2;
+                    else if (sheen > 0.45f) tone++;
+                    else if (sheen < -0.55f) tone--;
+                    // 바깥 가장자리와 안쪽 원뿔은 어둡게, 칸 안쪽 끝에 그림자 띠.
+                    if (normalized > 0.97f) tone -= 2;
+                    else if (normalized > 0.9f) tone--;
+                    if (normalized < 0.44f) tone -= 2;
+                    else if (normalized < 0.5f) tone--;
                     _pixelTone[index] = (sbyte)Mathf.Clamp(tone, 0, ToneCount - 1);
                 }
             }
+        }
+
+        private static readonly Color32 FretLight = new Color32(240, 180, 60, 255);
+        private static readonly Color32 FretShadow = new Color32(138, 92, 30, 255);
+
+        private static Color32 MetalColor(float angle)
+        {
+            float t = 0.5f + 0.5f * Mathf.Cos((angle - 315f) * 2f * Mathf.Deg2Rad);
+            if (t > 0.82f) return new Color32(255, 224, 138, 255);
+            if (t > 0.5f) return new Color32(240, 180, 60, 255);
+            if (t > 0.2f) return new Color32(196, 140, 40, 255);
+            return new Color32(138, 92, 30, 255);
         }
 
         /// <summary>칸마다 5단계 색을 미리 만든다. 강조·착지 표시는 이 색만 바꾸면 된다.</summary>
@@ -364,7 +405,7 @@ namespace RouletteLike.Roulette
                 _segmentPalette[i * ToneCount + 2] = fill;
                 _segmentPalette[i * ToneCount + 3] = Color.Lerp(fill, Color.white, patternStrength * 0.8f);
                 _segmentPalette[i * ToneCount + 4] = Color.Lerp(fill, Color.white, patternStrength * 1.8f);
-                _segmentFret[i] = highlighted ? highlightColor : borderColor;
+                _segmentFret[i] = highlighted ? highlightColor : new Color32(25, 18, 22, 255);
                 _segmentSunburst[i] = useTypePatterns && data != null && data.type == RouletteSegmentType.Jackpot;
             }
         }

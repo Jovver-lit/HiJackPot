@@ -120,6 +120,14 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image stageBackground = AddImage("BackgroundPlaceholder", battleStage, Color.white);
             stageBackground.sprite = UiSprite("stage_bg");
             Stretch(stageBackground.rectTransform);
+            // 벽등과 슬롯머신의 불빛: 투명 그림 두 장을 번갈아 켠다.
+            UnityEngine.UI.Image stageLights = AddImage("StageLights", battleStage, Color.white);
+            Stretch(stageLights.rectTransform);
+            stageLights.sprite = UiSprite("stage_lights_0");
+            StageLights lights = stageLights.gameObject.AddComponent<StageLights>();
+            SerializedObject lightsSo = new SerializedObject(lights);
+            SetObjectArray(lightsSo.FindProperty("frames"), new Object[] { UiSprite("stage_lights_0"), UiSprite("stage_lights_1") });
+            lightsSo.ApplyModifiedPropertiesWithoutUndo();
 
             RectTransform characterStage = AddStretchRect("CharacterStage", canvasObject.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -204,8 +212,9 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Button throwButton = AddButton("SpinButton", spinCenter, Vector2.zero, new Vector2(168f, 168f), Accent, font, "길게 눌러\nSPIN", 24, out TMP_Text throwLabel);
             throwLabel.color = Background;
             UnityEngine.UI.Image throwImage = throwButton.GetComponent<UnityEngine.UI.Image>();
-            throwImage.sprite = UiSprite("dome");
+            throwImage.sprite = UiSprite("spin_button");
             throwImage.type = UnityEngine.UI.Image.Type.Simple;
+            throwImage.color = Color.white;
             spinCenter.SetAsLastSibling();
 
             AddRect("EffectRoot", playerRouletteContainer, Vector2.zero, new Vector2(700f, 700f));
@@ -302,8 +311,8 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image dealerCenterTrack = AddImage("Track", dealerCenter, Color.white);
             dealerCenterTrack.sprite = UiSprite("hub");
             dealerCenterTrack.rectTransform.sizeDelta = new Vector2(200f, 200f);
-            UnityEngine.UI.Image dealerCenterFace = AddImage("Face", dealerCenter, Brighten(Red));
-            dealerCenterFace.sprite = UiSprite("dome");
+            UnityEngine.UI.Image dealerCenterFace = AddImage("Face", dealerCenter, Color.white);
+            dealerCenterFace.sprite = UiSprite("dealer_button");
             dealerCenterFace.rectTransform.sizeDelta = new Vector2(168f, 168f);
             TMP_Text dealerWheelLabel = AddText("Label", dealerCenter, "딜러", font, 28, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(150f, 80f));
             dealerWheelLabel.enableAutoSizing = true;
@@ -543,8 +552,8 @@ namespace RouletteLike.Roulette.Editor
             // 룰렛 뒤의 황동·나무 테두리와 12시의 지시침. 지시침은 회전하지 않는 도트 그림이다.
             AddRim(root, wheelSize + 46f);
             UnityEngine.UI.Image centerCap = AddSpriteImage("CenterCap", wheel, UiSprite("hub"), new Vector2(100f, 100f));
-            UnityEngine.UI.Image pointer = AddSpriteImage("Pointer", root, UiSprite("pointer"), new Vector2(56f, 68f));
-            pointer.rectTransform.anchoredPosition = new Vector2(0f, wheelSize * 0.5f + 8f);
+            UnityEngine.UI.Image pointer = AddSpriteImage("Pointer", root, UiSprite("pointer"), new Vector2(64f, 80f));
+            pointer.rectTransform.anchoredPosition = new Vector2(0f, wheelSize * 0.5f + 14f);
 
             SerializedObject controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("wheel").objectReferenceValue = wheel;
@@ -809,8 +818,8 @@ namespace RouletteLike.Roulette.Editor
             RoulettePixelWheelRenderer renderer = AddWheelSurface(wheel, segments.sizeDelta);
             // 포인터는 링 바깥 가장자리에 걸쳐 두어 멈춘 칸의 기호를 가리지 않는다.
             AddRim(root, size + 46f);
-            UnityEngine.UI.Image pointer = AddSpriteImage("OuterPointer", root, UiSprite("pointer"), new Vector2(56f, 68f));
-            pointer.rectTransform.anchoredPosition = new Vector2(0f, size * 0.5f + 8f);
+            UnityEngine.UI.Image pointer = AddSpriteImage("OuterPointer", root, UiSprite("pointer"), new Vector2(64f, 80f));
+            pointer.rectTransform.anchoredPosition = new Vector2(0f, size * 0.5f + 14f);
 
             SerializedObject controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("wheel").objectReferenceValue = wheel;

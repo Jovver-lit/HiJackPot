@@ -15,7 +15,9 @@ namespace RouletteLike.Roulette
         private static readonly Color32 Ink = new Color32(10, 14, 22, 255);
         private static readonly Color32 BrassLight = new Color32(255, 224, 138, 255);
         private static readonly Color32 Brass = new Color32(240, 180, 60, 255);
-        private static readonly Color32 BrassDark = new Color32(138, 106, 96, 255);
+        private static readonly Color32 BrassMid = new Color32(196, 140, 40, 255);
+        private static readonly Color32 BrassDark = new Color32(138, 92, 30, 255);
+        private static readonly Color32 White = new Color32(251, 251, 252, 255);
         private static readonly Color32 Wood1 = new Color32(51, 36, 36, 255);
         private static readonly Color32 Wood2 = new Color32(74, 54, 50, 255);
         private static readonly Color32 Wood3 = new Color32(94, 69, 64, 255);
@@ -78,15 +80,29 @@ namespace RouletteLike.Roulette
             color = Color.white;
         }
 
+        private static Color32 Metal(float angleDegrees, float bias)
+        {
+            float a = (angleDegrees - 315f) * Mathf.Deg2Rad;
+            float t = 0.5f + 0.34f * Mathf.Cos(2f * a) + 0.12f * Mathf.Cos(a) + bias;
+            if (t > 0.86f) return White;
+            if (t > 0.68f) return BrassLight;
+            if (t > 0.46f) return Brass;
+            if (t > 0.26f) return BrassMid;
+            return BrassDark;
+        }
+
+        /// <summary>바깥부터: 윤곽, 넓은 황동 띠, 어두운 홈, 나무 띠(결과 징), 안쪽 황동 입술, 윤곽. 오른쪽 아래에 그림자 점묘.</summary>
         private static Color32[] Paint(int size, float innerRatio)
         {
             Color32[] pixels = new Color32[size * size];
             float center = size * 0.5f;
-            float outer = center - 1f;
+            float outer = center - 3f;
             float inner = outer * innerRatio;
-            float studRadius = (outer - 4f + inner + 3f) * 0.5f;
-            int studs = size >= 200 ? 24 : 12;
-            int largeStud = size >= 200 ? 3 : 2;
+            bool large = size >= 200;
+            float brassWidth = large ? 5f : 2f;
+            float studRadius = (outer - brassWidth - 1f + inner + 3f) * 0.5f;
+            int studs = large ? 24 : 12;
+            int largeStud = large ? 3 : 1;
             for (int y = 0; y < size; y++)
             {
                 float dy = y + 0.5f - center;
@@ -97,16 +113,31 @@ namespace RouletteLike.Roulette
                     int index = y * size + x;
                     if (distance > outer)
                     {
-                        pixels[index] = Clear;
+                        float shadow = Mathf.Sqrt((dx - 2f) * (dx - 2f) + (dy + 2f) * (dy + 2f));
+                        pixels[index] = shadow <= outer + 0.5f && (x + y) % 2 == 0 ? Ink : Clear;
                         continue;
                     }
 
+                    float angle = Mathf.Atan2(dx, dy) * Mathf.Rad2Deg;
+                    if (angle < 0f) angle += 360f;
                     float light = (dy - dx) * 0.7071f / Mathf.Max(1f, distance);
                     if (distance > outer - 1f) pixels[index] = Ink;
-                    else if (distance > outer - 3f) pixels[index] = light > 0.55f ? BrassLight : light > -0.35f ? Brass : BrassDark;
-                    else if (distance > outer - 4f) pixels[index] = Wood1;
-                    else if (distance > inner + 3f) pixels[index] = light > 0.5f ? Wood3 : light > -0.5f ? Wood2 : Wood1;
-                    else if (distance > inner + 1f) pixels[index] = light > -0.3f ? BrassDark : Wood2;
+                    else if (distance > outer - brassWidth)
+                    {
+                        // 황동 띠 가운데 한 줄을 어둡게 눌러 두 겹으로 보이게 한다.
+                        bool groove = large && Mathf.Abs(distance - (outer - brassWidth * 0.55f)) < 0.5f;
+                        pixels[index] = groove ? Metal(angle + 180f, -0.2f) : Metal(angle, 0f);
+                    }
+                    else if (distance > outer - brassWidth - 1f) pixels[index] = Ink;
+                    else if (distance > inner + 3f)
+                    {
+                        // 결이 도는 나무: 반지름마다 한 단계씩 어긋난다.
+                        int grain = (Mathf.FloorToInt(distance) + Mathf.FloorToInt(angle / 9f)) % 3;
+                        float tone = light + (grain == 0 ? 0.22f : grain == 1 ? 0f : -0.18f);
+                        pixels[index] = tone > 0.5f ? Wood3 : tone > -0.4f ? Wood2 : Wood1;
+                    }
+                    else if (distance > inner + 2f) pixels[index] = Ink;
+                    else if (distance > inner) pixels[index] = Metal(angle + 180f, 0f);
                     else pixels[index] = Ink;
                 }
             }
@@ -124,8 +155,8 @@ namespace RouletteLike.Roulette
                         int manhattan = Mathf.Abs(ox) + Mathf.Abs(oy);
                         int px = cx + ox, py = cy + oy;
                         if (manhattan > radius || px < 0 || py < 0 || px >= size || py >= size) continue;
-                        if (radius == 1) pixels[py * size + px] = BrassDark;
-                        else pixels[py * size + px] = manhattan == radius ? Wood1 : ox - oy < 0 ? BrassLight : Brass;
+                        if (radius == 1) pixels[py * size + px] = manhattan == 0 ? BrassLight : BrassMid;
+                        else pixels[py * size + px] = manhattan == radius ? Ink : ox - oy < 0 ? BrassLight : Brass;
                     }
                 }
             }
