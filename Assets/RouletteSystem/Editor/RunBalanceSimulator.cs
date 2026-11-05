@@ -64,7 +64,7 @@ namespace RouletteLike.Roulette.EditorTools
 
         private sealed class DealerStats
         {
-            public int Battles, Wins, Hijacks, Rounds, HouseCuts, BigEvaporations, Nudges, LongBattles;
+            public int Battles, Wins, Hijacks, Rounds, HouseCuts, BigEvaporations, Nudges, LongBattles, FirstRoundWins;
             public long EntryChips;
             public long EntryCash;
         }
@@ -121,7 +121,12 @@ namespace RouletteLike.Roulette.EditorTools
                     stats.Rounds += battle.Round;
                     if (battle.Round >= 15) stats.LongBattles++;
                     roundBuckets[Math.Min(5, battle.Round / 3)]++;
-                    if (battle.Outcome != BattleOutcome.DealerWins) stats.Wins++;
+                    if (battle.Outcome != BattleOutcome.DealerWins)
+                    {
+                        stats.Wins++;
+                        if (battle.Round <= 1) stats.FirstRoundWins++;
+                    }
+
                     int floor = run.FloorIndex;
                     run.CompleteBattle();
                     if (run.Outcome == RunOutcome.Bankrupt) diedAt[floor]++;
@@ -145,7 +150,7 @@ namespace RouletteLike.Roulette.EditorTools
             {
                 DealerStats s = pair.Value;
                 double n = Math.Max(1, s.Battles);
-                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 현금 {s.EntryCash / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · HIJACK {s.Hijacks / n:0.00} · 몰수 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
+                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 현금 {s.EntryCash / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · 첫 라운드 처치 {100.0 * s.FirstRoundWins / n:0}% · HIJACK {s.Hijacks / n:0.00} · 몰수 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
             }
 
             List<string> relicLines = new List<string>();

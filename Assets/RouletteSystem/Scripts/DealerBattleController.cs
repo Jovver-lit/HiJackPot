@@ -947,7 +947,8 @@ namespace RouletteLike.Roulette
         /// <summary>튜토리얼(예고하는 딜러)에서만 베팅이 R4 전까지 1로 묶인다.</summary>
         private bool AnteLocked => _battle.Profile.Telegraphs && _battle.Round < AnteUnlockRound;
 
-        private string DealerShortName => _battle.Profile.Name.Replace(" 딜러", "");
+        /// <summary>전투 안에서 상대를 부르는 말. 이름표·문 카드만 딜러 이름을 쓰고, 판돈·결과·룰렛은 "딜러"로 통일한다.</summary>
+        private const string DealerShortName = "딜러";
 
         private int CurrentMaxAnte() => AnteLocked ? 1 : _battle.MaxAnte(Side.Player);
 
@@ -2775,7 +2776,7 @@ namespace RouletteLike.Roulette
             }
 
             return new RouletteSegmentData(
-                slot.Id, type, slot.Value, slot.Kind == SlotKind.HouseCut ? houseCutWeight : 1f, color, null, label,
+                slot.Id, type, slot.Value, slot.Kind == SlotKind.HouseCut ? houseCutWeight : PotBattle.SlotWeight(slot), color, null, label,
                 slot.IsJackpot || slot.IsStolen || slot.Kind == SlotKind.HouseCut || slot.Attachment.HasValue);
         }
 

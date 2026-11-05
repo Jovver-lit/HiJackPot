@@ -402,9 +402,12 @@ namespace RouletteLike.Battle
         /// 2회차 딜러: 강해지는 몫은 주로 카지노 링(몰수 없는 바깥 링)이 맡는다. 링만으로 7층 탈락이 4배가 되어
         /// (시뮬레이션 2026-10-02) 기존 가산(칩 ×1.2·베팅 +2·성향 +4)을 칩 ×1.0·베팅 +1·성향 +0으로 줄였다.
         /// </summary>
-        public const float SecondStageChipBase = 1.0f;
-        public const int SecondStageAnteBonus = 1;
-        public const int SecondStageCashOutBonus = 0;
+        public static float SecondStageChipBase = 1.0f;
+
+        /// <summary>1층 뒤 모든 딜러·보스의 시작 칩에 곱하는 값.</summary>
+        public static float DealerChipScale = 1f;
+        public static int SecondStageAnteBonus = 1;
+        public static int SecondStageCashOutBonus = 0;
 
         /// <summary>2회차 보스: 칩 배율·베팅·보험·성향 가산과 이름(시뮬레이션으로 정한 임시값).</summary>
         public const float SecondStageBossChipScale = 1.6f;
@@ -431,17 +434,17 @@ namespace RouletteLike.Battle
             float scale = baseScale + DealerChipsPerFloor * Math.Max(0, position - 1);
             int anteBonus = (position >= DealerAnteBonusFromPosition ? 1 : 0) + (Stage > 0 ? SecondStageAnteBonus : 0);
             int cashOutBonus = Stage > 0 ? SecondStageCashOutBonus : 0;
-            DealerProfile scaled = Math.Abs(scale - 1f) < 0.001f && anteBonus == 0 && cashOutBonus == 0
+            DealerProfile scaled = Math.Abs(scale * DealerChipScale - 1f) < 0.001f && anteBonus == 0 && cashOutBonus == 0
                 ? dealer
-                : dealer.WithStakes(dealer.Name, (int)Math.Round(dealer.StartingChips * scale), anteBonus, 0, cashOutBonus);
+                : dealer.WithStakes(dealer.Name, (int)Math.Round(dealer.StartingChips * scale * DealerChipScale), anteBonus, 0, cashOutBonus);
             // 2회차 딜러는 몰수 없는 카지노 링을 쓴다(플레이어가 5층 보스에게서 바깥 링을 얻은 뒤의 맞대응).
             return Stage > 0 && SecondStageDealersUseCasinoRing ? scaled.WithDealerOuterRing(BattlePresets.CreateCasinoRing()) : scaled;
         }
 
         private DealerProfile ScaleBoss(DealerProfile boss)
         {
-            if (Stage == 0) return boss;
-            return boss.WithStakes(boss.Name + SecondStageBossSuffix, (int)Math.Round(boss.StartingChips * SecondStageBossChipScale),
+            if (Stage == 0) return boss.WithStakes(boss.Name, (int)Math.Round(boss.StartingChips * DealerChipScale), 0, 0, 0);
+            return boss.WithStakes(boss.Name + SecondStageBossSuffix, (int)Math.Round(boss.StartingChips * SecondStageBossChipScale * DealerChipScale),
                 SecondStageBossAnteBonus, SecondStageBossInsuranceBonus, SecondStageBossCashOutBonus);
         }
 

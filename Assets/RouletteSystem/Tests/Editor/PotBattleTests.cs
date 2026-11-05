@@ -502,7 +502,7 @@ namespace RouletteLike.Battle.Tests
 
             battle.StartRound();
 
-            CollectionAssert.Contains(battle.RoundStartEffects, "토끼 딜러의 서비스: 칩 +1");
+            CollectionAssert.Contains(battle.RoundStartEffects, "딜러의 서비스: 칩 +1");
         }
 
         private static void AdvanceToDealerInRound(PotBattle battle)

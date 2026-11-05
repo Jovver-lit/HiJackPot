@@ -251,6 +251,12 @@ namespace RouletteLike.Battle
             return Active;
         }
 
+        /// <summary>판돈 단위가 오르는 간격(라운드). 0이면 오르지 않는다. 칩을 늘려도 전투가 길어지지 않게 후보로 둔다.</summary>
+        public static int StakesRoundStep = 0;
+
+        /// <summary>이번 라운드의 판돈 단위. CASH OUT 피해에 곱한다(양쪽 같음).</summary>
+        public int TableStakes => StakesRoundStep <= 0 ? 1 : 1 + (Round - 1) / StakesRoundStep;
+
         /// <summary>테이블 마감: 이 라운드부터 매 라운드 시작에 양쪽이 테이블 사용료 1을 낸다(교착 방지, 한 전투 3~5분 목표).</summary>
         public const int TableFeeStartRound = 10;
 
@@ -671,6 +677,7 @@ namespace RouletteLike.Battle
                 }
             }
 
+            damage *= TableStakes;
             int bonus = 0;
             if (side == Side.Player && seat.Pot > 0)
             {
@@ -783,7 +790,7 @@ namespace RouletteLike.Battle
         /// </summary>
         public float LandingWeight(Side side, Slot slot)
         {
-            return slot.Kind == SlotKind.HouseCut ? HouseCutWeight(side) : ComebackWeight(side, slot);
+            return slot.Kind == SlotKind.HouseCut ? HouseCutWeight(side) : SlotWeight(slot) * ComebackWeight(side, slot);
         }
 
         /// <summary>역전 보정만 반영한 무게. 연출 쪽 회전은 몰수 폭을 칸 크기로 그리고, 이 값만 착지 구역 안에서 반영한다.</summary>
@@ -848,21 +855,32 @@ namespace RouletteLike.Battle
             return both ? 1f - (float)Math.Sqrt(1f - total) : total;
         }
 
-        /// <summary>안쪽 몰수 한 칸의 무게(다른 칸 = 1). 이 무게로 그린 칸 폭의 비율이 곧 안쪽 판의 몰수 확률이다.</summary>
-        public float HouseCutWeight(Side side) => CutWeight(SeatOf(side).Wheel, WheelHouseCutChance(side));
+        /// <summary>배율 칸의 폭(다른 칸 = 1). 칸이 좁을수록 잘 걸리지 않는다. 칸 그리기와 착지 추첨이 같은 값을 쓴다.</summary>
+        public static float MultiplierSlotWeight = 1f;
+
+        /// <summary>안쪽 칸 하나의 폭. 몰수는 따로 정한다(HouseCutWeight).</summary>
+        public static float SlotWeight(Slot slot) => slot.Kind == SlotKind.Multiplier ? MultiplierSlotWeight : 1f;
+
+        /// <summary>안쪽 몰수 한 칸의 무게. 이 무게로 그린 칸 폭의 비율이 곧 안쪽 판의 몰수 확률이다.</summary>
+        public float HouseCutWeight(Side side) => CutWeight(SeatOf(side).Wheel, WheelHouseCutChance(side), true);
 
         /// <summary>바깥 몰수 한 칸의 무게(다른 칸 = 1). 바깥 링이 없거나 몰수가 없으면 1.</summary>
         public float OuterHouseCutWeight(Side side)
         {
             Seat seat = SeatOf(side);
-            return seat.HasOuterRing ? CutWeight(seat.OuterRing, WheelHouseCutChance(side)) : 1f;
+            return seat.HasOuterRing ? CutWeight(seat.OuterRing, WheelHouseCutChance(side), false) : 1f;
         }
 
-        private static float CutWeight(IReadOnlyList<Slot> wheel, float chance)
+        private static float CutWeight(IReadOnlyList<Slot> wheel, float chance, bool inner)
         {
             int cuts = CountHouseCuts(wheel);
-            int others = wheel.Count - cuts;
-            if (cuts == 0 || others == 0) return 1f;
+            float others = 0f;
+            foreach (Slot slot in wheel)
+            {
+                if (slot.Kind != SlotKind.HouseCut) others += inner ? SlotWeight(slot) : 1f;
+            }
+
+            if (cuts == 0 || others <= 0f) return 1f;
             return chance / (1f - chance) * others / cuts;
         }
 
@@ -1220,7 +1238,7 @@ namespace RouletteLike.Battle
             }
         }
 
-        private string Name(Side side) => side == Side.Player ? "플레이어" : Profile.Name;
+        private static string Name(Side side) => side == Side.Player ? "손님" : "딜러";
 
         private void Write(string line) => _log.Add(line);
 
