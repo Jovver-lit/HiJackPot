@@ -859,6 +859,11 @@ namespace RouletteLike.Roulette
         /// <summary>선공을 보여 준다: 동전을 던지는 동안 "코인플립"을 띄우고, 면이 정해지면 결과와 [라운드 시작] 효과를 띄운다.</summary>
         private IEnumerator PlayCoinFlip()
         {
+            if (_battle.StakesRoseThisRound)
+            {
+                yield return PlayBanner($"판돈 단위 ×{_battle.TableStakes}", $"이번 라운드부터 CASH OUT 피해 ×{_battle.TableStakes}", new Color32(240, 180, 60, 255));
+            }
+
             bool playerFirst = _battle.Active == Side.Player;
             string first = playerFirst ? "손님" : DealerShortName;
             string outcome = _battle.InitiativeGuaranteedThisRound ? $"{first} 선공 확정" : $"코인플립: {first} 선공";
@@ -1148,9 +1153,10 @@ namespace RouletteLike.Roulette
             AddPotTrailCashOut(result);
             FlushCoreLog();
             resultText.text = $"CASH OUT  피해 {result.Damage}";
+            string stakes = _battle.TableStakes > 1 ? $" × 단위 {_battle.TableStakes}" : "";
             calculationText.text = result.RelicBonus > 0
-                ? $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} + 유물 {result.RelicBonus} = {result.Damage}"
-                : $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} = {result.Damage}";
+                ? $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance}{stakes} + 유물 {result.RelicBonus} = {result.Damage}"
+                : $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance}{stakes} = {result.Damage}";
             Say(result.Damage >= 8 ? Lines.BigCashOut : Lines.SmallCashOut);
             StartCoroutine(CashOutThenEndTurn(result));
         }
@@ -1246,7 +1252,7 @@ namespace RouletteLike.Roulette
                     AddPotTrailCashOut(cashOut);
                     FlushCoreLog();
                     resultText.text = cashOut.FullCoverage ? "전액 보장!" : $"{DealerShortName} CASH OUT  피해 {cashOut.Damage}";
-                    calculationText.text = $"판돈 {cashOut.Pot} − 내 보험 {cashOut.OpponentInsurance} = {cashOut.Damage}";
+                    calculationText.text = $"판돈 {cashOut.Pot} − 내 보험 {cashOut.OpponentInsurance}{(_battle.TableStakes > 1 ? $" × 단위 {_battle.TableStakes}" : "")} = {cashOut.Damage}";
                     Say(cashOut.FullCoverage ? "보험이 전액 보장했군요. 규정상 칸 하나를 양도하겠습니다." : Lines.DealerCashOut);
                     presentationUi?.SetHouseRuleHighlighted(cashOut.FullCoverage);
                     yield return PlayCashOutFlight(Side.Dealer, cashOut);
@@ -2020,7 +2026,7 @@ namespace RouletteLike.Roulette
             string closing = _battle.TableFee > 0
                 ? $" · 마감 −{_battle.TableFee}"
                 : _battle.Round >= PotBattle.TableFeeStartRound - 2 ? $" · {PotBattle.TableFeeStartRound}R 마감" : "";
-            roundText.text = $"{_run.FloorIndex + 1}F · ROUND {_battle.Round}{closing}";
+            roundText.text = $"{_run.FloorIndex + 1}F · ROUND {_battle.Round} · 판돈 단위 ×{_battle.TableStakes}{closing}";
             RefreshBetControls();
             RefreshHouseRuleUi();
             RefreshChainPreview();

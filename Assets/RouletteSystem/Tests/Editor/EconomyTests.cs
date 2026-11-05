@@ -20,7 +20,7 @@ namespace RouletteLike.Battle.Tests
         [Test]
         public void TableFee_StartsAtRoundTen_AndSurgesAtFifteen()
         {
-            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 60, BattlePresets.CreateFoxDealer().WithFloorScaling(60, 0), 2);
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 600, BattlePresets.CreateFoxDealer().WithFloorScaling(600, 0), 2);
             for (int round = 1; round < PotBattle.TableFeeStartRound; round++)
             {
                 battle.StartRound();
@@ -49,7 +49,7 @@ namespace RouletteLike.Battle.Tests
         public void TableFee_CanBankruptAndEndTheBattle()
         {
             DealerProfile fox = BattlePresets.CreateFoxDealer();
-            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 40, fox.WithFloorScaling(40, 0), 2);
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 600, fox.WithFloorScaling(600, 0), 2);
             for (int round = 1; round < PotBattle.TableFeeStartRound; round++)
             {
                 battle.StartRound();
@@ -61,6 +61,40 @@ namespace RouletteLike.Battle.Tests
             battle.StartRound();
             Assert.AreEqual(BattlePhase.Ended, battle.Phase);
             Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
+        }
+
+        [Test]
+        public void TableStakes_RiseEveryThreeRounds_AndMultiplyCashOutDamage()
+        {
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 600, BattlePresets.CreateFoxDealer().WithFloorScaling(600, 0), 2);
+            for (int round = 1; round <= 3; round++)
+            {
+                battle.StartRound();
+                Assert.AreEqual(1, battle.TableStakes, $"round {round}");
+                Assert.IsFalse(battle.StakesRoseThisRound, $"round {round}");
+                PlayRoundQuietly(battle);
+            }
+
+            battle.StartRound();
+            Assert.AreEqual(2, battle.TableStakes);
+            Assert.IsTrue(battle.StakesRoseThisRound);
+            if (battle.Active == Side.Dealer)
+            {
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            battle.PlaceAnte(4);
+            int insurance = battle.Dealer.Insurance;
+            Assert.AreEqual(Math.Max(0, 4 - insurance) * 2, battle.PreviewCashOutDamage(Side.Player));
+        }
+
+        [Test]
+        public void MultiplierSlot_IsNarrower_InRolls()
+        {
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 40, BattlePresets.CreateFoxDealer(), 9);
+            Assert.AreEqual(PotBattle.MultiplierSlotWeight, PotBattle.SlotWeight(battle.Player.Wheel[2]));
+            Assert.AreEqual(1f, PotBattle.SlotWeight(battle.Player.Wheel[0]));
         }
 
         private static int IndexOf(Seat seat, SlotKind kind)
@@ -145,7 +179,7 @@ namespace RouletteLike.Battle.Tests
             Run run = new Run(5, 999, BattlePresets.CreateStarterWheel(), fox, new List<Func<DealerProfile>> { fox }, BattlePresets.CreateStageBoss);
             int baseChips = fox().StartingChips;
             int baseAnte = fox().DealerAnte;
-            int[] expected = { baseChips, baseChips, (int)Math.Round(baseChips * 1.3f), (int)Math.Round(baseChips * 1.6f) };
+            int[] expected = { baseChips, (int)Math.Round(baseChips * Run.DealerChipScale), (int)Math.Round(baseChips * 1.3f * Run.DealerChipScale), (int)Math.Round(baseChips * 1.6f * Run.DealerChipScale) };
             for (int floor = 0; floor < 4; floor++)
             {
                 Assert.AreEqual(expected[floor], run.Doors[0].StartingChips, $"floor {floor + 1}");

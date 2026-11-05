@@ -98,7 +98,7 @@ namespace RouletteLike.Battle.Tests
             Run run = RunToShop(10);
             run.LeaveShop();
             Assert.AreEqual(FloorKind.Dealer, run.CurrentFloorKind);
-            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageChipBase), run.Doors[0].StartingChips);
+            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageChipBase * Run.DealerChipScale), run.Doors[0].StartingChips);
             Assert.AreEqual(1 + Run.SecondStageAnteBonus, run.Doors[0].DealerAnte);
 
             while (run.CurrentFloorKind != FloorKind.Boss)
@@ -108,7 +108,7 @@ namespace RouletteLike.Battle.Tests
             }
 
             StringAssert.EndsWith(Run.SecondStageBossSuffix, run.Doors[0].Name);
-            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageBossChipScale), run.Doors[0].StartingChips);
+            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageBossChipScale * Run.DealerChipScale), run.Doors[0].StartingChips);
         }
 
         [Test]

@@ -251,11 +251,14 @@ namespace RouletteLike.Battle
             return Active;
         }
 
-        /// <summary>판돈 단위가 오르는 간격(라운드). 0이면 오르지 않는다. 칩을 늘려도 전투가 길어지지 않게 후보로 둔다.</summary>
-        public static int StakesRoundStep = 0;
+        /// <summary>판돈 단위가 오르는 간격(라운드, ADR 0018). 칩이 많아도 전투가 늘어지지 않게 판이 점점 커진다.</summary>
+        public const int StakesRoundStep = 3;
 
-        /// <summary>이번 라운드의 판돈 단위. CASH OUT 피해에 곱한다(양쪽 같음).</summary>
-        public int TableStakes => StakesRoundStep <= 0 ? 1 : 1 + (Round - 1) / StakesRoundStep;
+        /// <summary>이번 라운드의 판돈 단위. 1~3라운드 ×1, 4~6라운드 ×2처럼 오르며 CASH OUT 피해에 곱한다(양쪽 같음).</summary>
+        public int TableStakes => 1 + (Math.Max(1, Round) - 1) / StakesRoundStep;
+
+        /// <summary>이번 라운드에 판돈 단위가 올랐는지. 화면이 알린다.</summary>
+        public bool StakesRoseThisRound => Round > 1 && (Round - 1) % StakesRoundStep == 0;
 
         /// <summary>테이블 마감: 이 라운드부터 매 라운드 시작에 양쪽이 테이블 사용료 1을 낸다(교착 방지, 한 전투 3~5분 목표).</summary>
         public const int TableFeeStartRound = 10;
@@ -717,7 +720,7 @@ namespace RouletteLike.Battle
             opponent.Chips -= damage;
             seat.Chips += seat.Ante + damage;
             result.RelicBonus = relicBonus;
-            Write($"{Name(Active)} CASH OUT: 판돈 {seat.Pot} − 보험 {opponent.Insurance} = 피해 {damage}{(result.RelicBonus > 0 ? $" (유물 +{result.RelicBonus})" : "")}");
+            Write($"{Name(Active)} CASH OUT: 판돈 {seat.Pot} − 보험 {opponent.Insurance}{(TableStakes > 1 ? $" × 단위 {TableStakes}" : "")} = 피해 {damage}{(result.RelicBonus > 0 ? $" (유물 +{result.RelicBonus})" : "")}");
 
             if (Active == Side.Dealer
                 && Profile.HouseRule == HouseRule.FullCoverage
@@ -856,7 +859,7 @@ namespace RouletteLike.Battle
         }
 
         /// <summary>배율 칸의 폭(다른 칸 = 1). 칸이 좁을수록 잘 걸리지 않는다. 칸 그리기와 착지 추첨이 같은 값을 쓴다.</summary>
-        public static float MultiplierSlotWeight = 1f;
+        public const float MultiplierSlotWeight = 0.7f;
 
         /// <summary>안쪽 칸 하나의 폭. 몰수는 따로 정한다(HouseCutWeight).</summary>
         public static float SlotWeight(Slot slot) => slot.Kind == SlotKind.Multiplier ? MultiplierSlotWeight : 1f;

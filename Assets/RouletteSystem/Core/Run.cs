@@ -399,15 +399,14 @@ namespace RouletteLike.Battle
         public const int DealerAnteBonusFromPosition = 3;
 
         /// <summary>
-        /// 2회차 딜러: 강해지는 몫은 주로 카지노 링(몰수 없는 바깥 링)이 맡는다. 링만으로 7층 탈락이 4배가 되어
-        /// (시뮬레이션 2026-10-02) 기존 가산(칩 ×1.2·베팅 +2·성향 +4)을 칩 ×1.0·베팅 +1·성향 +0으로 줄였다.
+        /// 2회차 딜러: 카지노 링에 더해 칩·베팅·성향도 오른다. 손님 칩이 100을 넘는 7층부터 위협이 너무 작았다(ADR 0018).
         /// </summary>
-        public static float SecondStageChipBase = 1.0f;
+        public const float SecondStageChipBase = 2f;
 
         /// <summary>1층 뒤 모든 딜러·보스의 시작 칩에 곱하는 값.</summary>
-        public static float DealerChipScale = 1f;
-        public static int SecondStageAnteBonus = 1;
-        public static int SecondStageCashOutBonus = 0;
+        public const float DealerChipScale = 1.5f;
+        public const int SecondStageAnteBonus = 3;
+        public const int SecondStageCashOutBonus = 6;
 
         /// <summary>2회차 보스: 칩 배율·베팅·보험·성향 가산과 이름(시뮬레이션으로 정한 임시값).</summary>
         public const float SecondStageBossChipScale = 1.6f;

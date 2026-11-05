@@ -15,3 +15,4 @@
 | [2026-11-05-outer-ring-house-cut-sim.md](2026-11-05-outer-ring-house-cut-sim.md) | 바깥 링 몰수를 N × 5%로 통합한 전후 비교: 보스 칩 1 파산 감소, 탈출률 약 2배 |
 | [2026-11-05-multiplier-risk-sim.md](2026-11-05-multiplier-risk-sim.md) | 배율 겹침 제거·몰수 상승 전후 비교: 판돈 폭주 감소, 보스전 길이 증가 |
 | [2026-11-05-relic-attachment-sim.md](2026-11-05-relic-attachment-sim.md) | 칸에 붙이는 유물 4개 전후 비교와 사람 플레이에서 볼 것 |
+| [2026-11-05-table-stakes-sim.md](2026-11-05-table-stakes-sim.md) | 판돈 단위·딜러 강화 전후 비교: 7층 이상 위험 증가, 보스전 단축, 탈출률 하락 |
