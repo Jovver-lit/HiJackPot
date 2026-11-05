@@ -36,6 +36,9 @@ namespace RouletteLike.Roulette
         [SerializeField] private TMP_Text playerChipsText;
         [SerializeField] private TMP_Text dealerChipsText;
         [SerializeField] private TMP_Text insuranceText;
+        [SerializeField] private TMP_Text dealerInsuranceText;
+        [SerializeField] private WheelStage wheelStage;
+        [SerializeField] private TMP_Text dealerWheelLabel;
         [SerializeField] private TMP_Text potText;
         [Tooltip("테이블 가운데 판돈 칩 더미(그레이박스). 판돈 2마다 칩 1개")]
         [SerializeField] private UnityEngine.UI.Image[] potChipImages = new UnityEngine.UI.Image[0];
@@ -239,6 +242,7 @@ namespace RouletteLike.Roulette
         /// <summary>자동 진행으로 끝낸 런 수(탈출, 파산).</summary>
         public Vector2Int DebugAutoplayRuns { get; private set; }
 
+        private readonly Queue<string> _combatLog = new Queue<string>();
         private readonly List<string> _fullLog = new List<string>();
         private readonly List<string> _potTrail = new List<string>();
         private Run _run;
@@ -710,6 +714,7 @@ namespace RouletteLike.Roulette
             _dealerChipsBaseline = Mathf.Max(1, _battle.Dealer.Chips);
             _fullLog.Clear();
             _potTrail.Clear();
+            _combatLog.Clear();
             if (potTrailText != null) potTrailText.text = "";
             _loggedLines = 0;
             _chosenAnte = 1;
@@ -722,6 +727,7 @@ namespace RouletteLike.Roulette
             HideLandingFeedback(Side.Player);
             HideLandingFeedback(Side.Dealer);
             SetWheelPicking(false);
+            ResetWheelStage();
             ClearFx();
             momentBanner?.gameObject.SetActive(false);
             nudgeBar?.SetActive(false);
@@ -845,6 +851,8 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Prepare);
             presentationUi?.SetPlayerRouletteActive(true);
             presentationUi?.SetDealerRouletteActive(false);
+            wheelStage?.ShowActive(true, _tempo);
+            if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러";
             instructionText.text = _battle.IsScriptedInstantCashOutRound && _battle.FirstThisRound == Side.Player
                 ? $"{DealerShortName}가 이번에 베팅만으로 곧장 정산합니다. 보험 칸에 걸리면 전액 보장!"
                 : AnteLocked
@@ -1084,6 +1092,8 @@ namespace RouletteLike.Roulette
             _battle.PreviewCounterHijack(out int preview, out int dealerSlot);
             RouletteSegmentData token = preview >= 0 ? ToSegment(_battle.Player.Wheel[preview]) : null;
             resultText.text = "역탈취!";
+            wheelStage?.ShowSideBySide(_tempo);
+            yield return Wait(WheelStage.MoveDuration);
             calculationText.text = $"몰수에 걸려 {DealerShortName}가 내 칸 하나를 회수합니다 (이번 전투 {PotBattle.MaxCounterHijacksPerBattle}회, HIJACK이나 상점에서 되찾기)";
 
             bool applied = false;
@@ -1132,7 +1142,9 @@ namespace RouletteLike.Roulette
             HideLandingFeedback(Side.Player);
             presentationUi?.SetPlayerRouletteActive(false);
             presentationUi?.SetDealerRouletteActive(true);
-            spinInput?.ShowUnavailableState($"{DealerShortName} 차례");
+            wheelStage?.ShowActive(false, _tempo);
+            if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러\n차례";
+            spinInput?.ShowUnavailableState("딜러 차례");
             instructionText.text = $"{DealerShortName} 차례 · 판돈 {_battle.Profile.CashOutAt} 이상이면 CASH OUT합니다.";
 
             _battle.PlaceAnte(_battle.Profile.DealerAnte);
@@ -1302,6 +1314,13 @@ namespace RouletteLike.Roulette
         private void SetWheelPicking(bool on)
         {
             hijackBar?.SetActive(on);
+            if (on)
+            {
+                presentationUi?.SetPlayerRouletteActive(false);
+                presentationUi?.SetDealerRouletteActive(false);
+                wheelStage?.ShowSideBySide(_tempo);
+            }
+
             if (playerWheelClick != null) playerWheelClick.gameObject.SetActive(on);
             if (dealerWheelClick != null) dealerWheelClick.gameObject.SetActive(on);
             if (!on)
@@ -1690,8 +1709,10 @@ namespace RouletteLike.Roulette
         private IEnumerator PlayCashOutFlight(Side cashingSide, CashOutResult result)
         {
             MotionOf(cashingSide)?.Lunge(_tempo);
-            RectTransform target = (cashingSide == Side.Player ? dealerChipsFill : playerChipsFill)?.rectTransform;
-            if (fxLayer == null || target == null || potChipImages.Length == 0)
+            // 칩은 터뜨린 사람 손에서 상대 몸으로 날아간다. 칩 바는 맞는 순간 깎인다.
+            Transform thrower = MotionOf(cashingSide)?.transform;
+            Transform target = MotionOf(cashingSide == Side.Player ? Side.Dealer : Side.Player)?.transform;
+            if (fxLayer == null || thrower == null || target == null || potChipImages.Length == 0)
             {
                 RefreshAllUi();
                 PlayCashOutHit(cashingSide, result);
@@ -1720,7 +1741,14 @@ namespace RouletteLike.Roulette
             int blocked = result.Pot <= 0 ? chips.Count : Mathf.RoundToInt(chips.Count * Mathf.Clamp01((float)(result.Pot - result.Damage) / result.Pot));
             if (result.Damage > 0) blocked = Mathf.Min(blocked, chips.Count - 1);
             Vector3[] starts = new Vector3[chips.Count];
-            for (int i = 0; i < chips.Count; i++) starts[i] = chips[i].position;
+            for (int i = 0; i < chips.Count; i++)
+            {
+                starts[i] = thrower.position + new Vector3((i % 3 - 1) * 14f, (i % 4) * 8f, 0f);
+                chips[i].position = starts[i];
+                chips[i].sizeDelta = new Vector2(30f, 30f);
+                chips[i].localRotation = Quaternion.Euler(0f, 0f, 45f);
+            }
+
             Vector3 end = target.position;
             const float stagger = 0.03f;
             float flight = chipFlightDuration / _tempo;
@@ -1735,15 +1763,15 @@ namespace RouletteLike.Roulette
                     Vector3 position;
                     if (!bounces)
                     {
-                        position = Vector3.Lerp(starts[i], end, eased) + Vector3.up * Mathf.Sin(k * Mathf.PI) * 80f;
+                        position = Vector3.Lerp(starts[i], end, eased) + Vector3.up * Mathf.Sin(k * Mathf.PI) * 120f;
                     }
                     else
                     {
                         // 보험: 상대 앞 70% 지점에서 튕겨 아래로 떨어진다.
                         Vector3 wall = Vector3.Lerp(starts[i], end, 0.7f);
                         position = k < 0.6f
-                            ? Vector3.Lerp(starts[i], wall, k / 0.6f) + Vector3.up * Mathf.Sin(k / 0.6f * Mathf.PI) * 60f
-                            : wall + new Vector3(0f, -160f * ((k - 0.6f) / 0.4f), 0f);
+                            ? Vector3.Lerp(starts[i], wall, k / 0.6f) + Vector3.up * Mathf.Sin(k / 0.6f * Mathf.PI) * 90f
+                            : wall + new Vector3(0f, -90f * ((k - 0.6f) / 0.4f), 0f);
                     }
 
                     chips[i].position = position;
@@ -1758,7 +1786,9 @@ namespace RouletteLike.Roulette
             PlayCashOutHit(cashingSide, result);
             if (result.Damage > 0)
             {
-                StartCoroutine(FloatText($"−{result.Damage}", target.position + Vector3.up * 30f, new Color32(255, 96, 96, 255), 54));
+                // 상대 몸 앞(던진 쪽)에 띄워 얼굴을 가리지 않는다.
+                Vector3 toThrower = thrower.position.x < target.position.x ? Vector3.left : Vector3.right;
+                StartCoroutine(FloatText($"−{result.Damage}", target.position + toThrower * 170f, new Color32(255, 96, 96, 255), 60));
             }
 
             if (result.OpponentInsurance > 0)
@@ -1882,12 +1912,12 @@ namespace RouletteLike.Roulette
             dealerChipsText.text = $"칩 {_battle.Dealer.Chips}";
             playerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Player.Chips / playerStart);
             dealerChipsFill.fillAmount = Mathf.Clamp01((float)_battle.Dealer.Chips / dealerStart);
-            string dealerInsurance = $"{DealerShortName} 보험 {_battle.Dealer.Insurance}";
             // 안내 문장은 튜토리얼(토끼)에서만. 다른 테이블은 숫자와 판돈 흐름으로 읽는다.
             if (instructionText != null) instructionText.gameObject.SetActive(_battle.Profile.Telegraphs);
             insuranceText.text = _battle.HasRelic(RelicId.DopamineShot)
-                ? $"내 보험 {_battle.Player.Insurance} · 도파민 {_battle.Dopamine} · {dealerInsurance}"
-                : $"내 보험 {_battle.Player.Insurance}  ·  {dealerInsurance}";
+                ? $"◆ 보험 {_battle.Player.Insurance} · 도파민 {_battle.Dopamine}"
+                : $"◆ 보험 {_battle.Player.Insurance}";
+            if (dealerInsuranceText != null) dealerInsuranceText.text = $"◆ 보험 {_battle.Dealer.Insurance}";
             RefreshRelicStrip();
             Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
             potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {potSeat.Pot}" : $"판돈 {potSeat.Pot}";
@@ -2129,6 +2159,9 @@ namespace RouletteLike.Roulette
             bool player = side == Side.Player;
             Seat seat = player ? _battle.Player : _battle.Dealer;
             RouletteController wheel = player ? roulette : enemyRoulette;
+            // 두 이름표는 왼쪽 기둥의 같은 자리에 뜬다.
+            RectTransform otherTag = player ? dealerLandingTag : playerLandingTag;
+            if (otherTag != null) otherTag.gameObject.SetActive(false);
             if (landing.Index < 0 || landing.Index >= seat.Wheel.Count) return;
 
             Slot slot = seat.Wheel[landing.Index];
@@ -2179,6 +2212,12 @@ namespace RouletteLike.Roulette
             (player ? playerOuterRoulette : dealerOuterRoulette)?.ClearLanding();
             RectTransform tag = player ? playerLandingTag : dealerLandingTag;
             if (tag != null) tag.gameObject.SetActive(false);
+        }
+
+        /// <summary>새 전투를 내 차례 배치로 시작한다(선공이 정해지기 전에는 내 룰렛을 보드에 둔다).</summary>
+        private void ResetWheelStage()
+        {
+            wheelStage?.ShowActive(true, 0f);
         }
 
         private static IEnumerator PopLandingTag(RectTransform tag)
@@ -2261,6 +2300,7 @@ namespace RouletteLike.Roulette
                     ? $"{HouseRuleDescription(dealer)}  →  칸 HIJACK + 이기면 유물"
                     : $"{HouseRuleDescription(dealer)}  →  칸 1개 HIJACK";
             }
+            if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러";
             ApplyDealerArt(dealer.Name);
         }
 
@@ -2604,13 +2644,12 @@ namespace RouletteLike.Roulette
             string label = WheelLabel(slot);
             if (slot.IsSeized)
             {
-                // 딜러가 빼앗아 쓰는 내 칸: 되찾을 대상이라 한눈에 보이게 한다.
-                label = "내" + label;
+                // 딜러가 빼앗아 쓰는 내 칸: 글자는 그대로 두고 색으로만 구분한다(사용자 결정 2026-11-05).
                 color = Color.Lerp(color, new Color32(240, 240, 245, 255), 0.45f);
             }
             else if (slot.IsStolen)
             {
-                label = "H" + label;
+                // 내가 빼앗아 온 칸도 글자는 그대로 두고 색으로만 구분한다.
                 color = Color.Lerp(color, new Color32(224, 168, 52, 255), 0.35f);
             }
 
@@ -2652,11 +2691,15 @@ namespace RouletteLike.Roulette
             }
         }
 
-        /// <summary>하단 사건 띠: 방금 일어난 일 하나만. 전체 기록은 띠를 누르면 펼쳐진다.</summary>
+        /// <summary>오른쪽 기둥의 최근 사건 4개, 최신이 위. 전체 기록은 누르면 펼쳐진다.</summary>
         private void AddLog(string message)
         {
             _fullLog.Add(message);
-            combatLogText.text = message;
+            _combatLog.Enqueue(message);
+            while (_combatLog.Count > 4) _combatLog.Dequeue();
+            string[] recent = _combatLog.ToArray();
+            System.Array.Reverse(recent);
+            combatLogText.text = string.Join("\n", recent);
         }
 
         private IEnumerator HideOpeningSpeechBubbleAfterDelay()

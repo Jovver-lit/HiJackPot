@@ -9,6 +9,7 @@
 | `SlotDescriptions.cs` | 칸 효과를 읽을 문장으로 바꿈(문 카드·HIJACK 선택·룰렛 아래 특수 칸 안내·상세 페이지 공용) |
 | `HoldToSpinInput.cs` | SPIN 버튼 길게 누르기 → 강도 게이지 → 놓으면 회전 |
 | `BattlePresentationUI.cs` | 단계 표시(준비·회전·결과·딜러)와 룰렛·하우스 룰 강조 |
+| `WheelStage.cs` | 차례에 따라 두 룰렛의 자리와 크기를 바꾸는 연출(보드에 크게, 주인 뒤에 작게, 나란히) |
 | `CoinFlipPresenter.cs` | 라운드 시작에 선공 동전이 돌다 선공 쪽 룰렛으로 날아가는 연출 |
 | `HijackTransferPresenter.cs` | HIJACK 때 칸 토큰이 딜러 룰렛에서 내 룰렛으로 날아가는 연출 |
 | `NaturalBlinkAnimator.cs` | 손님·딜러의 대기(숨쉬기)·눈 깜빡임 스프라이트 애니메이션 |
