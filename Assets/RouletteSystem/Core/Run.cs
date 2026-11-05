@@ -107,7 +107,25 @@ namespace RouletteLike.Battle
         /// <summary>문마다 걸린 유물(같은 순서). 그 딜러의 하우스 룰을 달성하고 이기면 받는다. 보스 문에는 없다(null).</summary>
         public IReadOnlyList<RelicId?> DoorRelics => _doorRelics;
 
-        /// <summary>이번 런에 모은 유물.</summary>
+        /// <summary>얻었지만 아직 칸에 붙이지 않은 유물. 붙이기 전에는 다음 층으로 갈 수 없다(ADR 0017).</summary>
+        public RelicId? PendingAttachment { get; private set; }
+
+        /// <summary>지금 룰렛 칸에 붙어 있는 유물(칸 순서). 칸을 덮어쓰면 함께 사라진다.</summary>
+        public IReadOnlyList<RelicId> AttachedRelics
+        {
+            get
+            {
+                List<RelicId> attached = new List<RelicId>();
+                foreach (Slot slot in CurrentBattle != null ? CurrentBattle.Player.Wheel : (IReadOnlyList<Slot>)_wheel)
+                {
+                    if (slot.Attachment.HasValue) attached.Add(slot.Attachment.Value);
+                }
+
+                return attached;
+            }
+        }
+
+        /// <summary>칸에 붙지 않는 옛 유물. 지금 런에는 등장하지 않고 시작 유물로만 줄 수 있다.</summary>
         public IReadOnlyList<RelicId> Relics => _relics;
 
         /// <summary>문 카드 유물을 받으려면 그 전투에서 하우스 룰을 이만큼 달성하고 이겨야 한다(도전 유물, ADR 0010).</summary>
@@ -214,6 +232,7 @@ namespace RouletteLike.Battle
             if (CurrentFloorKind == FloorKind.Shop) throw new InvalidOperationException("상점층에는 문이 없습니다. LeaveShop으로 다음 층에 갑니다.");
             if (CurrentBattle != null) throw new InvalidOperationException("진행 중인 전투가 있습니다.");
             if (PendingJackpot != null) throw new InvalidOperationException("획득한 JACKPOT 칸을 먼저 배치하세요.");
+            if (PendingAttachment.HasValue) throw new InvalidOperationException("얻은 유물을 먼저 칸에 붙이세요.");
             if (doorIndex < 0 || doorIndex >= _doors.Count) throw new ArgumentOutOfRangeException(nameof(doorIndex));
 
             _enteredDoor = doorIndex;
@@ -265,9 +284,9 @@ namespace RouletteLike.Battle
                 prize = null;
             }
 
-            if (prize.HasValue && !_relics.Contains(prize.Value))
+            if (prize.HasValue)
             {
-                _relics.Add(prize.Value);
+                PendingAttachment = prize;
                 LastRelicGained = prize;
             }
 
@@ -314,6 +333,17 @@ namespace RouletteLike.Battle
             return true;
         }
 
+        /// <summary>얻은 유물을 내 칸에 붙인다. 몰수·봉인 칸에는 못 붙이고, 이미 유물이 있으면 바뀐다.</summary>
+        public bool PlacePendingAttachment(int playerIndex)
+        {
+            if (!PendingAttachment.HasValue || playerIndex < 0 || playerIndex >= _wheel.Count) return false;
+            Slot slot = _wheel[playerIndex];
+            if (slot.Kind == SlotKind.HouseCut || slot.Kind == SlotKind.Sealed) return false;
+            _wheel[playerIndex] = slot.WithAttachment(PendingAttachment);
+            PendingAttachment = null;
+            return true;
+        }
+
         private Slot FindUnclaimedJackpot(DealerProfile dealer)
         {
             foreach (Slot slot in dealer.Wheel)
@@ -344,11 +374,11 @@ namespace RouletteLike.Battle
 
             RollDealers();
 
-            // 유물은 딜러층 문에만 걸린다. 같은 층의 두 문에는 서로 다른, 아직 없는 유물을 건다.
+            // 유물은 딜러층 문에만 걸린다. 같은 층의 두 문에는 서로 다른 유물을 건다. 같은 유물을 또 얻어 다른 칸에 붙일 수 있다.
             List<RelicId> pool = new List<RelicId>();
             foreach (Relic relic in RelicCatalog.Relics)
             {
-                if (!_relics.Contains(relic.Id)) pool.Add(relic.Id);
+                if (relic.IsAttachment) pool.Add(relic.Id);
             }
 
             for (int i = 0; i < _doors.Count; i++)

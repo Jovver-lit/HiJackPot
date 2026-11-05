@@ -45,12 +45,30 @@ namespace RouletteLike.Battle.Tests
             while (run.CurrentFloorKind != FloorKind.Shop)
             {
                 if (run.PendingJackpot != null) run.PlacePendingJackpot(0);
+                if (run.PendingAttachment.HasValue) run.PlacePendingAttachment(0);
                 Win(run.EnterDoor(0));
                 run.CompleteBattle();
                 Assert.AreEqual(RunOutcome.InProgress, run.Outcome);
             }
 
             return run;
+        }
+
+        [Test]
+        public void ShopRelic_IsAnAttachment_AndMustBePlacedBeforeLeaving()
+        {
+            Run run = RunToShop();
+            RelicId? relic = run.ShopRelic;
+            Assert.IsTrue(relic.HasValue);
+            Assert.IsTrue(RelicCatalog.Get(relic.Value).IsAttachment);
+            Assert.GreaterOrEqual(run.Cash, ShopPrices.Relic);
+
+            Assert.AreEqual(ShopError.None, run.BuyShopRelic());
+            Assert.AreEqual(relic, run.PendingAttachment);
+            Assert.Throws<System.InvalidOperationException>(() => run.LeaveShop());
+
+            Assert.IsTrue(run.PlacePendingAttachment(0));
+            run.LeaveShop();
         }
 
         [Test]
@@ -163,6 +181,7 @@ namespace RouletteLike.Battle.Tests
             while (run.CurrentFloorKind != FloorKind.Shop)
             {
                 if (run.PendingJackpot != null) run.PlacePendingJackpot(0);
+                if (run.PendingAttachment.HasValue) run.PlacePendingAttachment(0);
                 Win(run.EnterDoor(0));
                 run.CompleteBattle();
             }

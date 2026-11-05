@@ -39,6 +39,9 @@ namespace RouletteLike.Battle
         public bool EndedTurn;
         public string Formula = "";
 
+        /// <summary>이번 착지에서 칸에 붙은 유물이 발동했으면 그 설명. 없으면 빈 문자열.</summary>
+        public string AttachmentNote = "";
+
         /// <summary>바깥 링이 멈춘 칸(-1 = 바깥 링 없음)과 그 종류.</summary>
         public int OuterIndex = -1;
         public SlotKind? OuterKind;
@@ -126,6 +129,12 @@ namespace RouletteLike.Battle
         public int HouseRuleGoal => Profile.HouseRule == HouseRule.SmallCashOuts || Profile.HouseRule == HouseRule.JackpotLines ? 2 : 1;
 
         private bool _playerMultipliedThisTurn;
+        private int _attachmentDamageBonus;
+        private bool _refundAnteThisTurn;
+        private readonly Dictionary<RelicId, int> _attachmentGains = new Dictionary<RelicId, int>();
+
+        /// <summary>칸에 붙은 유물이 이번 전투에서 실제로 준 이득(유물별 합계, 단위는 Relic.GainUnit). 종료 화면에 보여 준다.</summary>
+        public IReadOnlyDictionary<RelicId, int> AttachmentGains => _attachmentGains;
         public bool HijackUsedThisRound { get; private set; }
 
         /// <summary>플레이어가 방금 몰수에 걸려 딜러가 역탈취할 수 있는 상태.</summary>
@@ -313,6 +322,8 @@ namespace RouletteLike.Battle
             seat.Pot = ante;
             SpinsThisTurn = 0;
             MultipliersThisTurn = 0;
+            _attachmentDamageBonus = 0;
+            _refundAnteThisTurn = false;
             Phase = BattlePhase.Spinning;
             Write($"{Name(Active)} 베팅 {ante}");
             return ante;
@@ -360,6 +371,7 @@ namespace RouletteLike.Battle
             {
                 result.Group = new[] { index };
                 parts.Add(slot.Kind == SlotKind.Sealed ? "봉인 칸 · 효과 없음" : ApplyKeywordLanding(seat, slot, result));
+                ApplyAttachment(seat, slot, result, parts);
                 ApplyOuterBonus(seat, outer, parts);
                 return FinishLanding(result, seat, parts);
             }
@@ -401,6 +413,7 @@ namespace RouletteLike.Battle
                 parts.Add($"끈적한 칸막이: 옆에 같은 칸 → 판돈 +{RelicCatalog.StickyDividerBonus} = {seat.Pot}");
             }
 
+            ApplyAttachment(seat, slot, result, parts);
             bool innerMultiplies = slot.Kind == SlotKind.Multiplier;
             if (outer != null && outer.Kind == SlotKind.Multiplier && !innerMultiplies)
             {
@@ -455,6 +468,14 @@ namespace RouletteLike.Battle
                 }
             }
 
+            if (Active == Side.Player && _refundAnteThisTurn && seat.Ante > 0)
+            {
+                seat.Chips += seat.Ante;
+                AddAttachmentGain(RelicId.RefundTicket, seat.Ante);
+                result.AttachmentNote = $"환불 쪽지: 베팅 {seat.Ante} 반환";
+                parts.Add(result.AttachmentNote);
+            }
+
             seat.Pot = 0;
             seat.Ante = 0;
             result.EndedTurn = true;
@@ -462,6 +483,48 @@ namespace RouletteLike.Battle
             {
                 CounterHijackPending = true;
             }
+        }
+
+        /// <summary>착지한 칸에 붙은 유물을 발동한다(ADR 0017). 칸의 효과 바로 뒤, 바깥 링 효과 앞이다.</summary>
+        private void ApplyAttachment(Seat seat, Slot slot, LandingResult result, List<string> parts)
+        {
+            if (Active != Side.Player || !slot.Attachment.HasValue) return;
+            string note = "";
+            switch (slot.Attachment.Value)
+            {
+                case RelicId.SkimmingHook:
+                    seat.Chips += RelicCatalog.SkimmingHookChips;
+                    AddAttachmentGain(RelicId.SkimmingHook, RelicCatalog.SkimmingHookChips);
+                    note = $"소매치기 갈고리: 칩 +{RelicCatalog.SkimmingHookChips}";
+                    break;
+                case RelicId.ForgedReceipt:
+                    _attachmentDamageBonus += RelicCatalog.ForgedReceiptDamage;
+                    note = $"위조 영수증: 이번 턴 CASH OUT 피해 +{_attachmentDamageBonus}";
+                    break;
+                case RelicId.RefundTicket:
+                    _refundAnteThisTurn = true;
+                    note = "환불 쪽지: 이번 턴 몰수에 걸려도 베팅 반환";
+                    break;
+                case RelicId.MagnetStrip:
+                    if (HasSameKindNeighbor(seat.Wheel, result.Index))
+                    {
+                        seat.Pot += RelicCatalog.MagnetStripPot;
+                        AddAttachmentGain(RelicId.MagnetStrip, RelicCatalog.MagnetStripPot);
+                        note = $"자석 띠: 옆 칸이 같은 종류 → 판돈 +{RelicCatalog.MagnetStripPot} = {seat.Pot}";
+                    }
+
+                    break;
+            }
+
+            if (note.Length == 0) return;
+            result.AttachmentNote = note;
+            parts.Add(note);
+        }
+
+        private void AddAttachmentGain(RelicId id, int amount)
+        {
+            _attachmentGains.TryGetValue(id, out int total);
+            _attachmentGains[id] = total + amount;
         }
 
         /// <summary>
@@ -611,6 +674,7 @@ namespace RouletteLike.Battle
             int bonus = 0;
             if (side == Side.Player && seat.Pot > 0)
             {
+                bonus += _attachmentDamageBonus;
                 if (HasRelic(RelicId.DopamineShot)) bonus += Dopamine;
                 if (HasRelic(RelicId.DoubleLedger) && seat.Pot >= RelicCatalog.DoubleLedgerPotThreshold) bonus += RelicCatalog.DoubleLedgerBonus;
             }
@@ -630,6 +694,10 @@ namespace RouletteLike.Battle
             Seat seat = ActiveSeat;
             Seat opponent = Opponent(Active);
             int damage = PreviewCashOutDamage(Active, out int relicBonus);
+            if (Active == Side.Player && _attachmentDamageBonus > 0 && relicBonus > 0)
+            {
+                AddAttachmentGain(RelicId.ForgedReceipt, Math.Min(relicBonus, _attachmentDamageBonus));
+            }
 
             CashOutResult result = new CashOutResult
             {

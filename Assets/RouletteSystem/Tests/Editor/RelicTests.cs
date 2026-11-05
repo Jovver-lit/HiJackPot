@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace RouletteLike.Battle.Tests
 {
-    /// <summary>유물 12개의 규칙 효과, NUDGE 횟수, 문 카드 유물 상금(런) EditMode 테스트.</summary>
+    /// <summary>옛 유물 12개의 규칙 효과, NUDGE 횟수, 문 카드 유물 상금(런) EditMode 테스트.</summary>
     public sealed class RelicTests
     {
         // 시작 룰렛: 0 레이즈+2, 1 레이즈+2, 2 배율×2, 3 보험+3, 4 레이즈+3, 5 몰수, 6 배당+2, 7 보험+2
@@ -29,9 +29,12 @@ namespace RouletteLike.Battle.Tests
         }
 
         [Test]
-        public void Catalog_HasTwelveRelics_CoveringAllSixKeywords()
+        public void Catalog_HasFourAttachmentsAndTwelveLegacyRelics_CoveringAllSixKeywords()
         {
-            Assert.AreEqual(12, RelicCatalog.Relics.Count);
+            Assert.AreEqual(16, RelicCatalog.Relics.Count);
+            int attachments = 0;
+            foreach (Relic relic in RelicCatalog.Relics) if (relic.IsAttachment) attachments++;
+            Assert.AreEqual(4, attachments);
             HashSet<string> keywords = new HashSet<string>();
             foreach (Relic relic in RelicCatalog.Relics) keywords.Add(relic.Keyword);
             foreach (string keyword in new[] { "[착지]", "[인접]", "[CASH OUT]", "[몰수]", "[라운드 시작]", "[HIJACK]" })
@@ -226,7 +229,7 @@ namespace RouletteLike.Battle.Tests
             int kept = Math.Min(battle.Player.Chips, 20) + (int)Math.Floor(excess * (ChipExchangeRules.Default.KeepShare + RelicCatalog.VipKeepShareBonus));
             run.CompleteBattle();
             Assert.AreEqual(prize, run.LastRelicGained);
-            Assert.Contains(prize.Value, new List<RelicId>(run.Relics));
+            Assert.AreEqual(prize, run.PendingAttachment);
             Assert.AreEqual(kept, run.Chips);
         }
 
