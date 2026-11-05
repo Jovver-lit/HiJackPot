@@ -63,6 +63,81 @@ namespace RouletteLike.Battle.Tests
             Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
         }
 
+        private static int IndexOf(Seat seat, SlotKind kind)
+        {
+            for (int i = 0; i < seat.Wheel.Count; i++)
+            {
+                if (seat.Wheel[i].Kind == kind) return i;
+            }
+
+            Assert.Fail($"{kind} 칸이 없습니다.");
+            return -1;
+        }
+
+        /// <summary>마지막 1칩을 걸어도 바로 죽지 않고, 불려서 CASH OUT하면 칩을 되찾는다(사용자 확인 2026-11-05).</summary>
+        [Test]
+        public void LastChip_CanBeBetAndSpun_AndCashOutRecovers()
+        {
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, BattlePresets.CreateFoxDealer(), 3);
+            battle.StartRound();
+            if (battle.Active == Side.Dealer)
+            {
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            battle.Player.Chips = 1;
+            battle.PlaceAnte(3);
+            Assert.AreEqual(0, battle.Player.Chips);
+            Assert.AreEqual(BattlePhase.Spinning, battle.Phase);
+
+            battle.Land(IndexOf(battle.Player, SlotKind.Raise));
+            Assert.AreEqual(BattlePhase.Spinning, battle.Phase);
+            CashOutResult result = battle.CashOut();
+            Assert.AreEqual(1 + result.Damage, battle.Player.Chips);
+            Assert.AreNotEqual(BattlePhase.Ended, battle.Phase);
+        }
+
+        /// <summary>마지막 칩을 걸고 몰수에 걸리면 파산한다. 그 칩으로 계속 돌릴지는 플레이어의 도박이다.</summary>
+        [Test]
+        public void LastChip_LostToHouseCut_IsBankrupt()
+        {
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, BattlePresets.CreateFoxDealer(), 3);
+            battle.StartRound();
+            if (battle.Active == Side.Dealer)
+            {
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            battle.Player.Chips = 1;
+            battle.PlaceAnte(1);
+            battle.Land(IndexOf(battle.Player, SlotKind.HouseCut));
+            if (battle.CounterHijackPending) battle.ResolveCounterHijack();
+            Assert.AreEqual(BattlePhase.Ended, battle.Phase);
+            Assert.AreEqual(BattleOutcome.DealerWins, battle.Outcome);
+        }
+
+        /// <summary>치명적인 피해는 그대로 치명적이다. 칩 2에서 큰 피해를 맞으면 1칩으로 버티지 않는다.</summary>
+        [Test]
+        public void LethalCashOut_DoesNotLeaveOneChip()
+        {
+            PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 20, BattlePresets.CreateFoxDealer(), 3);
+            battle.StartRound();
+            if (battle.Active == Side.Dealer)
+            {
+                battle.PlaceAnte(1);
+                battle.CashOut();
+            }
+
+            battle.Dealer.Chips = 2;
+            battle.PlaceAnte(1);
+            battle.Player.Pot = 100;
+            battle.CashOut();
+            Assert.AreEqual(BattlePhase.Ended, battle.Phase);
+            Assert.AreEqual(BattleOutcome.PlayerWinsByBankrupt, battle.Outcome);
+        }
+
         [Test]
         public void DealerFloors_GetMoreChips_AndFloorFourAddsAnte()
         {

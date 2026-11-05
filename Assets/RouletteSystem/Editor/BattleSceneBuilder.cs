@@ -338,7 +338,7 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image dealerCenterFace = AddImage("Face", dealerCenter, new Color32(150, 50, 56, 255));
             dealerCenterFace.sprite = knobSprite;
             dealerCenterFace.rectTransform.sizeDelta = new Vector2(166f, 166f);
-            TMP_Text dealerWheelLabel = AddText("Label", dealerCenter, "토끼", font, 28, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(150f, 80f));
+            TMP_Text dealerWheelLabel = AddText("Label", dealerCenter, "딜러", font, 28, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(150f, 80f));
             dealerWheelLabel.enableAutoSizing = true;
             dealerWheelLabel.fontSizeMin = 16f;
             dealerWheelLabel.fontSizeMax = 28f;

@@ -852,7 +852,7 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPlayerRouletteActive(true);
             presentationUi?.SetDealerRouletteActive(false);
             wheelStage?.ShowActive(true, _tempo);
-            if (dealerWheelLabel != null) dealerWheelLabel.text = DealerShortName;
+            if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러";
             instructionText.text = _battle.IsScriptedInstantCashOutRound && _battle.FirstThisRound == Side.Player
                 ? $"{DealerShortName}가 이번에 베팅만으로 곧장 정산합니다. 보험 칸에 걸리면 전액 보장!"
                 : AnteLocked
@@ -1143,8 +1143,8 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPlayerRouletteActive(false);
             presentationUi?.SetDealerRouletteActive(true);
             wheelStage?.ShowActive(false, _tempo);
-            if (dealerWheelLabel != null) dealerWheelLabel.text = $"{DealerShortName}\n차례";
-            spinInput?.ShowUnavailableState($"{DealerShortName} 차례");
+            if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러\n차례";
+            spinInput?.ShowUnavailableState("딜러 차례");
             instructionText.text = $"{DealerShortName} 차례 · 판돈 {_battle.Profile.CashOutAt} 이상이면 CASH OUT합니다.";
 
             _battle.PlaceAnte(_battle.Profile.DealerAnte);
@@ -2300,7 +2300,7 @@ namespace RouletteLike.Roulette
                     ? $"{HouseRuleDescription(dealer)}  →  칸 HIJACK + 이기면 유물"
                     : $"{HouseRuleDescription(dealer)}  →  칸 1개 HIJACK";
             }
-            if (dealerWheelLabel != null) dealerWheelLabel.text = DealerShortName;
+            if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러";
             ApplyDealerArt(dealer.Name);
         }
 
@@ -2647,7 +2647,7 @@ namespace RouletteLike.Roulette
             }
             else if (slot.IsStolen)
             {
-                label = "H" + label;
+                // 내가 빼앗아 온 칸도 글자는 그대로 두고 색으로만 구분한다.
                 color = Color.Lerp(color, new Color32(224, 168, 52, 255), 0.35f);
             }
 
