@@ -369,12 +369,12 @@ namespace RouletteLike.Battle
         public const int DealerAnteBonusFromPosition = 3;
 
         /// <summary>
-        /// 2회차 딜러: 강해지는 몫은 주로 카지노 링(몰수 없는 바깥 링)이 맡는다. 링만으로 7층 탈락이 4배가 되어
-        /// (시뮬레이션 2026-10-02) 기존 가산(칩 ×1.2·베팅 +2·성향 +4)을 칩 ×1.0·베팅 +1·성향 +0으로 줄였다.
+        /// 2회차 딜러: 카지노 링(몰수 없는 바깥 링)에 더해 칩 ×1.2·베팅 +2를 받고, CASH OUT 기준이 회차 안에서 층마다 4씩 오른다.
+        /// 바깥 링 몰수 통합(ADR 0015)으로 손님이 안전해져 7~9층이 1회차보다 쉬워졌기 때문에 다시 올렸다(시뮬레이션 2026-11-05).
         /// </summary>
-        public const float SecondStageChipBase = 1.0f;
-        public const int SecondStageAnteBonus = 1;
-        public const int SecondStageCashOutBonus = 0;
+        public const float SecondStageChipBase = 1.2f;
+        public const int SecondStageAnteBonus = 2;
+        public const int SecondStageCashOutPerPosition = 4;
 
         /// <summary>2회차 보스: 칩 배율·베팅·보험·성향 가산과 이름(시뮬레이션으로 정한 임시값).</summary>
         public const float SecondStageBossChipScale = 1.6f;
@@ -400,7 +400,7 @@ namespace RouletteLike.Battle
             float baseScale = Stage == 0 ? 1f : SecondStageChipBase;
             float scale = baseScale + DealerChipsPerFloor * Math.Max(0, position - 1);
             int anteBonus = (position >= DealerAnteBonusFromPosition ? 1 : 0) + (Stage > 0 ? SecondStageAnteBonus : 0);
-            int cashOutBonus = Stage > 0 ? SecondStageCashOutBonus : 0;
+            int cashOutBonus = Stage > 0 ? SecondStageCashOutPerPosition * position : 0;
             DealerProfile scaled = Math.Abs(scale - 1f) < 0.001f && anteBonus == 0 && cashOutBonus == 0
                 ? dealer
                 : dealer.WithStakes(dealer.Name, (int)Math.Round(dealer.StartingChips * scale), anteBonus, 0, cashOutBonus);

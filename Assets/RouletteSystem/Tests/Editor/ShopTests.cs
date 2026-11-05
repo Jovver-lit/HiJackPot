@@ -83,10 +83,17 @@ namespace RouletteLike.Battle.Tests
             Assert.AreEqual((int)Math.Round(10 * Run.SecondStageChipBase), run.Doors[0].StartingChips);
             Assert.AreEqual(1 + Run.SecondStageAnteBonus, run.Doors[0].DealerAnte);
 
+            // 회차 안에서 층이 오를수록 CASH OUT 기준이 오른다.
+            int previousCashOutAt = run.Doors[0].CashOutAt;
             while (run.CurrentFloorKind != FloorKind.Boss)
             {
                 Win(run.EnterDoor(0));
                 run.CompleteBattle();
+                if (run.CurrentFloorKind == FloorKind.Dealer)
+                {
+                    Assert.AreEqual(previousCashOutAt + Run.SecondStageCashOutPerPosition, run.Doors[0].CashOutAt);
+                    previousCashOutAt = run.Doors[0].CashOutAt;
+                }
             }
 
             StringAssert.EndsWith(Run.SecondStageBossSuffix, run.Doors[0].Name);

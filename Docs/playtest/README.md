@@ -13,3 +13,4 @@
 | [2026-10-02-escalating-house-cut-sim.md](2026-10-02-escalating-house-cut-sim.md) | SPIN할수록 하우스 몫 확률이 오르는 규칙 vs 지금(고정): 멈출 지점·목표 판돈별 승률·칸 늘리기와의 관계 |
 | [2026-10-02-casino-ring-sim.md](2026-10-02-casino-ring-sim.md) | 2회차 딜러 카지노 링(하우스 몫 없는 바깥 링)과 2회차 수치 조정 |
 | [2026-11-05-outer-ring-house-cut-sim.md](2026-11-05-outer-ring-house-cut-sim.md) | 바깥 링 몰수를 N × 5%로 통합한 전후 비교: 보스 칩 1 파산 감소, 탈출률 약 2배 |
+| [2026-11-05-difficulty-curve-sim.md](2026-11-05-difficulty-curve-sim.md) | 2회차 딜러 수치 조정: 7·8·9·10층 탈락률이 차례로 오르게 |
