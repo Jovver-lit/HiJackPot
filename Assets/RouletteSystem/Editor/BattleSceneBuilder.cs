@@ -255,14 +255,14 @@ namespace RouletteLike.Roulette.Editor
             resultText.enableAutoSizing = true;
             resultText.fontSizeMin = 16f;
             resultText.fontSizeMax = 24f;
-            TMP_Text potTrailText = AddText("PotTrail", centerPanel, "", font, 20, Ink, TextAlignmentOptions.Center, new Vector2(0f, 75f), new Vector2(380f, 54f));
+            TMP_Text potTrailText = AddText("PotTrail", centerPanel, "", font, 20, Ink, TextAlignmentOptions.Center, new Vector2(0f, 85f), new Vector2(380f, 54f));
             potTrailText.richText = true;
             potTrailText.enableAutoSizing = true;
             potTrailText.fontSizeMin = 14f;
             potTrailText.fontSizeMax = 20f;
             TMP_Text calculationText = AddText("Description", centerPanel, "", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, 206f), new Vector2(380f, 50f));
             calculationText.gameObject.SetActive(false);
-            UnityEngine.UI.Image[] potChips = BuildPotChipStack(centerPanel, new Vector2(0f, 15f));
+            UnityEngine.UI.Image[] potChips = BuildPotChipStack(centerPanel, new Vector2(0f, 42f));
             TMP_Text potText = AddText("PotValue", centerPanel, "판돈 0", font, 72, Accent, TextAlignmentOptions.Center, new Vector2(0f, -45f), new Vector2(380f, 84f));
             potText.enableAutoSizing = true;
             potText.fontSizeMin = 40f;
@@ -461,17 +461,6 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "playerOuterSpin", playerOuterSpin);
             SetObject(identitySo, "dealerOuterRoulette", dealerOuterRoulette);
             SetObject(identitySo, "dealerOuterSpin", dealerOuterSpin);
-            // 착지 이름표: 포인터 바로 위, 멈춘 칸의 이름과 실제로 일어난 효과. 다음 SPIN 전까지 남는다.
-            RectTransform playerTag = BuildLandingTag(centerPanel, new Vector2(0f, 168f), font, out TMP_Text playerTagTitle, out TMP_Text playerTagEffect, out UnityEngine.UI.Image playerTagBackground);
-            RectTransform dealerTag = BuildLandingTag(centerPanel, new Vector2(0f, 168f), font, out TMP_Text dealerTagTitle, out TMP_Text dealerTagEffect, out UnityEngine.UI.Image dealerTagBackground);
-            SetObject(identitySo, "playerLandingTag", playerTag);
-            SetObject(identitySo, "playerLandingTitle", playerTagTitle);
-            SetObject(identitySo, "playerLandingEffect", playerTagEffect);
-            SetObject(identitySo, "playerLandingBackground", playerTagBackground);
-            SetObject(identitySo, "dealerLandingTag", dealerTag);
-            SetObject(identitySo, "dealerLandingTitle", dealerTagTitle);
-            SetObject(identitySo, "dealerLandingEffect", dealerTagEffect);
-            SetObject(identitySo, "dealerLandingBackground", dealerTagBackground);
             RectTransform relicOverlay = BuildRelicOverlay(canvasObject.transform, font, out TMP_Text relicOverlayTitle, out TMP_Text relicOverlayBody, out UnityEngine.UI.Button relicOverlayClose);
             RectTransform titlePanel = BuildTitlePanel(canvasObject.transform, font, out UnityEngine.UI.Button titleStartButton, out UnityEngine.UI.Button titleResetButton, out TMP_Text titleMetaText);
             SetObject(identitySo, "relicOverlayTitle", relicOverlayTitle);
@@ -539,8 +528,6 @@ namespace RouletteLike.Roulette.Editor
             momentBanner.gameObject.SetActive(false);
             playerClickArea.gameObject.SetActive(false);
             dealerClickArea.gameObject.SetActive(false);
-            playerTag.gameObject.SetActive(false);
-            dealerTag.gameObject.SetActive(false);
             doorPanel.gameObject.SetActive(false);
             playerOuterRingRoot.gameObject.SetActive(false);
             dealerOuterRingRoot.gameObject.SetActive(false);
@@ -841,18 +828,6 @@ namespace RouletteLike.Roulette.Editor
         }
 
         /// <summary>착지 이름표: 칸 이름(크게)과 효과 한 줄. 배경색은 컨트롤러가 칸 종류에 맞춰 바꾼다.</summary>
-        private static RectTransform BuildLandingTag(Transform parent, Vector2 position, TMP_FontAsset font, out TMP_Text title, out TMP_Text effect, out UnityEngine.UI.Image background)
-        {
-            RectTransform tag = AddFramedPanel("LandingTag", parent, position, new Vector2(380f, 54f), PanelLight, Gold, out background, out _);
-            title = AddText("Title", tag, "레이즈 +2", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 11f), new Vector2(360f, 28f));
-            effect = AddText("Effect", tag, "판돈 1 → 3", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -13f), new Vector2(360f, 22f));
-            return tag;
-        }
-
-        /// <summary>
-        /// 바깥 링 룰렛: 안쪽 룰렛 뒤에 겹치는 큰 원판. 안쪽 룰렛(84%로 줄어듦)에 가려지지 않은 테두리 띠에 칸 기호가 보이고,
-        /// 맨 위 작은 포인터가 안쪽 포인터와 같은 12시를 가리킨다. 결과는 코어가 정하고 이 룰렛은 그 칸으로 돌아가 멈춘다(소리 없음).
-        /// </summary>
         private static void BuildOuterRingWheel(RectTransform root, RouletteController controller, RouletteSpinController spin, Font legacyFont, Sprite pointerSprite, float size)
         {
             RectTransform wheel = AddRect("Wheel", root, Vector2.zero, new Vector2(size, size));

@@ -1742,6 +1742,8 @@ namespace RouletteLike.Roulette
             {
                 starts[i] = thrower.position + new Vector3((i % 3 - 1) * 14f, (i % 4) * 8f, 0f);
                 chips[i].position = starts[i];
+                chips[i].sizeDelta = new Vector2(30f, 30f);
+                chips[i].localRotation = Quaternion.Euler(0f, 0f, 45f);
             }
 
             Vector3 end = target.position;
