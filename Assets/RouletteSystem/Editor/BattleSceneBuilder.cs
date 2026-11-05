@@ -37,8 +37,10 @@ namespace RouletteLike.Roulette.Editor
         private static readonly Color Background = new Color32(24, 24, 26, 255);
         private const string SolidSpritePath = "Assets/RouletteSystem/Art/solid-white.png";
         private static readonly Color Felt = new Color32(38, 50, 46, 255);
-        private static readonly Color FloorColor = new Color32(34, 32, 38, 255);
-        private static readonly Color TopBand = new Color32(26, 26, 30, 255);
+        private static readonly Color StageWall = new Color32(30, 24, 36, 255);
+        private static readonly Color StagePanel = new Color32(40, 32, 48, 255);
+        private static readonly Color StageSlot = new Color32(52, 44, 62, 255);
+        private static readonly Color StageCarpet = new Color32(74, 32, 44, 255);
         private static readonly Color StageBackground = new Color32(0, 0, 0, 0);
         private static readonly Color Panel = new Color32(46, 47, 50, 250);
         private static readonly Color PanelInset = new Color32(36, 37, 40, 255);
@@ -107,60 +109,57 @@ namespace RouletteLike.Roulette.Editor
             RectTransform backgroundLayer = AddStretchRect("BackgroundLayer", canvasObject.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             UnityEngine.UI.Image casinoBackground = AddImage("CasinoBackgroundPlaceholder", backgroundLayer, Background);
             Stretch(casinoBackground.rectTransform);
-            // 구역을 세 개로 나눈다(배치 B안 2026-11-03): 위 띠(칩·하우스 룰), 양옆 무대(캐릭터), 가운데 테이블(룰렛·판돈).
-            // 캐릭터와 룰렛이 한 면에 섞여 보이지 않도록 테이블은 테두리 있는 사각형이고, 캐릭터는 그 바깥 바닥에 선다.
-            UnityEngine.UI.Image floorStrip = AddImage("Floor", backgroundLayer, FloorColor);
-            floorStrip.rectTransform.anchorMin = Vector2.zero;
-            floorStrip.rectTransform.anchorMax = new Vector2(1f, 0f);
-            floorStrip.rectTransform.offsetMin = Vector2.zero;
-            floorStrip.rectTransform.offsetMax = new Vector2(0f, 116f);
-            UnityEngine.UI.Image tableFelt = AddImage("TableFelt", backgroundLayer, Felt);
-            tableFelt.rectTransform.anchoredPosition = new Vector2(0f, -58f);
-            tableFelt.rectTransform.sizeDelta = new Vector2(1520f, 844f);
-            AddFrame("TableEdge", tableFelt.transform, DarkGold);
+            // 구도(Peglin 참고, 사용자 결정 2026-11-05): 위 전투 띠에서 두 사람이 같은 바닥에 서서 맞붙고, 아래 보드에서 룰렛을 돌린다.
+            // 차례인 룰렛만 보드에 크게 두고, 상대 룰렛은 주인 뒤에 작게 둔다(WheelStage). 좌표는 화면 중심 기준.
+            UnityEngine.UI.Image tableFelt = AddImage("BoardFelt", backgroundLayer, Felt);
+            tableFelt.rectTransform.anchorMin = Vector2.zero;
+            tableFelt.rectTransform.anchorMax = new Vector2(1f, 0f);
+            tableFelt.rectTransform.offsetMin = Vector2.zero;
+            tableFelt.rectTransform.offsetMax = new Vector2(0f, 740f);
 
-            // ── 위 띠(높이 160): 격투 게임처럼 칩 바가 가운데 VS를 향해 뻗고, 그 아래 가운데에 하우스 룰.
+            // ── 위 전투 띠(높이 340): 임시 도형 배경(벽·슬롯머신·카펫). 최종 그림은 ArtStyleBible을 정한 뒤 교체한다.
             RectTransform battleStage = AddStretchRect(
                 "BattleStage", canvasObject.transform,
                 new Vector2(0f, 1f), Vector2.one,
-                new Vector2(0f, -160f), Vector2.zero);
-            UnityEngine.UI.Image stagePlaceholder = AddImage("BackgroundPlaceholder", battleStage, TopBand);
+                new Vector2(0f, -340f), Vector2.zero);
+            UnityEngine.UI.Image stagePlaceholder = AddImage("BackgroundPlaceholder", battleStage, StageWall);
             Stretch(stagePlaceholder.rectTransform);
+            for (int i = 0; i < 8; i++)
+            {
+                UnityEngine.UI.Image wallPanel = AddImage($"WallPanel{i + 1}", battleStage, StagePanel);
+                wallPanel.rectTransform.anchoredPosition = new Vector2(-840f + i * 240f, 10f);
+                wallPanel.rectTransform.sizeDelta = new Vector2(224f, 202f);
+            }
 
-            // 캐릭터 무대: 테이블 양옆(폭 200). 128px × 3배. 주 무대는 룰렛이므로 캐릭터가 룰렛보다 앞서지 않게 한다.
+            foreach (float slotX in new[] { -840f, -200f, 40f, 840f })
+            {
+                UnityEngine.UI.Image slotBody = AddImage("SlotMachine", battleStage, StageSlot);
+                slotBody.rectTransform.anchoredPosition = new Vector2(slotX, -36f);
+                slotBody.rectTransform.sizeDelta = new Vector2(88f, 112f);
+                UnityEngine.UI.Image slotScreen = AddImage("Screen", slotBody.transform, DarkGold);
+                slotScreen.rectTransform.anchoredPosition = new Vector2(0f, 20f);
+                slotScreen.rectTransform.sizeDelta = new Vector2(64f, 38f);
+            }
+
+            UnityEngine.UI.Image stageCarpet = AddImage("Carpet", battleStage, StageCarpet);
+            stageCarpet.rectTransform.anchoredPosition = new Vector2(0f, -131f);
+            stageCarpet.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            stageCarpet.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+            stageCarpet.rectTransform.sizeDelta = new Vector2(0f, 78f);
+            UnityEngine.UI.Image stageEdge = AddImage("StageEdge", battleStage, DarkGold);
+            stageEdge.rectTransform.anchoredPosition = new Vector2(0f, -170f);
+            stageEdge.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            stageEdge.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+            stageEdge.rectTransform.sizeDelta = new Vector2(0f, 4f);
+
             RectTransform characterStage = AddStretchRect("CharacterStage", canvasObject.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            RectTransform playerArea = AddRect("PlayerArea", battleStage, new Vector2(-500f, 0f), new Vector2(820f, 160f));
             TMP_Text playerChipsText;
-            UnityEngine.UI.Image playerChipsFill = AddChipsWidget("PlayerChips", playerArea, new Vector2(0f, 34f), "손님", Teal, font, out playerChipsText, out _, 820f, false);
-            // 칩 바 아래 한 줄: 왼쪽 현금·NUDGE, 오른쪽 유물 아이콘(가진 것만). 올리면 설명 카드, 누르면 전체 설명.
-            UnityEngine.UI.Button relicStripButton = AddButton("RelicStrip", playerArea, new Vector2(-180f, -14f), new Vector2(440f, 34f), new Color(0f, 0f, 0f, 0f), font, "", 16, out TMP_Text relicStripText);
-            relicStripText.color = Muted;
-            relicStripText.alignment = TextAlignmentOptions.Left;
-            relicStripText.rectTransform.anchoredPosition = new Vector2(-130f, 0f);
-            relicStripText.rectTransform.sizeDelta = new Vector2(180f, 30f);
-            relicStripText.text = "NUDGE 1";
-            relicStripText.enableAutoSizing = true;
-            relicStripText.fontSizeMin = 10f;
-            relicStripText.fontSizeMax = 16f;
-            RelicIconHover[] relicIcons = new RelicIconHover[8];
-            TMP_Text[] relicIconLabels = new TMP_Text[8];
-            UnityEngine.UI.Image[] relicIconImages = new UnityEngine.UI.Image[8];
-            for (int i = 0; i < relicIcons.Length; i++)
-            {
-                relicIconImages[i] = AddImage($"RelicIcon{i + 1}", relicStripButton.transform, new Color32(80, 70, 100, 255));
-                relicIconImages[i].rectTransform.anchoredPosition = new Vector2(-20f + i * 30f, 0f);
-                relicIconImages[i].rectTransform.sizeDelta = new Vector2(28f, 28f);
-                relicIconImages[i].raycastTarget = true;
-                relicIconLabels[i] = AddText("Glyph", relicIconImages[i].transform, "", font, 12, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(28f, 28f));
-                relicIconLabels[i].enableAutoSizing = true;
-                relicIconLabels[i].fontSizeMin = 8f;
-                relicIconLabels[i].fontSizeMax = 13f;
-                relicIcons[i] = relicIconImages[i].gameObject.AddComponent<RelicIconHover>();
-            }
-            // 발끝은 스프라이트 중심에서 -186(바닥에서 1칸 위, 3배). 바닥선(y=-424)보다 조금 아래에 서서 양쪽 발이 같은 높이다.
-            RectTransform playerCharacter = AddRect("PlayerCharacter", characterStage, new Vector2(-860f, -246f), new Vector2(200f, 384f));
-            UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(384f, 384f)); // 128px × 3배(정수 배율)
+            UnityEngine.UI.Image playerChipsFill = AddChipsWidget("PlayerChips", characterStage, new Vector2(-560f, 500f), "손님", Teal, font, out playerChipsText, out _, 360f, false);
+            TMP_Text insuranceText = AddBadge("InsuranceStatus", characterStage, "◆ 보험 0", Teal, font, new Vector2(-665f, 463f), 130f);
+            // 발끝은 스프라이트 중심에서 -124(바닥에서 1칸 위, 2배). 카펫 위 같은 높이에 선다.
+            RectTransform playerCharacter = AddRect("PlayerCharacter", characterStage, new Vector2(-560f, 342f), new Vector2(240f, 240f));
+            UnityEngine.UI.Image businessmanImage = AddSpriteImage("Sprite", playerCharacter, businessmanIdleFrames[0], new Vector2(256f, 256f)); // 128px × 2배(정수 배율)
             businessmanImage.raycastTarget = false;
             CharacterMotion playerMotion = AddCharacterMotion(businessmanImage, 1f);
             AddRect("EffectRoot", playerCharacter, Vector2.zero, new Vector2(170f, 170f));
@@ -171,51 +170,11 @@ namespace RouletteLike.Roulette.Editor
             SetObjectArray(blinkSo.FindProperty("blinkFrames"), businessmanBlinkFrames);
             blinkSo.ApplyModifiedPropertiesWithoutUndo();
 
-            AddText("Versus", battleStage, "VS", font, 40, Accent, TextAlignmentOptions.Center, new Vector2(0f, 24f), new Vector2(120f, 48f));
-            RectTransform centerStage = AddRect("CenterStage", battleStage, Vector2.zero, new Vector2(760f, 160f));
-            RectTransform roundHeader = AddRect("RoundHeader", centerStage, new Vector2(0f, 62f), new Vector2(190f, 24f));
-            TMP_Text roundText = AddText("RoundTitle", roundHeader, "1F · ROUND 1", font, 14, Muted, TextAlignmentOptions.Center, Vector2.zero, new Vector2(190f, 24f));
-            roundText.enableAutoSizing = true;
-            roundText.fontSizeMin = 9f;
-            roundText.fontSizeMax = 14f;
-
-            // 단계 표시는 룰렛 글로우가 대신하므로 숨긴다. BattlePresentationUI 참조를 유지하기 위해 오브젝트는 남긴다.
-            RectTransform phaseIndicator = AddRect("PhaseIndicator", centerStage, new Vector2(0f, 40f), new Vector2(690f, 30f));
-            TMP_Text preparePhase = AddText("Prepare", phaseIndicator, "준비", font, 17, Gold, TextAlignmentOptions.Center, new Vector2(-252f, 0f), new Vector2(116f, 28f));
-            TMP_Text spinPhase = AddText("Spin", phaseIndicator, "회전", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(-85f, 0f), new Vector2(116f, 28f));
-            TMP_Text resolvePhase = AddText("Resolve", phaseIndicator, "결과", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(88f, 0f), new Vector2(116f, 28f));
-            TMP_Text dealerPhase = AddText("Dealer", phaseIndicator, "딜러", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(260f, 0f), new Vector2(116f, 28f));
-            phaseIndicator.gameObject.SetActive(false);
-
-            // 하우스 룰: 윗줄 진행도·이름·상세, 아랫줄 조건, 맨 아래 얇은 진행 막대.
-            RectTransform houseRuleCard = AddFramedPanel("HouseRuleCard", centerStage, new Vector2(0f, -40f), new Vector2(700f, 70f), Panel, DarkGold, out _, out UnityEngine.UI.Image houseRuleFrame);
-            TMP_Text houseRuleProgressText = AddText("ProgressText", houseRuleCard, "0 / 1", font, 18, Gold, TextAlignmentOptions.Left, new Vector2(-250f, 15f), new Vector2(180f, 28f));
-            houseRuleProgressText.textWrappingMode = TextWrappingModes.NoWrap;
-            TMP_Text houseRuleTitleText = AddText("Title", houseRuleCard, "하우스 룰  ·  전액 보장", font, 18, Gold, TextAlignmentOptions.Center, new Vector2(0f, 15f), new Vector2(320f, 28f));
-            UnityEngine.UI.Button houseRuleInfoButton = AddButton("InfoButton", houseRuleCard, new Vector2(308f, 15f), new Vector2(68f, 28f), PanelLight, font, "상세", 14, out _);
-            TMP_Text houseRuleDescriptionText = AddText("Description", houseRuleCard, "딜러의 CASH OUT을 보험으로 전부 막기  →  칸 1개 HIJACK", font, 16, Ink, TextAlignmentOptions.Center, new Vector2(0f, -13f), new Vector2(680f, 26f));
-            houseRuleDescriptionText.enableAutoSizing = true;
-            houseRuleDescriptionText.fontSizeMin = 11f;
-            houseRuleDescriptionText.fontSizeMax = 16f;
-            UnityEngine.UI.Image houseRuleTrack = AddImage("ProgressBar", houseRuleCard, new Color32(66, 59, 78, 255));
-            houseRuleTrack.rectTransform.anchoredPosition = new Vector2(0f, -31f);
-            houseRuleTrack.rectTransform.sizeDelta = new Vector2(684f, 4f);
-            UnityEngine.UI.Image houseRuleFill = AddImage("ProgressFill", houseRuleTrack.transform, Gold);
-            ConfigureFill(houseRuleFill, 0f);
-            AddRect("EffectRoot", houseRuleCard, Vector2.zero, new Vector2(700f, 70f));
-
-            RectTransform dealerArea = AddRect("DealerArea", battleStage, new Vector2(500f, 0f), new Vector2(820f, 160f));
             TMP_Text dealerChipsText;
-            UnityEngine.UI.Image dealerChipsFill = AddChipsWidget("DealerChips", dealerArea, new Vector2(0f, 34f), "토끼 딜러", Red, font, out dealerChipsText, out TMP_Text dealerNameText, 820f, true);
-            // 성향: 딜러 칩 바 아래 한 줄(손님 쪽 현금·NUDGE와 대칭).
-            TMP_Text enemyNextIntentText = AddText("DealerIntent", dealerArea, "판돈 5+에서 CASH OUT", font, 16, Muted, TextAlignmentOptions.Right, new Vector2(130f, -14f), new Vector2(540f, 30f));
-            enemyNextIntentText.textWrappingMode = TextWrappingModes.NoWrap;
-            enemyNextIntentText.enableAutoSizing = true;
-            enemyNextIntentText.fontSizeMin = 11f;
-            enemyNextIntentText.fontSizeMax = 16f;
-            // 발끝을 손님과 맞춤: 둘 다 128px × 3배.
-            RectTransform dealerCharacter = AddRect("DealerCharacter", characterStage, new Vector2(860f, -246f), new Vector2(200f, 384f));
-            UnityEngine.UI.Image rabbitImage = AddSpriteImage("Sprite", dealerCharacter, rabbitSprite, new Vector2(384f, 384f)); // 128px × 3배(정수 배율)
+            UnityEngine.UI.Image dealerChipsFill = AddChipsWidget("DealerChips", characterStage, new Vector2(560f, 500f), "토끼 딜러", Red, font, out dealerChipsText, out TMP_Text dealerNameText, 360f, true);
+            TMP_Text dealerInsuranceText = AddBadge("DealerInsuranceStatus", characterStage, "◆ 보험 0", Teal, font, new Vector2(665f, 463f), 130f);
+            RectTransform dealerCharacter = AddRect("DealerCharacter", characterStage, new Vector2(560f, 342f), new Vector2(240f, 240f));
+            UnityEngine.UI.Image rabbitImage = AddSpriteImage("Sprite", dealerCharacter, rabbitSprite, new Vector2(256f, 256f)); // 128px × 2배(정수 배율)
             rabbitImage.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
             rabbitImage.raycastTarget = false;
             CharacterMotion dealerMotion = AddCharacterMotion(rabbitImage, -1f);
@@ -224,54 +183,56 @@ namespace RouletteLike.Roulette.Editor
             dealerAnimatorSo.FindProperty("targetImage").objectReferenceValue = rabbitImage;
             dealerAnimatorSo.ApplyModifiedPropertiesWithoutUndo();
             AddRect("EffectRoot", dealerCharacter, Vector2.zero, new Vector2(170f, 170f));
-            // 딜러 한마디: 딜러 룰렛 바로 아래의 가로로 긴 창. 딜러 무대 옆이라 누가 말하는지 보이고, 줄이 길어 대사가 한눈에 읽힌다.
-            RectTransform dealerLineBubble = AddPanel("DealerLineBubble", characterStage, new Vector2(465f, -385f), new Vector2(510f, 84f), new Color32(232, 232, 228, 255));
-            TMP_Text dealerLineText = AddText("DealerLine", dealerLineBubble, "어서오세요, 첫 손님이시네요.", font, 20, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(486f, 72f));
-            dealerLineText.enableAutoSizing = true;
-            dealerLineText.fontSizeMin = 14f;
-            dealerLineText.fontSizeMax = 20f;
-            RectTransform openingSpeechBubble = AddFramedPanel("DialogueBubble", characterStage, new Vector2(465f, -385f), new Vector2(510f, 84f), new Color32(239, 235, 225, 255), DarkGold, out _, out _);
-            TMP_Text openingSpeechText = AddText("Text", openingSpeechBubble, "걸고, 돌리고, 적당할 때 터뜨리세요.\n보험으로 제 정산을 막으면 칸을 드려요.", font, 18, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(486f, 72f));
-            openingSpeechText.enableAutoSizing = true;
-            openingSpeechText.fontSizeMin = 14f;
-            openingSpeechText.fontSizeMax = 18f;
-            AddRect("AnimationRoot", openingSpeechBubble, Vector2.zero, new Vector2(510f, 84f));
 
-            // ── 테이블: 내 룰렛 | 판돈 | 딜러 룰렛, 맨 아래 사건 띠. 좌표는 화면 중심 기준.
+            // 딜러 한마디: 딜러 앞의 가로로 긴 말풍선. 꼬리가 딜러를 가리킨다.
+            RectTransform dealerLineBubble = AddPanel("DealerLineBubble", characterStage, new Vector2(250f, 350f), new Vector2(380f, 88f), new Color32(232, 232, 228, 255));
+            AddBubbleTail(dealerLineBubble, new Color32(232, 232, 228, 255));
+            TMP_Text dealerLineText = AddText("DealerLine", dealerLineBubble, "어서오세요, 첫 손님이시네요.", font, 18, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(356f, 76f));
+            dealerLineText.enableAutoSizing = true;
+            dealerLineText.fontSizeMin = 13f;
+            dealerLineText.fontSizeMax = 18f;
+            RectTransform openingSpeechBubble = AddFramedPanel("DialogueBubble", characterStage, new Vector2(250f, 350f), new Vector2(380f, 88f), new Color32(239, 235, 225, 255), DarkGold, out _, out _);
+            TMP_Text openingSpeechText = AddText("Text", openingSpeechBubble, "걸고, 돌리고, 적당할 때 터뜨리세요.\n보험으로 제 정산을 막으면 칸을 드려요.", font, 16, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(356f, 76f));
+            openingSpeechText.enableAutoSizing = true;
+            openingSpeechText.fontSizeMin = 13f;
+            openingSpeechText.fontSizeMax = 16f;
+            AddRect("AnimationRoot", openingSpeechBubble, Vector2.zero, new Vector2(380f, 88f));
+
+            // ── 아래 보드: 왼쪽 기둥(판돈·조작) | 룰렛 | 오른쪽 기둥(하우스 룰·성향·기록).
             RectTransform mainGameArea = AddStretchRect("MainGameArea", canvasObject.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             mainGameArea.SetSiblingIndex(characterStage.GetSiblingIndex());
 
-            RectTransform playerPanel = AddRect("PlayerRoulettePanel", mainGameArea, new Vector2(-465f, -80f), new Vector2(640f, 760f));
-            AddText("Header", playerPanel, "내 룰렛", font, 18, Muted, TextAlignmentOptions.Center, new Vector2(0f, 352f), new Vector2(560f, 36f)).gameObject.SetActive(false);
-            RectTransform playerRouletteContainer = AddRect("RouletteContainer", playerPanel, new Vector2(0f, 10f), new Vector2(620f, 620f));
-            UnityEngine.UI.Image playerGlow = AddGlow("ActiveGlow", playerRouletteContainer, new Color32(226, 170, 64, 70), new Vector2(580f, 580f));
+            // 두 룰렛은 같은 크기로 만들고 WheelStage가 자리와 배율을 바꾼다. 안내 글은 숨기되 컨트롤러 참조를 유지한다.
+            RectTransform playerPanel = AddRect("PlayerRoulettePanel", mainGameArea, Vector2.zero, new Vector2(640f, 100f));
+            RectTransform playerRouletteContainer = AddRect("PlayerRouletteContainer", mainGameArea, new Vector2(0f, -175f), new Vector2(700f, 700f));
+            UnityEngine.UI.Image playerGlow = AddGlow("ActiveGlow", playerRouletteContainer, new Color32(226, 170, 64, 70), new Vector2(700f, 700f));
             // 바깥 링: 안쪽 룰렛 뒤에 겹친 큰 룰렛. 바깥 링이 있으면 안쪽 룰렛이 줄어들어 바깥 띠만 보인다(같은 포인터 아래).
-            RectTransform playerOuterRingRoot = AddRect("OuterRingWheel", playerRouletteContainer, Vector2.zero, new Vector2(580f, 580f));
+            RectTransform playerOuterRingRoot = AddRect("OuterRingWheel", playerRouletteContainer, Vector2.zero, new Vector2(650f, 650f));
             RouletteController playerOuterRoulette = playerOuterRingRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController playerOuterSpin = playerOuterRingRoot.gameObject.AddComponent<RouletteSpinController>();
-            BuildOuterRingWheel(playerOuterRingRoot, playerOuterRoulette, playerOuterSpin, legacyFont, pointerSprite, 580f);
-            RectTransform rouletteRoot = AddRect("ExistingPlayerRoulette", playerRouletteContainer, Vector2.zero, new Vector2(580f, 580f));
+            BuildOuterRingWheel(playerOuterRingRoot, playerOuterRoulette, playerOuterSpin, legacyFont, pointerSprite, 650f);
+            RectTransform rouletteRoot = AddRect("ExistingPlayerRoulette", playerRouletteContainer, Vector2.zero, new Vector2(650f, 650f));
             RouletteController roulette = rouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController spin = rouletteRoot.gameObject.AddComponent<RouletteSpinController>();
             BuildRoulette(rouletteRoot, roulette, spin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteTick, rouletteStop, false);
-            RouletteClickArea playerClickArea = AddClickArea(rouletteRoot, roulette, 530f);
+            RouletteClickArea playerClickArea = AddClickArea(rouletteRoot, roulette, 650f);
 
             // SPIN 버튼을 룰렛 중앙에 둔다. 회전하는 Wheel이 아니라 고정된 루트의 자식이라 함께 돌지 않는다.
             // 버튼 둘레의 원형 게이지가 누르고 있는 동안의 회전 강도를 보여준다.
             Sprite knobSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-            RectTransform spinCenter = AddRect("SpinCenter", rouletteRoot, Vector2.zero, new Vector2(170f, 170f));
+            RectTransform spinCenter = AddRect("SpinCenter", rouletteRoot, Vector2.zero, new Vector2(200f, 200f));
             UnityEngine.UI.Image powerTrack = AddImage("PowerRingTrack", spinCenter, new Color32(40, 34, 52, 255));
             powerTrack.sprite = knobSprite;
-            powerTrack.rectTransform.sizeDelta = new Vector2(170f, 170f);
+            powerTrack.rectTransform.sizeDelta = new Vector2(200f, 200f);
             UnityEngine.UI.Image powerFill = AddImage("PowerRingFill", spinCenter, Accent);
             powerFill.sprite = knobSprite;
-            powerFill.rectTransform.sizeDelta = new Vector2(170f, 170f);
+            powerFill.rectTransform.sizeDelta = new Vector2(200f, 200f);
             powerFill.type = UnityEngine.UI.Image.Type.Filled;
             powerFill.fillMethod = UnityEngine.UI.Image.FillMethod.Radial360;
             powerFill.fillOrigin = (int)UnityEngine.UI.Image.Origin360.Top;
             powerFill.fillClockwise = true;
             powerFill.fillAmount = 0.08f;
-            UnityEngine.UI.Button throwButton = AddButton("SpinButton", spinCenter, Vector2.zero, new Vector2(140f, 140f), Accent, font, "길게 눌러\nSPIN", 20, out TMP_Text throwLabel);
+            UnityEngine.UI.Button throwButton = AddButton("SpinButton", spinCenter, Vector2.zero, new Vector2(166f, 166f), Accent, font, "길게 눌러\nSPIN", 24, out TMP_Text throwLabel);
             throwLabel.color = Background;
             UnityEngine.UI.Image throwImage = throwButton.GetComponent<UnityEngine.UI.Image>();
             if (knobSprite != null)
@@ -281,80 +242,157 @@ namespace RouletteLike.Roulette.Editor
             }
             spinCenter.SetAsLastSibling();
 
-            AddRect("EffectRoot", playerRouletteContainer, Vector2.zero, new Vector2(620f, 620f));
-            // 룰렛 아래 안내: 특수 칸이 있으면 효과 설명, 없으면 칸 배치 안내(두 줄까지).
-            // 평소에는 숨기고 하우스 룰 상세에서 보여 준다(컨트롤러 참조 유지를 위해 오브젝트는 남긴다).
-            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "칸은 하나씩 발동", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
+            AddRect("EffectRoot", playerRouletteContainer, Vector2.zero, new Vector2(700f, 700f));
+            TMP_Text chainPreviewText = AddText("ChainPreview", playerPanel, "칸은 하나씩 발동", font, 14, Muted, TextAlignmentOptions.Center, Vector2.zero, new Vector2(600f, 46f));
             chainPreviewText.gameObject.SetActive(false);
 
-            // ── 가운데 "테이블": 판돈이 쌓이는 곳. 결과 → 계산식 → 칩 더미 → 판돈 → 보험 → 확률 → 베팅 → CASH OUT → 딜러 한마디.
-            RectTransform centerPanel = AddRect("CenterPanel", mainGameArea, new Vector2(0f, -70f), new Vector2(360f, 760f));
-            // 테이블은 숫자 위주로: 한 줄 결과 → 판돈 흐름(이번 턴에 판돈이 어떻게 커졌는지) → 칩 더미·큰 판돈. 긴 계산식은 전체 기록에만 남긴다.
-            TMP_Text instructionText = AddText("GuideText", centerPanel, "", font, 14, Ink, TextAlignmentOptions.Center, new Vector2(0f, -300f), new Vector2(360f, 60f));
-            TMP_Text powerPreviewText = AddText("PowerPreview", centerPanel, "", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 290f), new Vector2(440f, 22f));
+            // ── 왼쪽 기둥: 결과 → 판돈 흐름 → 칩 더미 → 판돈 → 확률 → 베팅 → CASH OUT. 착지 바로 옆에서 판단한다.
+            RectTransform centerPanel = AddRect("CenterPanel", mainGameArea, new Vector2(-730f, 0f), new Vector2(380f, 760f));
+            TMP_Text instructionText = AddText("GuideText", centerPanel, "", font, 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, -360f), new Vector2(380f, 60f));
+            TMP_Text powerPreviewText = AddText("PowerPreview", centerPanel, "", font, 13, Muted, TextAlignmentOptions.Center, new Vector2(0f, 290f), new Vector2(380f, 22f));
             powerPreviewText.gameObject.SetActive(false);
-            TMP_Text resultText = AddText("MainInstruction", centerPanel, "코인플립으로 선공을 정합니다", font, 24, Ink, TextAlignmentOptions.Center, new Vector2(0f, 306f), new Vector2(360f, 36f));
+            TMP_Text resultText = AddText("MainInstruction", centerPanel, "코인플립으로 선공을 정합니다", font, 24, Ink, TextAlignmentOptions.Center, new Vector2(0f, 125f), new Vector2(380f, 36f));
             resultText.enableAutoSizing = true;
             resultText.fontSizeMin = 16f;
             resultText.fontSizeMax = 24f;
-            TMP_Text potTrailText = AddText("PotTrail", centerPanel, "", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 240f), new Vector2(360f, 84f));
+            TMP_Text potTrailText = AddText("PotTrail", centerPanel, "", font, 20, Ink, TextAlignmentOptions.Center, new Vector2(0f, 85f), new Vector2(380f, 54f));
             potTrailText.richText = true;
             potTrailText.enableAutoSizing = true;
-            potTrailText.fontSizeMin = 15f;
-            potTrailText.fontSizeMax = 22f;
-            TMP_Text calculationText = AddText("Description", centerPanel, "", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, 206f), new Vector2(450f, 50f));
+            potTrailText.fontSizeMin = 14f;
+            potTrailText.fontSizeMax = 20f;
+            TMP_Text calculationText = AddText("Description", centerPanel, "", font, 15, Muted, TextAlignmentOptions.Center, new Vector2(0f, 206f), new Vector2(380f, 50f));
             calculationText.gameObject.SetActive(false);
-            UnityEngine.UI.Image[] potChips = BuildPotChipStack(centerPanel, new Vector2(0f, 150f));
-            TMP_Text potText = AddText("PotValue", centerPanel, "판돈 0", font, 72, Accent, TextAlignmentOptions.Center, new Vector2(0f, 62f), new Vector2(360f, 84f));
+            UnityEngine.UI.Image[] potChips = BuildPotChipStack(centerPanel, new Vector2(0f, 42f));
+            TMP_Text potText = AddText("PotValue", centerPanel, "판돈 0", font, 72, Accent, TextAlignmentOptions.Center, new Vector2(0f, -45f), new Vector2(380f, 84f));
             potText.enableAutoSizing = true;
             potText.fontSizeMin = 40f;
             potText.fontSizeMax = 72f;
-            TMP_Text insuranceText = AddBadge("InsuranceStatus", centerPanel, "내 보험 0", Teal, font, new Vector2(0f, 6f), 340f);
-            TMP_Text riskSummaryText = AddText("RiskSummary", centerPanel, "다음 SPIN 몰수 확률 12.5%", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -42f), new Vector2(360f, 44f));
-            RectTransform betControls = AddRect("BetControls", centerPanel, new Vector2(0f, -100f), new Vector2(340f, 52f));
-            UnityEngine.UI.Button anteDownButton = AddButton("AnteDown", betControls, new Vector2(-140f, 0f), new Vector2(52f, 48f), PanelLight, font, "−", 26, out _);
-            TMP_Text anteText = AddText("AnteText", betControls, "베팅 1", font, 17, Ink, TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(210f, 48f));
-            UnityEngine.UI.Button anteUpButton = AddButton("AnteUp", betControls, new Vector2(140f, 0f), new Vector2(52f, 48f), PanelLight, font, "+", 26, out _);
-            UnityEngine.UI.Button cashOutButton = AddButton("CashOutButton", centerPanel, new Vector2(0f, -186f), new Vector2(340f, 96f), Accent, font, "CASH OUT", 28, out TMP_Text cashOutLabel);
+            TMP_Text riskSummaryText = AddText("RiskSummary", centerPanel, "다음 SPIN 몰수 확률 12.5%", font, 16, Gold, TextAlignmentOptions.Center, new Vector2(0f, -110f), new Vector2(380f, 40f));
+            RectTransform betControls = AddRect("BetControls", centerPanel, new Vector2(0f, -160f), new Vector2(380f, 52f));
+            UnityEngine.UI.Button anteDownButton = AddButton("AnteDown", betControls, new Vector2(-162f, 0f), new Vector2(56f, 50f), PanelLight, font, "−", 26, out _);
+            TMP_Text anteText = AddText("AnteText", betControls, "베팅 1", font, 17, Ink, TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(250f, 48f));
+            UnityEngine.UI.Button anteUpButton = AddButton("AnteUp", betControls, new Vector2(162f, 0f), new Vector2(56f, 50f), PanelLight, font, "+", 26, out _);
+            UnityEngine.UI.Button cashOutButton = AddButton("CashOutButton", centerPanel, new Vector2(0f, -250f), new Vector2(380f, 120f), Accent, font, "CASH OUT", 32, out TMP_Text cashOutLabel);
             cashOutLabel.color = Background;
 
-            RectTransform dealerPanel = AddRect("DealerRoulettePanel", mainGameArea, new Vector2(465f, -60f), new Vector2(640f, 760f));
-            TMP_Text dealerHeaderText = AddText("Header", dealerPanel, "상대 룰렛 · 토끼 딜러", font, 18, Muted, TextAlignmentOptions.Center, new Vector2(0f, 352f), new Vector2(580f, 36f));
+            // 유물·현금·NUDGE: 왼쪽 기둥 아래. 아이콘에 올리면 설명 카드, 누르면 전체 설명(글은 필요할 때만).
+            UnityEngine.UI.Button relicStripButton = AddButton("RelicStrip", centerPanel, new Vector2(0f, -445f), new Vector2(380f, 70f), new Color(0f, 0f, 0f, 0f), font, "", 16, out TMP_Text relicStripText);
+            relicStripText.color = Muted;
+            relicStripText.alignment = TextAlignmentOptions.Left;
+            relicStripText.rectTransform.anchoredPosition = new Vector2(0f, 18f);
+            relicStripText.rectTransform.sizeDelta = new Vector2(380f, 28f);
+            relicStripText.text = "NUDGE 1";
+            relicStripText.enableAutoSizing = true;
+            relicStripText.fontSizeMin = 10f;
+            relicStripText.fontSizeMax = 16f;
+            RelicIconHover[] relicIcons = new RelicIconHover[8];
+            TMP_Text[] relicIconLabels = new TMP_Text[8];
+            UnityEngine.UI.Image[] relicIconImages = new UnityEngine.UI.Image[8];
+            for (int i = 0; i < relicIcons.Length; i++)
+            {
+                relicIconImages[i] = AddImage($"RelicIcon{i + 1}", relicStripButton.transform, new Color32(80, 70, 100, 255));
+                relicIconImages[i].rectTransform.anchoredPosition = new Vector2(-176f + i * 32f, -16f);
+                relicIconImages[i].rectTransform.sizeDelta = new Vector2(28f, 28f);
+                relicIconImages[i].raycastTarget = true;
+                relicIconLabels[i] = AddText("Glyph", relicIconImages[i].transform, "", font, 12, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(28f, 28f));
+                relicIconLabels[i].enableAutoSizing = true;
+                relicIconLabels[i].fontSizeMin = 8f;
+                relicIconLabels[i].fontSizeMax = 13f;
+                relicIcons[i] = relicIconImages[i].gameObject.AddComponent<RelicIconHover>();
+            }
+
+            TMP_Text roundText = AddText("RoundTitle", centerPanel, "1F · ROUND 1", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(0f, -510f), new Vector2(380f, 26f));
+            roundText.enableAutoSizing = true;
+            roundText.fontSizeMin = 10f;
+            roundText.fontSizeMax = 15f;
+
+            // 단계 표시는 룰렛 글로우가 대신하므로 숨긴다. BattlePresentationUI 참조를 유지하기 위해 오브젝트는 남긴다.
+            RectTransform phaseIndicator = AddRect("PhaseIndicator", centerPanel, Vector2.zero, new Vector2(380f, 30f));
+            TMP_Text preparePhase = AddText("Prepare", phaseIndicator, "준비", font, 17, Gold, TextAlignmentOptions.Center, new Vector2(-252f, 0f), new Vector2(116f, 28f));
+            TMP_Text spinPhase = AddText("Spin", phaseIndicator, "회전", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(-85f, 0f), new Vector2(116f, 28f));
+            TMP_Text resolvePhase = AddText("Resolve", phaseIndicator, "결과", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(88f, 0f), new Vector2(116f, 28f));
+            TMP_Text dealerPhase = AddText("Dealer", phaseIndicator, "딜러", font, 17, Muted, TextAlignmentOptions.Center, new Vector2(260f, 0f), new Vector2(116f, 28f));
+            phaseIndicator.gameObject.SetActive(false);
+
+            RectTransform dealerPanel = AddRect("DealerRoulettePanel", mainGameArea, Vector2.zero, new Vector2(640f, 100f));
+            TMP_Text dealerHeaderText = AddText("Header", dealerPanel, "상대 룰렛 · 토끼 딜러", font, 18, Muted, TextAlignmentOptions.Center, Vector2.zero, new Vector2(580f, 36f));
             dealerHeaderText.gameObject.SetActive(false);
-            RectTransform dealerRouletteContainer = AddRect("RouletteContainer", dealerPanel, new Vector2(0f, -10f), new Vector2(560f, 560f));
-            UnityEngine.UI.Image dealerGlow = AddGlow("ActiveGlow", dealerRouletteContainer, new Color32(226, 170, 64, 70), new Vector2(550f, 550f));
-            RectTransform dealerOuterRingRoot = AddRect("OuterRingWheel", dealerRouletteContainer, Vector2.zero, new Vector2(550f, 550f));
+            RectTransform dealerRouletteContainer = AddRect("DealerRouletteContainer", mainGameArea, new Vector2(790f, 360f), new Vector2(700f, 700f));
+            dealerRouletteContainer.localScale = Vector3.one * 0.34f;
+            UnityEngine.UI.Image dealerGlow = AddGlow("ActiveGlow", dealerRouletteContainer, new Color32(226, 170, 64, 70), new Vector2(700f, 700f));
+            RectTransform dealerOuterRingRoot = AddRect("OuterRingWheel", dealerRouletteContainer, Vector2.zero, new Vector2(650f, 650f));
             RouletteController dealerOuterRoulette = dealerOuterRingRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController dealerOuterSpin = dealerOuterRingRoot.gameObject.AddComponent<RouletteSpinController>();
-            BuildOuterRingWheel(dealerOuterRingRoot, dealerOuterRoulette, dealerOuterSpin, legacyFont, pointerSprite, 550f);
-            RectTransform enemyRouletteRoot = AddRect("ExistingDealerRoulette", dealerRouletteContainer, Vector2.zero, new Vector2(530f, 530f));
+            BuildOuterRingWheel(dealerOuterRingRoot, dealerOuterRoulette, dealerOuterSpin, legacyFont, pointerSprite, 650f);
+            RectTransform enemyRouletteRoot = AddRect("ExistingDealerRoulette", dealerRouletteContainer, Vector2.zero, new Vector2(650f, 650f));
             RouletteController enemyRoulette = enemyRouletteRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController enemySpin = enemyRouletteRoot.gameObject.AddComponent<RouletteSpinController>();
             BuildRoulette(enemyRouletteRoot, enemyRoulette, enemySpin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteTick, rouletteStop, true);
-            RouletteClickArea dealerClickArea = AddClickArea(enemyRouletteRoot, enemyRoulette, 500f);
-            AddRect("EffectRoot", dealerRouletteContainer, Vector2.zero, new Vector2(560f, 560f));
+            RouletteClickArea dealerClickArea = AddClickArea(enemyRouletteRoot, enemyRoulette, 650f);
 
-            // ── 사건 띠: 테이블 맨 아래, 방금 일어난 일 하나만. 누르면 전체 기록이 펼쳐진다.
-            RectTransform eventStrip = AddRect("EventStrip", mainGameArea, new Vector2(0f, -452f), new Vector2(1460f, 36f));
-            AddText("Icon", eventStrip, "LOG", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(-700f, 0f), new Vector2(60f, 30f));
-            TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(-40f, 0f), new Vector2(1260f, 32f));
-            // 투명 버튼, 속도 버튼보다 아래.
+            // 딜러 룰렛 가운데: 내 SPIN 버튼과 같은 모양의 표시판. 누를 수는 없고 누구 룰렛인지 보여 준다.
+            RectTransform dealerCenter = AddRect("DealerCenter", enemyRouletteRoot, Vector2.zero, new Vector2(200f, 200f));
+            UnityEngine.UI.Image dealerCenterTrack = AddImage("Track", dealerCenter, new Color32(40, 34, 52, 255));
+            dealerCenterTrack.sprite = knobSprite;
+            dealerCenterTrack.rectTransform.sizeDelta = new Vector2(200f, 200f);
+            UnityEngine.UI.Image dealerCenterFace = AddImage("Face", dealerCenter, new Color32(150, 50, 56, 255));
+            dealerCenterFace.sprite = knobSprite;
+            dealerCenterFace.rectTransform.sizeDelta = new Vector2(166f, 166f);
+            TMP_Text dealerWheelLabel = AddText("Label", dealerCenter, "딜러", font, 28, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(150f, 80f));
+            dealerWheelLabel.enableAutoSizing = true;
+            dealerWheelLabel.fontSizeMin = 16f;
+            dealerWheelLabel.fontSizeMax = 28f;
+            dealerCenter.SetAsLastSibling();
+            AddRect("EffectRoot", dealerRouletteContainer, Vector2.zero, new Vector2(700f, 700f));
+
+            WheelStage wheelStage = mainGameArea.gameObject.AddComponent<WheelStage>();
+            SerializedObject wheelStageSo = new SerializedObject(wheelStage);
+            wheelStageSo.FindProperty("playerWheel").objectReferenceValue = playerRouletteContainer;
+            wheelStageSo.FindProperty("dealerWheel").objectReferenceValue = dealerRouletteContainer;
+            wheelStageSo.ApplyModifiedPropertiesWithoutUndo();
+
+            // ── 오른쪽 기둥: 하우스 룰, 딜러 성향, 최근 사건.
+            RectTransform houseRuleCard = AddFramedPanel("HouseRuleCard", mainGameArea, new Vector2(730f, 80f), new Vector2(380f, 130f), Panel, DarkGold, out _, out UnityEngine.UI.Image houseRuleFrame);
+            TMP_Text houseRuleProgressText = AddText("ProgressText", houseRuleCard, "0 / 1", font, 18, Gold, TextAlignmentOptions.Left, new Vector2(-92f, 42f), new Vector2(180f, 28f));
+            houseRuleProgressText.textWrappingMode = TextWrappingModes.NoWrap;
+            TMP_Text houseRuleTitleText = AddText("Title", houseRuleCard, "하우스 룰  ·  전액 보장", font, 17, Gold, TextAlignmentOptions.Right, new Vector2(40f, 42f), new Vector2(280f, 28f));
+            houseRuleTitleText.enableAutoSizing = true;
+            houseRuleTitleText.fontSizeMin = 12f;
+            houseRuleTitleText.fontSizeMax = 17f;
+            TMP_Text houseRuleDescriptionText = AddText("Description", houseRuleCard, "딜러의 CASH OUT을 보험으로 전부 막기  →  칸 1개 HIJACK", font, 16, Ink, TextAlignmentOptions.Center, new Vector2(0f, -8f), new Vector2(360f, 62f));
+            houseRuleDescriptionText.enableAutoSizing = true;
+            houseRuleDescriptionText.fontSizeMin = 11f;
+            houseRuleDescriptionText.fontSizeMax = 16f;
+            UnityEngine.UI.Image houseRuleTrack = AddImage("ProgressBar", houseRuleCard, new Color32(66, 59, 78, 255));
+            houseRuleTrack.rectTransform.anchoredPosition = new Vector2(0f, -56f);
+            houseRuleTrack.rectTransform.sizeDelta = new Vector2(364f, 4f);
+            UnityEngine.UI.Image houseRuleFill = AddImage("ProgressFill", houseRuleTrack.transform, Gold);
+            ConfigureFill(houseRuleFill, 0f);
+            AddRect("EffectRoot", houseRuleCard, Vector2.zero, new Vector2(380f, 130f));
+            UnityEngine.UI.Button houseRuleInfoButton = AddButton("InfoButton", houseRuleCard, new Vector2(156f, -83f), new Vector2(68f, 28f), PanelLight, font, "상세", 14, out _);
+            TMP_Text enemyNextIntentText = AddText("DealerIntent", mainGameArea, "판돈 5+에서 CASH OUT", font, 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(730f, -50f), new Vector2(380f, 44f));
+            enemyNextIntentText.enableAutoSizing = true;
+            enemyNextIntentText.fontSizeMin = 11f;
+            enemyNextIntentText.fontSizeMax = 15f;
+
+            // 사건 띠를 누르면 전체 전투 기록이 펼쳐진다(투명 버튼, 속도 버튼보다 아래).
+            RectTransform eventStrip = AddRect("EventStrip", mainGameArea, new Vector2(730f, -190f), new Vector2(380f, 220f));
+            AddText("Icon", eventStrip, "LOG", font, 14, Muted, TextAlignmentOptions.Left, new Vector2(0f, 98f), new Vector2(380f, 24f));
+            TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(0f, -12f), new Vector2(380f, 196f));
             UnityEngine.UI.Image logButtonImage = AddImage("LogButton", eventStrip, new Color(0f, 0f, 0f, 0f));
-            logButtonImage.rectTransform.sizeDelta = new Vector2(1340f, 36f);
-            logButtonImage.rectTransform.anchoredPosition = new Vector2(-60f, 0f);
+            logButtonImage.rectTransform.sizeDelta = new Vector2(380f, 220f);
             logButtonImage.raycastTarget = true;
             UnityEngine.UI.Button logButton = logButtonImage.gameObject.AddComponent<UnityEngine.UI.Button>();
-            UnityEngine.UI.Button tempoButton = AddButton("TempoButton", eventStrip, new Vector2(675f, 0f), new Vector2(110f, 32f), PanelLight, font, "속도 ×1", 15, out TMP_Text tempoLabel);
-            combatLogText.textWrappingMode = TextWrappingModes.NoWrap;
-            combatLogText.overflowMode = TextOverflowModes.Ellipsis;
+            UnityEngine.UI.Button tempoButton = AddButton("TempoButton", mainGameArea, new Vector2(865f, -496f), new Vector2(110f, 32f), PanelLight, font, "속도 ×1", 15, out TMP_Text tempoLabel);
+            combatLogText.overflowMode = TextOverflowModes.Truncate;
 
             // HIJACK 안내 띠: 룰렛 위에서 직접 칸을 고르는 동안 테이블 위쪽을 덮는다.
-            RectTransform hijackBar = AddFramedPanel("HijackBar", centerPanel, new Vector2(0f, 250f), new Vector2(380f, 200f), new Color32(30, 25, 39, 255), Accent, out _, out _);
+            RectTransform hijackBar = AddFramedPanel("HijackBar", centerPanel, new Vector2(0f, 35f), new Vector2(380f, 230f), new Color32(30, 25, 39, 255), Accent, out _, out _);
             TMP_Text hijackBarTitle = AddText("Title", hijackBar, "HOUSE RULE CLEAR · HIJACK", font, 20, Accent, TextAlignmentOptions.Center, new Vector2(0f, 72f), new Vector2(360f, 32f));
             TMP_Text hijackBarText = AddText("Instruction", hijackBar, "딜러 룰렛에서 빼앗을 칸을 클릭하세요", font, 16, Ink, TextAlignmentOptions.Center, new Vector2(0f, -12f), new Vector2(360f, 140f));
 
             // NUDGE 선택 띠: 몰수에 걸렸을 때 테이블 위쪽을 덮는다(룰렛을 옆 칸으로 밀기 / 그대로).
-            RectTransform nudgeBar = AddFramedPanel("NudgeBar", centerPanel, new Vector2(0f, 250f), new Vector2(380f, 200f), new Color32(48, 30, 32, 255), Danger, out _, out _);
+            RectTransform nudgeBar = AddFramedPanel("NudgeBar", centerPanel, new Vector2(0f, 35f), new Vector2(380f, 230f), new Color32(48, 30, 32, 255), Danger, out _, out _);
             TMP_Text nudgeBarTitle = AddText("Title", nudgeBar, "몰수!  NUDGE?", font, 24, Danger, TextAlignmentOptions.Center, new Vector2(0f, 70f), new Vector2(360f, 34f));
             TMP_Text nudgeBarText = AddText("Text", nudgeBar, "옆 칸으로 밀면 그 칸이 대신 발동합니다", font, 14, Ink, TextAlignmentOptions.Center, new Vector2(0f, 36f), new Vector2(360f, 26f));
             UnityEngine.UI.Button nudgeLeftButton = AddButton("NudgeLeft", nudgeBar, new Vector2(-122f, -20f), new Vector2(116f, 64f), PanelLight, font, "◀ 레이즈 +2", 14, out TMP_Text nudgeLeftLabel);
@@ -379,7 +417,7 @@ namespace RouletteLike.Roulette.Editor
 
             RectTransform houseRuleOverlay = BuildHouseRuleOverlay(canvasObject.transform, font, out UnityEngine.UI.Button houseRuleInfoCloseButton, out TMP_Text houseRuleDetailProgressText, out TMP_Text[] houseRuleDetailTexts);
             // 역탈취 경고 + 딜러 특수 칸 효과: 평소에는 숨기고 하우스 룰 상세에서 보여 준다.
-            TMP_Text dealerNoteText = AddText("DealerNote", dealerPanel, "", font, 14, Muted, TextAlignmentOptions.Center, new Vector2(0f, -347f), new Vector2(600f, 46f));
+            TMP_Text dealerNoteText = AddText("DealerNote", dealerPanel, "", font, 14, Muted, TextAlignmentOptions.Center, Vector2.zero, new Vector2(600f, 46f));
             dealerNoteText.gameObject.SetActive(false);
             RectTransform hijackPanel = BuildHijackPanel(canvasObject.transform, font, out TMP_Text hijackInstruction, out TMP_Text hijackSourceTitle, out UnityEngine.UI.Button[] hijackSourceButtons, out TMP_Text[] hijackSourceLabels, out UnityEngine.UI.Button[] hijackDestinationButtons, out TMP_Text[] hijackDestinationLabels);
             RectTransform endPanel = BuildEndPanel(canvasObject.transform, font, out TMP_Text endTitle, out TMP_Text endBody, out UnityEngine.UI.Button endContinueButton, out TMP_Text endContinueLabel);
@@ -398,6 +436,9 @@ namespace RouletteLike.Roulette.Editor
 
             SerializedObject identitySo = new SerializedObject(battle);
             SetObject(identitySo, "dealerNameText", dealerNameText);
+            SetObject(identitySo, "dealerInsuranceText", dealerInsuranceText);
+            SetObject(identitySo, "wheelStage", wheelStage);
+            SetObject(identitySo, "dealerWheelLabel", dealerWheelLabel);
             SetObject(identitySo, "dealerHeaderText", dealerHeaderText);
             SetObject(identitySo, "dealerSprite", rabbitImage);
             SetObject(identitySo, "dealerAnimator", dealerAnimator);
@@ -435,17 +476,6 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "playerOuterSpin", playerOuterSpin);
             SetObject(identitySo, "dealerOuterRoulette", dealerOuterRoulette);
             SetObject(identitySo, "dealerOuterSpin", dealerOuterSpin);
-            // 착지 이름표: 포인터 바로 위, 멈춘 칸의 이름과 실제로 일어난 효과. 다음 SPIN 전까지 남는다.
-            RectTransform playerTag = BuildLandingTag(playerPanel, new Vector2(0f, 340f), font, out TMP_Text playerTagTitle, out TMP_Text playerTagEffect, out UnityEngine.UI.Image playerTagBackground);
-            RectTransform dealerTag = BuildLandingTag(dealerPanel, new Vector2(0f, 320f), font, out TMP_Text dealerTagTitle, out TMP_Text dealerTagEffect, out UnityEngine.UI.Image dealerTagBackground);
-            SetObject(identitySo, "playerLandingTag", playerTag);
-            SetObject(identitySo, "playerLandingTitle", playerTagTitle);
-            SetObject(identitySo, "playerLandingEffect", playerTagEffect);
-            SetObject(identitySo, "playerLandingBackground", playerTagBackground);
-            SetObject(identitySo, "dealerLandingTag", dealerTag);
-            SetObject(identitySo, "dealerLandingTitle", dealerTagTitle);
-            SetObject(identitySo, "dealerLandingEffect", dealerTagEffect);
-            SetObject(identitySo, "dealerLandingBackground", dealerTagBackground);
             RectTransform relicOverlay = BuildRelicOverlay(canvasObject.transform, font, out TMP_Text relicOverlayTitle, out TMP_Text relicOverlayBody, out UnityEngine.UI.Button relicOverlayClose);
             RectTransform titlePanel = BuildTitlePanel(canvasObject.transform, font, out UnityEngine.UI.Button titleStartButton, out UnityEngine.UI.Button titleResetButton, out TMP_Text titleMetaText);
             SetObject(identitySo, "relicOverlayTitle", relicOverlayTitle);
@@ -474,7 +504,7 @@ namespace RouletteLike.Roulette.Editor
             SetObjectArray(identitySo.FindProperty("relicIcons"), relicIcons);
             SetObjectArray(identitySo.FindProperty("relicIconLabels"), relicIconLabels);
             SetObjectArray(identitySo.FindProperty("relicIconImages"), relicIconImages);
-            RectTransform relicTooltip = AddFramedPanel("RelicTooltip", canvasObject.transform, new Vector2(-560f, 300f), new Vector2(460f, 96f), new Color32(30, 25, 39, 250), Gold, out _, out _);
+            RectTransform relicTooltip = AddFramedPanel("RelicTooltip", canvasObject.transform, new Vector2(-500f, -300f), new Vector2(460f, 96f), new Color32(30, 25, 39, 250), Gold, out _, out _);
             TMP_Text relicTooltipText = AddText("Text", relicTooltip, "", font, 16, Ink, TextAlignmentOptions.Left, Vector2.zero, new Vector2(436f, 84f));
             foreach (UnityEngine.UI.Graphic graphic in relicTooltip.GetComponentsInChildren<UnityEngine.UI.Graphic>()) graphic.raycastTarget = false;
             relicTooltip.gameObject.SetActive(false);
@@ -513,8 +543,6 @@ namespace RouletteLike.Roulette.Editor
             momentBanner.gameObject.SetActive(false);
             playerClickArea.gameObject.SetActive(false);
             dealerClickArea.gameObject.SetActive(false);
-            playerTag.gameObject.SetActive(false);
-            dealerTag.gameObject.SetActive(false);
             doorPanel.gameObject.SetActive(false);
             playerOuterRingRoot.gameObject.SetActive(false);
             dealerOuterRingRoot.gameObject.SetActive(false);
@@ -541,7 +569,7 @@ namespace RouletteLike.Roulette.Editor
 
         private static void BuildRoulette(RectTransform root, RouletteController controller, RouletteSpinController spin, Font legacyFont, Sprite frameSprite, Sprite pointerSprite, Sprite centerCapSprite, AudioClip tickSound, AudioClip stopSound, bool enemy)
         {
-            float wheelSize = enemy ? 500f : 530f;
+            float wheelSize = 650f;
             RectTransform wheel = AddRect("Wheel", root, Vector2.zero, new Vector2(wheelSize, wheelSize));
             RectTransform segments = AddRect("DynamicSegments", wheel, Vector2.zero, new Vector2(wheelSize, wheelSize));
             RoulettePixelWheelRenderer renderer = segments.gameObject.AddComponent<RoulettePixelWheelRenderer>();
@@ -551,10 +579,10 @@ namespace RouletteLike.Roulette.Editor
             UnityEngine.UI.Image rim = AddSpriteImage("FixedFrame", root, disc, new Vector2(wheelSize + 28f, wheelSize + 28f));
             rim.color = PanelLight;
             rim.transform.SetAsFirstSibling();
-            UnityEngine.UI.Image centerCap = AddSpriteImage("CenterCap", wheel, disc, new Vector2(70f, 70f));
+            UnityEngine.UI.Image centerCap = AddSpriteImage("CenterCap", wheel, disc, new Vector2(96f, 96f));
             centerCap.color = PanelInset;
             UnityEngine.UI.Image pointer = AddImage("Pointer", root, Accent);
-            pointer.rectTransform.sizeDelta = new Vector2(30f, 30f);
+            pointer.rectTransform.sizeDelta = new Vector2(38f, 38f);
             pointer.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
             pointer.rectTransform.anchoredPosition = new Vector2(0f, wheelSize * 0.5f + 10f);
 
@@ -563,10 +591,10 @@ namespace RouletteLike.Roulette.Editor
             controllerSo.FindProperty("dynamicSegmentRoot").objectReferenceValue = segments;
             controllerSo.FindProperty("pixelWheelRenderer").objectReferenceValue = renderer;
             controllerSo.FindProperty("labelFont").objectReferenceValue = legacyFont;
-            controllerSo.FindProperty("labelFontSize").intValue = enemy ? 30 : 34;
+            controllerSo.FindProperty("labelFontSize").intValue = 42;
             controllerSo.FindProperty("iconRadiusRatio").floatValue = 0.5f;
             controllerSo.FindProperty("labelRadiusRatio").floatValue = 0.7f;
-            controllerSo.FindProperty("labelSize").vector2Value = enemy ? new Vector2(110f, 40f) : new Vector2(118f, 46f);
+            controllerSo.FindProperty("labelSize").vector2Value = new Vector2(150f, 56f);
             controllerSo.FindProperty("keepLabelsUpright").boolValue = true;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -593,11 +621,11 @@ namespace RouletteLike.Roulette.Editor
             spinSo.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        /// <summary>선공 동전: 테이블 위쪽 가운데. 라운드 시작에만 켜진다. 면은 색과 글자로 구분한다.</summary>
+        /// <summary>선공 동전: 전투 띠 가운데. 라운드 시작에만 켜진다. 면은 색과 글자로 구분한다.</summary>
         private static CoinFlipPresenter BuildCoinFlip(Transform parent, int siblingIndex, TMP_FontAsset font)
         {
             // FxLayer 자식은 연출이 끝나면 지워지므로 그 밖에 둔다. 배너와 오버레이 아래.
-            RectTransform root = AddRect("CoinFlip", parent, new Vector2(0f, 310f), new Vector2(96f, 96f));
+            RectTransform root = AddRect("CoinFlip", parent, new Vector2(0f, 350f), new Vector2(96f, 96f));
             root.SetSiblingIndex(siblingIndex);
             Sprite disc = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
             UnityEngine.UI.Image rim = AddSpriteImage("Coin", root, disc, new Vector2(96f, 96f));
@@ -815,18 +843,6 @@ namespace RouletteLike.Roulette.Editor
         }
 
         /// <summary>착지 이름표: 칸 이름(크게)과 효과 한 줄. 배경색은 컨트롤러가 칸 종류에 맞춰 바꾼다.</summary>
-        private static RectTransform BuildLandingTag(Transform parent, Vector2 position, TMP_FontAsset font, out TMP_Text title, out TMP_Text effect, out UnityEngine.UI.Image background)
-        {
-            RectTransform tag = AddFramedPanel("LandingTag", parent, position, new Vector2(470f, 54f), PanelLight, Gold, out background, out _);
-            title = AddText("Title", tag, "레이즈 +2", font, 22, Ink, TextAlignmentOptions.Center, new Vector2(0f, 11f), new Vector2(450f, 28f));
-            effect = AddText("Effect", tag, "판돈 1 → 3", font, 15, Gold, TextAlignmentOptions.Center, new Vector2(0f, -13f), new Vector2(450f, 22f));
-            return tag;
-        }
-
-        /// <summary>
-        /// 바깥 링 룰렛: 안쪽 룰렛 뒤에 겹치는 큰 원판. 안쪽 룰렛(84%로 줄어듦)에 가려지지 않은 테두리 띠에 칸 기호가 보이고,
-        /// 맨 위 작은 포인터가 안쪽 포인터와 같은 12시를 가리킨다. 결과는 코어가 정하고 이 룰렛은 그 칸으로 돌아가 멈춘다(소리 없음).
-        /// </summary>
         private static void BuildOuterRingWheel(RectTransform root, RouletteController controller, RouletteSpinController spin, Font legacyFont, Sprite pointerSprite, float size)
         {
             RectTransform wheel = AddRect("Wheel", root, Vector2.zero, new Vector2(size, size));
@@ -979,9 +995,9 @@ namespace RouletteLike.Roulette.Editor
             SetObject(so, "houseRuleFrame", houseRuleFrame);
             so.FindProperty("inactiveColor").colorValue = Muted;
             so.FindProperty("activeColor").colorValue = Accent;
-            // 내 차례·딜러 차례 표시는 같은 강조색 테두리(누구 차례인지는 위치로 구분), 하우스 룰 카드는 달성 때만 강조색.
-            so.FindProperty("playerGlowColor").colorValue = new Color32(226, 170, 64, 80);
-            so.FindProperty("dealerGlowColor").colorValue = new Color32(226, 170, 64, 80);
+            // 보드의 룰렛 둘레 색: 내 차례는 강조색, 딜러 차례는 빨강. 하우스 룰 카드는 달성 때만 강조색.
+            so.FindProperty("playerGlowColor").colorValue = Accent;
+            so.FindProperty("dealerGlowColor").colorValue = new Color32(220, 72, 78, 255);
             so.FindProperty("houseRuleNormalColor").colorValue = DarkGold;
             so.FindProperty("houseRuleHighlightColor").colorValue = Accent;
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -1085,10 +1101,20 @@ namespace RouletteLike.Roulette.Editor
             return fill;
         }
 
+        /// <summary>말풍선 오른쪽의 마름모 꼬리(화자인 딜러 쪽).</summary>
+        private static void AddBubbleTail(RectTransform bubble, Color color)
+        {
+            UnityEngine.UI.Image tail = AddImage("Tail", bubble, color);
+            tail.rectTransform.anchoredPosition = new Vector2(bubble.sizeDelta.x * 0.5f, 0f);
+            tail.rectTransform.sizeDelta = new Vector2(22f, 22f);
+            tail.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            tail.transform.SetAsFirstSibling();
+        }
+
         private static TMP_Text AddBadge(string name, Transform parent, string label, Color accent, TMP_FontAsset font, Vector2 position, float width = 240f)
         {
-            RectTransform badge = AddFramedPanel(name, parent, position, new Vector2(width, 44f), PanelLight, accent, out _, out _);
-            TMP_Text text = AddText("Label", badge, label, font, 16, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(width - 20f, 30f));
+            RectTransform badge = AddFramedPanel(name, parent, position, new Vector2(width, 28f), PanelLight, accent, out _, out _);
+            TMP_Text text = AddText("Label", badge, label, font, 16, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(width - 12f, 24f));
             text.textWrappingMode = TextWrappingModes.NoWrap;
             text.enableAutoSizing = true;
             text.fontSizeMin = 11f;
