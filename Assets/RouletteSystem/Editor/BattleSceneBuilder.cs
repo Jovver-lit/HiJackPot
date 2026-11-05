@@ -329,6 +329,20 @@ namespace RouletteLike.Roulette.Editor
             RouletteSpinController enemySpin = enemyRouletteRoot.gameObject.AddComponent<RouletteSpinController>();
             BuildRoulette(enemyRouletteRoot, enemyRoulette, enemySpin, legacyFont, frameSprite, pointerSprite, centerCapSprite, rouletteTick, rouletteStop, true);
             RouletteClickArea dealerClickArea = AddClickArea(enemyRouletteRoot, enemyRoulette, 650f);
+
+            // 딜러 룰렛 가운데: 내 SPIN 버튼과 같은 모양의 표시판. 누를 수는 없고 누구 룰렛인지 보여 준다.
+            RectTransform dealerCenter = AddRect("DealerCenter", enemyRouletteRoot, Vector2.zero, new Vector2(200f, 200f));
+            UnityEngine.UI.Image dealerCenterTrack = AddImage("Track", dealerCenter, new Color32(40, 34, 52, 255));
+            dealerCenterTrack.sprite = knobSprite;
+            dealerCenterTrack.rectTransform.sizeDelta = new Vector2(200f, 200f);
+            UnityEngine.UI.Image dealerCenterFace = AddImage("Face", dealerCenter, new Color32(150, 50, 56, 255));
+            dealerCenterFace.sprite = knobSprite;
+            dealerCenterFace.rectTransform.sizeDelta = new Vector2(166f, 166f);
+            TMP_Text dealerWheelLabel = AddText("Label", dealerCenter, "토끼", font, 28, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(150f, 80f));
+            dealerWheelLabel.enableAutoSizing = true;
+            dealerWheelLabel.fontSizeMin = 16f;
+            dealerWheelLabel.fontSizeMax = 28f;
+            dealerCenter.SetAsLastSibling();
             AddRect("EffectRoot", dealerRouletteContainer, Vector2.zero, new Vector2(700f, 700f));
 
             WheelStage wheelStage = mainGameArea.gameObject.AddComponent<WheelStage>();
@@ -424,6 +438,7 @@ namespace RouletteLike.Roulette.Editor
             SetObject(identitySo, "dealerNameText", dealerNameText);
             SetObject(identitySo, "dealerInsuranceText", dealerInsuranceText);
             SetObject(identitySo, "wheelStage", wheelStage);
+            SetObject(identitySo, "dealerWheelLabel", dealerWheelLabel);
             SetObject(identitySo, "dealerHeaderText", dealerHeaderText);
             SetObject(identitySo, "dealerSprite", rabbitImage);
             SetObject(identitySo, "dealerAnimator", dealerAnimator);

@@ -38,6 +38,7 @@ namespace RouletteLike.Roulette
         [SerializeField] private TMP_Text insuranceText;
         [SerializeField] private TMP_Text dealerInsuranceText;
         [SerializeField] private WheelStage wheelStage;
+        [SerializeField] private TMP_Text dealerWheelLabel;
         [SerializeField] private TMP_Text potText;
         [Tooltip("테이블 가운데 판돈 칩 더미(그레이박스). 판돈 2마다 칩 1개")]
         [SerializeField] private UnityEngine.UI.Image[] potChipImages = new UnityEngine.UI.Image[0];
@@ -851,6 +852,7 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPlayerRouletteActive(true);
             presentationUi?.SetDealerRouletteActive(false);
             wheelStage?.ShowActive(true, _tempo);
+            if (dealerWheelLabel != null) dealerWheelLabel.text = DealerShortName;
             instructionText.text = _battle.IsScriptedInstantCashOutRound && _battle.FirstThisRound == Side.Player
                 ? $"{DealerShortName}가 이번에 베팅만으로 곧장 정산합니다. 보험 칸에 걸리면 전액 보장!"
                 : AnteLocked
@@ -1141,6 +1143,7 @@ namespace RouletteLike.Roulette
             presentationUi?.SetPlayerRouletteActive(false);
             presentationUi?.SetDealerRouletteActive(true);
             wheelStage?.ShowActive(false, _tempo);
+            if (dealerWheelLabel != null) dealerWheelLabel.text = $"{DealerShortName}\n차례";
             spinInput?.ShowUnavailableState($"{DealerShortName} 차례");
             instructionText.text = $"{DealerShortName} 차례 · 판돈 {_battle.Profile.CashOutAt} 이상이면 CASH OUT합니다.";
 
@@ -2297,6 +2300,7 @@ namespace RouletteLike.Roulette
                     ? $"{HouseRuleDescription(dealer)}  →  칸 HIJACK + 이기면 유물"
                     : $"{HouseRuleDescription(dealer)}  →  칸 1개 HIJACK";
             }
+            if (dealerWheelLabel != null) dealerWheelLabel.text = DealerShortName;
             ApplyDealerArt(dealer.Name);
         }
 
@@ -2638,8 +2642,7 @@ namespace RouletteLike.Roulette
             string label = WheelLabel(slot);
             if (slot.IsSeized)
             {
-                // 딜러가 빼앗아 쓰는 내 칸: 되찾을 대상이라 한눈에 보이게 한다.
-                label = "내" + label;
+                // 딜러가 빼앗아 쓰는 내 칸: 글자는 그대로 두고 색으로만 구분한다(사용자 결정 2026-11-05).
                 color = Color.Lerp(color, new Color32(240, 240, 245, 255), 0.45f);
             }
             else if (slot.IsStolen)
