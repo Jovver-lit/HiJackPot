@@ -6,9 +6,9 @@ using UnityEngine.UI;
 namespace RouletteLike.Roulette
 {
     /// <summary>
-    /// 가변 세그먼트를 저해상도 Texture2D에 직접 래스터라이즈합니다.
-    /// 생성된 텍스처를 Point 필터로 확대하므로 부채꼴 외곽, 경계선, 패턴이
-    /// 프레임과 같은 실제 픽셀 단위로 표시됩니다.
+    /// 가변 세그먼트를 저해상도 Texture2D에 직접 그립니다. 텍스처 자체를 돌리거나 비정수로 늘리면 도트가 깨지므로,
+    /// 룰렛의 회전각을 반영해 화면 격자에 매번 다시 그리고 해상도를 표시 크기에 맞춥니다.
+    /// 칸 위치·착지 판정은 RouletteController가 맡고, 이 컴포넌트는 그리기만 합니다.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class RoulettePixelWheelRenderer : RawImage
@@ -39,6 +39,25 @@ namespace RouletteLike.Roulette
         private string _focusedSegmentId;
         private readonly HashSet<string> _focusGroupIds = new HashSet<string>(StringComparer.Ordinal);
         private bool _tintFocusGroup = true;
+
+        /// <summary>한 도트의 UI 크기. 캐릭터 2배 표시와 같다(ArtStyleBible 1장).</summary>
+        private const float UiUnitsPerDot = 2f;
+        private const int ToneCount = 5;
+        private const int ToneBase = 2;
+        private const sbyte ToneOutside = -1;
+        private const sbyte ToneBorder = -2;
+        private const float LookupPerDegree = 2f;
+        private const float SunburstDegrees = 6f;
+
+        private float _renderedAngle;
+        private float _cachedRadiusRatio = -1f;
+        private sbyte[] _pixelTone;
+        private float[] _pixelAngle;
+        private float[] _pixelDistance;
+        private int[] _segmentLookup;
+        private Color32[] _segmentPalette;
+        private Color32[] _segmentFret;
+        private bool[] _segmentSunburst;
 
         [Header("Landing Focus")]
         [Tooltip("착지 고정 표시 중 착지 칸·연쇄 묶음이 아닌 칸의 밝기 배율.")]
@@ -190,116 +209,177 @@ namespace RouletteLike.Roulette
             _runtimeTexture.Apply(false, false);
         }
 
+        /// <summary>
+        /// 룰렛이 돌아도 텍스처는 돌리지 않는다. 부모(Wheel)의 회전각만큼 칸 각도를 옮겨 화면 격자에 다시 그린다.
+        /// 표시 크기가 바뀌면(WheelStage·바깥 링) 해상도를 맞춰 한 도트가 늘 같은 크기로 보이게 한다(ArtStyleBible 1장).
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_segments.Count == 0) return;
+            RectTransform parent = rectTransform.parent as RectTransform;
+            // 칸 글자를 자식으로 둔 옛 구조(RouletteDemo)는 함께 돌아야 하므로 그대로 둔다.
+            if (parent == null || rectTransform.childCount > 0) return;
+
+            rectTransform.localRotation = Quaternion.Inverse(parent.localRotation);
+            bool dirty = false;
+            float angle = parent.localEulerAngles.z;
+            if (!Mathf.Approximately(angle, _renderedAngle))
+            {
+                _renderedAngle = angle;
+                dirty = true;
+            }
+
+            int desired = DesiredResolution();
+            if (desired != textureResolution)
+            {
+                textureResolution = desired;
+                dirty = true;
+            }
+
+            if (dirty) RenderPixels();
+        }
+
+        private int DesiredResolution()
+        {
+            Canvas root = canvas != null ? canvas.rootCanvas : null;
+            if (root == null) return textureResolution;
+            float canvasScale = Mathf.Max(0.0001f, root.transform.lossyScale.x);
+            float displayed = rectTransform.rect.width * Mathf.Abs(rectTransform.lossyScale.x) / canvasScale;
+            return Mathf.Clamp(Mathf.RoundToInt(displayed / UiUnitsPerDot), 32, 512);
+        }
+
         private void RenderPixels()
         {
             ClampSettings();
             ConfigureRawImage();
             EnsureRuntimeTexture();
+            EnsurePixelCache();
+            BuildSegmentPalette();
+            BuildSegmentLookup();
 
-            float center = textureResolution * 0.5f;
-            float radius = center * _radiusRatio;
-            float radiusSquared = radius * radius;
-
-            for (int y = 0; y < textureResolution; y++)
+            float rotation = rectTransform.parent != null ? _renderedAngle : 0f;
+            int segmentCount = _segments.Count;
+            for (int i = 0; i < _pixels.Length; i++)
             {
-                float localY = y + 0.5f - center;
-
-                for (int x = 0; x < textureResolution; x++)
+                sbyte tone = _pixelTone[i];
+                if (tone < 0)
                 {
-                    int pixelIndex = y * textureResolution + x;
-                    float localX = x + 0.5f - center;
-                    float distanceSquared = localX * localX + localY * localY;
-
-                    if (distanceSquared > radiusSquared)
-                    {
-                        _pixels[pixelIndex] = new Color32(0, 0, 0, 0);
-                        continue;
-                    }
-
-                    float distance = Mathf.Sqrt(distanceSquared);
-                    float angle = Mathf.Atan2(localX, localY) * Mathf.Rad2Deg;
-                    if (angle < 0f)
-                    {
-                        angle += 360f;
-                    }
-
-                    int segmentIndex = FindSegmentIndex(angle);
-                    RouletteSegmentData data = _segments[segmentIndex];
-
-                    bool isOuterBorder = outerBorderThickness > 0
-                                         && distance >= radius - outerBorderThickness;
-                    if (isOuterBorder)
-                    {
-                        _pixels[pixelIndex] = outerBorderColor;
-                        continue;
-                    }
-
-                    bool highlighted = data != null
-                                       && !string.IsNullOrEmpty(_highlightedSegmentId)
-                                       && string.Equals(
-                                           data.id,
-                                           _highlightedSegmentId,
-                                           StringComparison.Ordinal);
-
-                    bool isDivider = IsDividerPixel(segmentIndex, angle, distance);
-                    if (isDivider)
-                    {
-                        _pixels[pixelIndex] = highlighted ? highlightColor : borderColor;
-                        continue;
-                    }
-
-                    Color fill = ResolveFillColor(data, highlighted);
-                    fill = ApplyRadialShade(fill, distance / Mathf.Max(1f, radius));
-
-                    if (useTypePatterns && data != null)
-                    {
-                        int pattern = GetPatternValue(data.type, x, y, segmentIndex);
-                        if (pattern < 0)
-                        {
-                            fill = MultiplyRgb(fill, 1f - patternStrength);
-                        }
-                        else if (pattern > 0)
-                        {
-                            fill = Color.Lerp(fill, Color.white, patternStrength * 0.7f);
-                        }
-                    }
-
-                    _pixels[pixelIndex] = fill;
+                    _pixels[i] = tone == ToneOutside ? new Color32(0, 0, 0, 0) : (Color32)outerBorderColor;
+                    continue;
                 }
+
+                float angle = _pixelAngle[i] + rotation;
+                angle -= Mathf.Floor(angle / 360f) * 360f;
+                int segment = _segmentLookup[Mathf.Min(_segmentLookup.Length - 1, (int)(angle * LookupPerDegree))];
+                while (segment < segmentCount - 1 && angle >= _endAngles[segment]) segment++;
+                while (segment > 0 && angle < _startAngles[segment]) segment--;
+
+                float toArc = Mathf.Deg2Rad * _pixelDistance[i];
+                float fromStart = (angle - _startAngles[segment]) * toArc;
+                float fromEnd = (_endAngles[segment] - angle) * toArc;
+                if (fromStart < dividerThickness || fromEnd < dividerThickness)
+                {
+                    _pixels[i] = _segmentFret[segment];
+                    continue;
+                }
+
+                // 칸막이가 왼쪽 위 빛을 받는 듯이 칸 양 끝에 밝은 줄과 어두운 줄을 한 칸씩 둔다.
+                int shade = tone;
+                if (fromStart < dividerThickness + 1f) shade++;
+                else if (fromEnd < dividerThickness + 1f) shade--;
+                else if (_segmentSunburst[segment] && (int)((angle - _startAngles[segment]) / SunburstDegrees) % 2 == 0) shade++;
+
+                _pixels[i] = _segmentPalette[segment * ToneCount + Mathf.Clamp(shade, 0, ToneCount - 1)];
             }
 
             _runtimeTexture.SetPixels32(_pixels);
             _runtimeTexture.Apply(false, false);
         }
 
-        private int FindSegmentIndex(float angle)
+        /// <summary>회전과 무관한 값(각도·거리·명암 단계)을 한 번만 계산해 둔다. 명암은 화면에 고정이라 돌아가는 판에 빛이 비치는 듯 보인다.</summary>
+        private void EnsurePixelCache()
         {
-            for (int i = 0; i < _endAngles.Count; i++)
+            if (_pixelTone != null && _pixelTone.Length == _pixels.Length && Mathf.Approximately(_cachedRadiusRatio, _radiusRatio)) return;
+
+            _cachedRadiusRatio = _radiusRatio;
+            _pixelTone = new sbyte[_pixels.Length];
+            _pixelAngle = new float[_pixels.Length];
+            _pixelDistance = new float[_pixels.Length];
+            float center = textureResolution * 0.5f;
+            float radius = center * _radiusRatio;
+            for (int y = 0; y < textureResolution; y++)
             {
-                if (angle >= _startAngles[i] && angle < _endAngles[i])
+                float localY = y + 0.5f - center;
+                for (int x = 0; x < textureResolution; x++)
                 {
-                    return i;
+                    int index = y * textureResolution + x;
+                    float localX = x + 0.5f - center;
+                    float distance = Mathf.Sqrt(localX * localX + localY * localY);
+                    if (distance > radius)
+                    {
+                        _pixelTone[index] = ToneOutside;
+                        continue;
+                    }
+
+                    if (distance >= radius - outerBorderThickness)
+                    {
+                        _pixelTone[index] = ToneBorder;
+                        continue;
+                    }
+
+                    float angle = Mathf.Atan2(localX, localY) * Mathf.Rad2Deg;
+                    _pixelAngle[index] = angle < 0f ? angle + 360f : angle;
+                    _pixelDistance[index] = distance;
+
+                    float normalized = distance / Mathf.Max(1f, radius);
+                    float light = (localY - localX) * 0.7071f / Mathf.Max(1f, radius);
+                    int tone = ToneBase;
+                    if (light > 0.42f) tone++;
+                    else if (light < -0.42f) tone--;
+                    if (normalized < 0.3f || normalized > 0.9f) tone--;
+                    if (normalized > 0.955f) tone--;
+                    _pixelTone[index] = (sbyte)Mathf.Clamp(tone, 0, ToneCount - 1);
                 }
             }
-
-            return Mathf.Max(0, _segments.Count - 1);
         }
 
-        private bool IsDividerPixel(int segmentIndex, float angle, float distance)
+        /// <summary>칸마다 5단계 색을 미리 만든다. 강조·착지 표시는 이 색만 바꾸면 된다.</summary>
+        private void BuildSegmentPalette()
         {
-            if (dividerThickness <= 0 || distance < 1f)
+            int size = _segments.Count * ToneCount;
+            if (_segmentPalette == null || _segmentPalette.Length != size) _segmentPalette = new Color32[size];
+            if (_segmentFret == null || _segmentFret.Length != _segments.Count)
             {
-                return false;
+                _segmentFret = new Color32[_segments.Count];
+                _segmentSunburst = new bool[_segments.Count];
             }
 
-            // 호 길이 약 1px에 대응하는 각도를 계산해 가변 각도에서도 일정한 픽셀 두께를 유지합니다.
-            float halfThicknessDegrees = Mathf.Rad2Deg
-                                         * (dividerThickness * 0.5f)
-                                         / Mathf.Max(1f, distance);
-            float distanceFromStart = angle - _startAngles[segmentIndex];
-            float distanceFromEnd = _endAngles[segmentIndex] - angle;
-            return distanceFromStart <= halfThicknessDegrees
-                   || distanceFromEnd <= halfThicknessDegrees;
+            for (int i = 0; i < _segments.Count; i++)
+            {
+                RouletteSegmentData data = _segments[i];
+                bool highlighted = data != null && !string.IsNullOrEmpty(_highlightedSegmentId) && string.Equals(data.id, _highlightedSegmentId, StringComparison.Ordinal);
+                Color fill = ResolveFillColor(data, highlighted);
+                _segmentPalette[i * ToneCount + 0] = MultiplyRgb(fill, 1f - edgeShadeStrength * 2.6f);
+                _segmentPalette[i * ToneCount + 1] = MultiplyRgb(fill, 1f - edgeShadeStrength * 1.4f);
+                _segmentPalette[i * ToneCount + 2] = fill;
+                _segmentPalette[i * ToneCount + 3] = Color.Lerp(fill, Color.white, patternStrength * 0.8f);
+                _segmentPalette[i * ToneCount + 4] = Color.Lerp(fill, Color.white, patternStrength * 1.8f);
+                _segmentFret[i] = highlighted ? highlightColor : borderColor;
+                _segmentSunburst[i] = useTypePatterns && data != null && data.type == RouletteSegmentType.Jackpot;
+            }
+        }
+
+        private void BuildSegmentLookup()
+        {
+            int entries = (int)(360f * LookupPerDegree);
+            if (_segmentLookup == null || _segmentLookup.Length != entries) _segmentLookup = new int[entries];
+            int segment = 0;
+            for (int i = 0; i < entries; i++)
+            {
+                float angle = i / LookupPerDegree;
+                while (segment < _segments.Count - 1 && angle >= _endAngles[segment]) segment++;
+                _segmentLookup[i] = segment;
+            }
         }
 
         private Color ResolveFillColor(RouletteSegmentData data, bool highlighted)
@@ -309,7 +389,7 @@ namespace RouletteLike.Roulette
             if (data != null && data.isDisabled)
             {
                 fill = Color.Lerp(fill, Color.gray, 0.7f);
-                fill.a *= 0.55f;
+                fill.a = 1f;
             }
 
             if (highlighted)
@@ -334,87 +414,6 @@ namespace RouletteLike.Roulette
             }
 
             return fill;
-        }
-
-        private Color ApplyRadialShade(Color source, float normalizedRadius)
-        {
-            float shade = 0f;
-
-            // 중앙 캡 주변과 외곽에 한 단계 어두운 색을 넣어 평평한 단색 면을 피합니다.
-            if (normalizedRadius < 0.24f)
-            {
-                shade = (1f - normalizedRadius / 0.24f) * edgeShadeStrength;
-            }
-            else if (normalizedRadius > 0.82f)
-            {
-                shade = ((normalizedRadius - 0.82f) / 0.18f) * edgeShadeStrength;
-            }
-
-            return MultiplyRgb(source, 1f - Mathf.Clamp01(shade));
-        }
-
-        /// <summary>
-        /// -1은 어두운 도트, 0은 기본색, 1은 밝은 도트입니다.
-        /// 별도 텍스처 없이도 결과 타입별 실루엣을 구분할 수 있는 작은 반복 패턴입니다.
-        /// </summary>
-        private static int GetPatternValue(
-            RouletteSegmentType type,
-            int x,
-            int y,
-            int segmentIndex)
-        {
-            int offset = segmentIndex * 3;
-            int localX = PositiveMod(x + offset, 8);
-            int localY = PositiveMod(y + offset, 8);
-
-            switch (type)
-            {
-                case RouletteSegmentType.Damage:
-                    return PositiveMod(localX + localY, 8) == 0 ? -1 : 0;
-
-                case RouletteSegmentType.Heal:
-                    return (localX == 3 && localY >= 1 && localY <= 5)
-                           || (localY == 3 && localX >= 1 && localX <= 5)
-                        ? 1
-                        : 0;
-
-                case RouletteSegmentType.Critical:
-                case RouletteSegmentType.Jackpot:
-                    if ((localX == 3 && (localY == 1 || localY == 5))
-                        || (localY == 3 && (localX == 1 || localX == 5))
-                        || (localX == 3 && localY == 3))
-                    {
-                        return 1;
-                    }
-
-                    return 0;
-
-                case RouletteSegmentType.Poison:
-                    return (localX == 2 && localY == 2)
-                           || (localX == 6 && localY == 5)
-                        ? -1
-                        : 0;
-
-                case RouletteSegmentType.Multiplier:
-                    return localX == localY || localX + localY == 7 ? -1 : 0;
-
-                case RouletteSegmentType.Mystery:
-                    return ((localX / 2) + (localY / 2)) % 2 == 0 ? -1 : 0;
-
-                case RouletteSegmentType.Hijack:
-                    if (localY == 1 || localY == 6)
-                    {
-                        return PositiveMod(x + segmentIndex, 3) == 0 ? 1 : -1;
-                    }
-
-                    return 0;
-
-                case RouletteSegmentType.Custom:
-                    return (localX == 1 || localY == 1) ? -1 : 0;
-
-                default:
-                    return PositiveMod(localX + localY, 6) == 0 ? -1 : 0;
-            }
         }
 
         private void EnsureRuntimeTexture()
@@ -497,12 +496,6 @@ namespace RouletteLike.Roulette
             source.g *= multiplier;
             source.b *= multiplier;
             return source;
-        }
-
-        private static int PositiveMod(int value, int modulus)
-        {
-            int result = value % modulus;
-            return result < 0 ? result + modulus : result;
         }
     }
 }

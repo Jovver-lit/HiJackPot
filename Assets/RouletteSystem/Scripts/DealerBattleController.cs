@@ -1834,8 +1834,7 @@ namespace RouletteLike.Roulette
             {
                 starts[i] = thrower.position + new Vector3((i % 3 - 1) * 14f, (i % 4) * 8f, 0f);
                 chips[i].position = starts[i];
-                chips[i].sizeDelta = new Vector2(30f, 30f);
-                chips[i].localRotation = Quaternion.Euler(0f, 0f, 45f);
+                chips[i].sizeDelta = new Vector2(32f, 32f);
             }
 
             Vector3 end = target.position;
@@ -2749,18 +2748,18 @@ namespace RouletteLike.Roulette
         {
             (RouletteSegmentType type, Color color) = slot.Kind switch
             {
-                SlotKind.Raise => (RouletteSegmentType.Damage, (Color)new Color32(196, 67, 72, 255)),
-                SlotKind.Multiplier => (RouletteSegmentType.Multiplier, (Color)new Color32(57, 139, 191, 255)),
-                SlotKind.Insurance => (RouletteSegmentType.Custom, (Color)new Color32(56, 153, 160, 255)),
-                SlotKind.Dividend => (RouletteSegmentType.Heal, (Color)new Color32(67, 166, 109, 255)),
-                SlotKind.HouseCut => (RouletteSegmentType.Poison, (Color)new Color32(40, 30, 48, 255)),
+                SlotKind.Raise => (RouletteSegmentType.Damage, (Color)new Color32(168, 28, 48, 255)),
+                SlotKind.Multiplier => (RouletteSegmentType.Multiplier, (Color)new Color32(42, 68, 129, 255)),
+                SlotKind.Insurance => (RouletteSegmentType.Custom, (Color)new Color32(31, 111, 120, 255)),
+                SlotKind.Dividend => (RouletteSegmentType.Heal, (Color)new Color32(42, 102, 80, 255)),
+                SlotKind.HouseCut => (RouletteSegmentType.Poison, (Color)new Color32(25, 25, 31, 255)),
                 _ => (RouletteSegmentType.Custom, (Color)new Color32(54, 48, 65, 255))
             };
 
             if (slot.IsJackpot)
             {
                 type = RouletteSegmentType.Jackpot;
-                color = new Color32(222, 164, 48, 255);
+                color = new Color32(196, 140, 40, 255);
             }
 
             string label = WheelLabel(slot);
