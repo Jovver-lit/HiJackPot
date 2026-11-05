@@ -373,12 +373,12 @@ namespace RouletteLike.Roulette.Editor
             combatLogText.overflowMode = TextOverflowModes.Truncate;
 
             // HIJACK 안내 띠: 룰렛 위에서 직접 칸을 고르는 동안 테이블 위쪽을 덮는다.
-            RectTransform hijackBar = AddFramedPanel("HijackBar", centerPanel, new Vector2(0f, 20f), new Vector2(380f, 200f), new Color32(30, 25, 39, 255), Accent, out _, out _);
+            RectTransform hijackBar = AddFramedPanel("HijackBar", centerPanel, new Vector2(0f, 35f), new Vector2(380f, 230f), new Color32(30, 25, 39, 255), Accent, out _, out _);
             TMP_Text hijackBarTitle = AddText("Title", hijackBar, "HOUSE RULE CLEAR · HIJACK", font, 20, Accent, TextAlignmentOptions.Center, new Vector2(0f, 72f), new Vector2(360f, 32f));
             TMP_Text hijackBarText = AddText("Instruction", hijackBar, "딜러 룰렛에서 빼앗을 칸을 클릭하세요", font, 16, Ink, TextAlignmentOptions.Center, new Vector2(0f, -12f), new Vector2(360f, 140f));
 
             // NUDGE 선택 띠: 몰수에 걸렸을 때 테이블 위쪽을 덮는다(룰렛을 옆 칸으로 밀기 / 그대로).
-            RectTransform nudgeBar = AddFramedPanel("NudgeBar", centerPanel, new Vector2(0f, 20f), new Vector2(380f, 200f), new Color32(48, 30, 32, 255), Danger, out _, out _);
+            RectTransform nudgeBar = AddFramedPanel("NudgeBar", centerPanel, new Vector2(0f, 35f), new Vector2(380f, 230f), new Color32(48, 30, 32, 255), Danger, out _, out _);
             TMP_Text nudgeBarTitle = AddText("Title", nudgeBar, "몰수!  NUDGE?", font, 24, Danger, TextAlignmentOptions.Center, new Vector2(0f, 70f), new Vector2(360f, 34f));
             TMP_Text nudgeBarText = AddText("Text", nudgeBar, "옆 칸으로 밀면 그 칸이 대신 발동합니다", font, 14, Ink, TextAlignmentOptions.Center, new Vector2(0f, 36f), new Vector2(360f, 26f));
             UnityEngine.UI.Button nudgeLeftButton = AddButton("NudgeLeft", nudgeBar, new Vector2(-122f, -20f), new Vector2(116f, 64f), PanelLight, font, "◀ 레이즈 +2", 14, out TMP_Text nudgeLeftLabel);
