@@ -20,3 +20,4 @@
 | [0012](0012-house-cut-chance-rises-each-spin.md) | 한 턴 안에서 SPIN할수록 하우스 몫 확률이 오른다 (N번째 = N × 5%, 최대 35%) |
 | [0013](0013-chains-are-a-table-rule-not-base.md) | 연쇄는 기본 규칙이 아니라 테이블 규칙이다 (칸은 하나씩 발동) |
 | [0014](0014-counter-hijack-slot-goes-to-dealer.md) | 역탈취로 빼앗긴 칸은 딜러가 쓰고, 이겨도 자동으로 돌아오지 않는다 |
+| [0015](0015-outer-ring-shares-house-cut-chance.md) | 바깥 링 몰수도 N × 5% 안에서 나눠 갖는다 (합친 확률이 화면 숫자) |

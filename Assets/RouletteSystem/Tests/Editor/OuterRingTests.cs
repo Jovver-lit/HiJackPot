@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -160,6 +161,43 @@ namespace RouletteLike.Battle.Tests
             Run next = new Run(2, 20, BattlePresets.CreateStarterWheel(), BattlePresets.CreateRabbitDealer,
                 BattlePresets.CreateDealerPool(), BattlePresets.CreateStageBoss, outerRing: BattlePresets.CreateOuterRing());
             Assert.IsTrue(next.EnterDoor(0).Player.HasOuterRing);
+        }
+
+        /// <summary>바깥 링에 몰수가 있어도 안쪽과 합친 확률이 N × 5%다(ADR 0015).</summary>
+        [Test]
+        public void RingHouseCut_CombinedChanceFollowsNTimesFive()
+        {
+            const int trials = 6000;
+            for (int spinsBefore = 0; spinsBefore < 3; spinsBefore++)
+            {
+                int cut = 0;
+                for (int seed = 0; seed < trials; seed++)
+                {
+                    PotBattle battle = new PotBattle(BattlePresets.CreateStarterWheel(), 30, BattlePresets.CreateStageBoss(), seed);
+                    battle.StartRound();
+                    Side side = battle.Active;
+                    battle.PlaceAnte(1);
+                    int raise = battle.ActiveSeat.Wheel.ToList().FindIndex(s => s.Kind == SlotKind.Raise);
+                    for (int i = 0; i < spinsBefore; i++) battle.Land(raise);
+                    Assert.AreEqual(0.05f * (spinsBefore + 1), battle.HouseCutChance(side), 1e-4f);
+                    int inner = battle.RollLandingIndex(side);
+                    int outer = battle.RollOuterIndex(side);
+                    bool innerCut = battle.SeatOf(side).Wheel[inner].Kind == SlotKind.HouseCut;
+                    bool outerCut = battle.SeatOf(side).OuterRing[outer].Kind == SlotKind.HouseCut;
+                    if (innerCut || outerCut) cut++;
+                }
+
+                Assert.AreEqual(0.05f * (spinsBefore + 1), (float)cut / trials, 0.015f, $"{spinsBefore + 1}번째 SPIN");
+            }
+        }
+
+        /// <summary>몰수 없는 바깥 링(카지노 링)은 안쪽 몰수 확률을 나눠 갖지 않는다.</summary>
+        [Test]
+        public void RingWithoutHouseCut_LeavesInnerChanceAlone()
+        {
+            PotBattle plain = new PotBattle(BattlePresets.CreateStarterWheel(), 30, BattlePresets.CreateFoxDealer(), 1);
+            Assert.AreEqual(1f, plain.OuterHouseCutWeight(Side.Dealer));
+            Assert.AreEqual(0.05f, plain.HouseCutChance(Side.Dealer), 1e-4f);
         }
     }
 }

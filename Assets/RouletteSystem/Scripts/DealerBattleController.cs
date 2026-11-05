@@ -2524,8 +2524,8 @@ namespace RouletteLike.Roulette
             enemyRoulette?.SetSegments(ToSegments(_battle.Dealer.Wheel, _battle.HouseCutWeight(Side.Dealer)), false);
             ApplyOuterRingLayout(_battle.Player, playerOuterRoulette, roulette);
             ApplyOuterRingLayout(_battle.Dealer, dealerOuterRoulette, enemyRoulette);
-            if (_battle.Player.HasOuterRing) playerOuterRoulette?.SetSegments(ToSegments(_battle.Player.OuterRing, 1f), false);
-            if (_battle.Dealer.HasOuterRing) dealerOuterRoulette?.SetSegments(ToSegments(_battle.Dealer.OuterRing, 1f), false);
+            if (_battle.Player.HasOuterRing) playerOuterRoulette?.SetSegments(ToSegments(_battle.Player.OuterRing, _battle.OuterHouseCutWeight(Side.Player)), false);
+            if (_battle.Dealer.HasOuterRing) dealerOuterRoulette?.SetSegments(ToSegments(_battle.Dealer.OuterRing, _battle.OuterHouseCutWeight(Side.Dealer)), false);
         }
 
         /// <summary>
@@ -2548,6 +2548,8 @@ namespace RouletteLike.Roulette
             if (_battle == null || _pendingNudgeIndex >= 0) return;
             SyncHouseCutWidth(roulette, spinController, _battle.HouseCutWeight(Side.Player));
             SyncHouseCutWidth(enemyRoulette, enemySpinController, _battle.HouseCutWeight(Side.Dealer));
+            if (_battle.Player.HasOuterRing) SyncHouseCutWidth(playerOuterRoulette, playerOuterSpin, _battle.OuterHouseCutWeight(Side.Player));
+            if (_battle.Dealer.HasOuterRing) SyncHouseCutWidth(dealerOuterRoulette, dealerOuterSpin, _battle.OuterHouseCutWeight(Side.Dealer));
         }
 
         private static void SyncHouseCutWidth(RouletteController controller, RouletteSpinController spinner, float weight)
