@@ -929,6 +929,7 @@ namespace RouletteLike.Roulette
 
         private void BeginPlayerTurn()
         {
+            ShowTurnHeader("손님 차례 · 베팅을 고르세요");
             _state = ViewState.PlayerTurn;
             _playerSpinsThisTurn = 0;
             _chosenAnte = Mathf.Clamp(_chosenAnte, 1, Mathf.Max(1, CurrentMaxAnte()));
@@ -1266,6 +1267,7 @@ namespace RouletteLike.Roulette
             wheelStage?.ShowActive(false, _tempo);
             if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러\n차례";
             spinInput?.ShowUnavailableState("딜러 차례");
+            ShowTurnHeader("딜러 차례");
             instructionText.text = $"{DealerShortName} 차례 · 판돈 {_battle.Profile.CashOutAt} 이상이면 CASH OUT합니다.";
 
             _battle.PlaceAnte(_battle.Profile.DealerAnte);
@@ -2554,6 +2556,21 @@ namespace RouletteLike.Roulette
         private string _potTrailOwner = "";
 
         /// <summary>베팅을 걸 때 판돈 흐름을 새로 시작한다(딜러 차례면 딜러 이름을 붙인다).</summary>
+        /// <summary>
+        /// 차례가 바뀌면 결과 줄을 새 차례로 바꾸고, 직전 결과는 그 아래 줄에 흐리게 남긴다.
+        /// 지난 차례의 "CASH OUT 피해" 문구가 새 판돈 옆에 남아 헷갈리던 문제를 막는다.
+        /// </summary>
+        private void ShowTurnHeader(string header)
+        {
+            string previous = resultText.text;
+            resultText.text = header;
+            _potTrail.Clear();
+            _potTrailOwner = "";
+            if (potTrailText == null) return;
+            bool hasPrevious = !string.IsNullOrEmpty(previous) && previous != header && !previous.StartsWith("코인플립");
+            potTrailText.text = hasPrevious ? $"<color=#8F92A4>직전 · {previous}</color>" : "";
+        }
+
         private void StartPotTrail(int ante, string owner = "")
         {
             _potTrail.Clear();
