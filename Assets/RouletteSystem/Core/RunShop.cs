@@ -66,7 +66,7 @@ namespace RouletteLike.Battle
             List<RelicId> pool = new List<RelicId>();
             foreach (Relic relic in RelicCatalog.Relics)
             {
-                if (!_relics.Contains(relic.Id)) pool.Add(relic.Id);
+                if (relic.IsAttachment) pool.Add(relic.Id);
             }
 
             ShopRelic = pool.Count > 0 ? pool[_shopRng.Next(pool.Count)] : (RelicId?)null;
@@ -106,7 +106,7 @@ namespace RouletteLike.Battle
             Cash -= price;
             Slot slot = _wheel[index];
             int value = slot.Value + 1;
-            _wheel[index] = new Slot($"{slot.Id}_up{value}", slot.Kind, value, UpgradedLabel(slot, value), slot.Trigger, slot.IsJackpot, slot.IsStolen);
+            _wheel[index] = new Slot($"{slot.Id}_up{value}", slot.Kind, value, UpgradedLabel(slot, value), slot.Trigger, slot.IsJackpot, slot.IsStolen, false, slot.Attachment);
             return ShopError.None;
         }
 
@@ -127,7 +127,7 @@ namespace RouletteLike.Battle
             }
             else
             {
-                _wheel[index] = _startingWheel[index];
+                _wheel[index] = _startingWheel[index].WithAttachment(_wheel[index].Attachment);
             }
 
             return ShopError.None;
@@ -145,7 +145,7 @@ namespace RouletteLike.Battle
             if (!ShopRelic.HasValue) return ShopError.SoldOut;
             if (Cash < ShopPrices.Relic) return ShopError.NotEnoughCash;
             Cash -= ShopPrices.Relic;
-            _relics.Add(ShopRelic.Value);
+            PendingAttachment = ShopRelic;
             ShopRelic = null;
             return ShopError.None;
         }
@@ -165,6 +165,7 @@ namespace RouletteLike.Battle
         public void LeaveShop()
         {
             if (!InShop) throw new InvalidOperationException("상점층이 아닙니다.");
+            if (PendingAttachment.HasValue) throw new InvalidOperationException("얻은 유물을 먼저 칸에 붙이세요.");
             FloorIndex++;
             if (FloorIndex >= FloorCount)
             {

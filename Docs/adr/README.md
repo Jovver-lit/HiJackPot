@@ -21,3 +21,6 @@
 | [0013](0013-chains-are-a-table-rule-not-base.md) | 연쇄는 기본 규칙이 아니라 테이블 규칙이다 (칸은 하나씩 발동) |
 | [0014](0014-counter-hijack-slot-goes-to-dealer.md) | 역탈취로 빼앗긴 칸은 딜러가 쓰고, 이겨도 자동으로 돌아오지 않는다 |
 | [0015](0015-outer-ring-shares-house-cut-chance.md) | 바깥 링 몰수도 N × 5% 안에서 나눠 갖는다 (합친 확률이 화면 숫자) |
+| [0016](0016-multiplier-fires-once-and-raises-house-cut.md) | 배율은 한 SPIN에 한 번만 곱하고, 터지면 몰수 확률을 올린다 |
+| [0017](0017-relics-attach-to-slots.md) | 유물은 룰렛 칸에 붙인다 (그레이박스 시험) |
+| [0018](0018-table-stakes-rise-each-three-rounds.md) | 판돈 단위는 3라운드마다 오른다 (딜러 강화 포함) |

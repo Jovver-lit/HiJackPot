@@ -61,6 +61,9 @@ namespace RouletteLike.Battle
         /// <summary>역탈취로 딜러 룰렛에 들어간 손님의 칸. 효과는 같고 표시만 다르다.</summary>
         public bool IsSeized { get; }
 
+        /// <summary>이 칸에 붙은 유물(없으면 null). 플레이어 차례에 이 칸에 착지하면 발동한다.</summary>
+        public RelicId? Attachment { get; }
+
         public Slot(
             string id,
             SlotKind kind,
@@ -69,8 +72,10 @@ namespace RouletteLike.Battle
             SlotTrigger trigger = SlotTrigger.Land,
             bool isJackpot = false,
             bool isStolen = false,
-            bool isSeized = false)
+            bool isSeized = false,
+            RelicId? attachment = null)
         {
+            Attachment = attachment;
             Id = id;
             Kind = kind;
             Value = value;
@@ -86,12 +91,18 @@ namespace RouletteLike.Battle
 
         public Slot AsStolen(string newId)
         {
-            return new Slot(newId, Kind, Value, Label, Trigger, IsJackpot, true);
+            return new Slot(newId, Kind, Value, Label, Trigger, IsJackpot, true, false, Attachment);
         }
 
         public Slot AsSeized()
         {
-            return new Slot(Id, Kind, Value, Label, Trigger, IsJackpot, IsStolen, true);
+            return new Slot(Id, Kind, Value, Label, Trigger, IsJackpot, IsStolen, true, Attachment);
+        }
+
+        /// <summary>유물을 붙인(이미 있으면 바꾼) 새 칸. null이면 뗀다.</summary>
+        public Slot WithAttachment(RelicId? attachment)
+        {
+            return new Slot(Id, Kind, Value, Label, Trigger, IsJackpot, IsStolen, IsSeized, attachment);
         }
 
         public static Slot Sealed(string id)

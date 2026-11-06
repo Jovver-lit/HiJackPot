@@ -45,12 +45,30 @@ namespace RouletteLike.Battle.Tests
             while (run.CurrentFloorKind != FloorKind.Shop)
             {
                 if (run.PendingJackpot != null) run.PlacePendingJackpot(0);
+                if (run.PendingAttachment.HasValue) run.PlacePendingAttachment(0);
                 Win(run.EnterDoor(0));
                 run.CompleteBattle();
                 Assert.AreEqual(RunOutcome.InProgress, run.Outcome);
             }
 
             return run;
+        }
+
+        [Test]
+        public void ShopRelic_IsAnAttachment_AndMustBePlacedBeforeLeaving()
+        {
+            Run run = RunToShop();
+            RelicId? relic = run.ShopRelic;
+            Assert.IsTrue(relic.HasValue);
+            Assert.IsTrue(RelicCatalog.Get(relic.Value).IsAttachment);
+            Assert.GreaterOrEqual(run.Cash, ShopPrices.Relic);
+
+            Assert.AreEqual(ShopError.None, run.BuyShopRelic());
+            Assert.AreEqual(relic, run.PendingAttachment);
+            Assert.Throws<System.InvalidOperationException>(() => run.LeaveShop());
+
+            Assert.IsTrue(run.PlacePendingAttachment(0));
+            run.LeaveShop();
         }
 
         [Test]
@@ -80,7 +98,7 @@ namespace RouletteLike.Battle.Tests
             Run run = RunToShop(10);
             run.LeaveShop();
             Assert.AreEqual(FloorKind.Dealer, run.CurrentFloorKind);
-            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageChipBase), run.Doors[0].StartingChips);
+            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageChipBase * Run.DealerChipScale), run.Doors[0].StartingChips);
             Assert.AreEqual(1 + Run.SecondStageAnteBonus, run.Doors[0].DealerAnte);
 
             while (run.CurrentFloorKind != FloorKind.Boss)
@@ -90,7 +108,7 @@ namespace RouletteLike.Battle.Tests
             }
 
             StringAssert.EndsWith(Run.SecondStageBossSuffix, run.Doors[0].Name);
-            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageBossChipScale), run.Doors[0].StartingChips);
+            Assert.AreEqual((int)Math.Round(10 * Run.SecondStageBossChipScale * Run.DealerChipScale), run.Doors[0].StartingChips);
         }
 
         [Test]
@@ -163,6 +181,7 @@ namespace RouletteLike.Battle.Tests
             while (run.CurrentFloorKind != FloorKind.Shop)
             {
                 if (run.PendingJackpot != null) run.PlacePendingJackpot(0);
+                if (run.PendingAttachment.HasValue) run.PlacePendingAttachment(0);
                 Win(run.EnterDoor(0));
                 run.CompleteBattle();
             }

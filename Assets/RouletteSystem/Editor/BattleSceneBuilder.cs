@@ -32,27 +32,21 @@ namespace RouletteLike.Roulette.Editor
         private const string RouletteTickSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_tick.wav";
         private const string RouletteStopSoundPath = "Assets/RouletteSystem/Music/hijackpot_roulette_sfx_3pack/hijackpot_roulette_stop.wav";
 
-        // ── UI 1단계 와이어프레임 팔레트(2026-10-02): 장식 없이 배치와 위계만 본다. 최종 색·재질은 ArtStyleBible(아르데코 카지노) 확정 뒤.
-        // 회색 단계로 정보의 중요도를 나누고, 강조색(Accent)은 판돈·CASH OUT·SPIN·내 차례에만, 위험색(Danger)은 몰수에만 쓴다.
-        private static readonly Color Background = new Color32(24, 24, 26, 255);
+        // ── 룰렛·UI 팔레트(ArtStyleBible 3·7장): 아르데코 카지노. 강조색은 판돈·CASH OUT·SPIN·내 차례에만, 위험색은 몰수에만 쓴다.
+        private const string UiKitPath = "Assets/RouletteSystem/Art/UI/";
         private const string SolidSpritePath = "Assets/RouletteSystem/Art/solid-white.png";
-        private static readonly Color Felt = new Color32(38, 50, 46, 255);
-        private static readonly Color StageWall = new Color32(30, 24, 36, 255);
-        private static readonly Color StagePanel = new Color32(40, 32, 48, 255);
-        private static readonly Color StageSlot = new Color32(52, 44, 62, 255);
-        private static readonly Color StageCarpet = new Color32(74, 32, 44, 255);
-        private static readonly Color StageBackground = new Color32(0, 0, 0, 0);
-        private static readonly Color Panel = new Color32(46, 47, 50, 250);
-        private static readonly Color PanelInset = new Color32(36, 37, 40, 255);
-        private static readonly Color PanelLight = new Color32(66, 67, 71, 255);
-        private static readonly Color Gold = new Color32(214, 214, 210, 255);
-        private static readonly Color DarkGold = new Color32(70, 71, 75, 255);
-        private static readonly Color Ink = new Color32(236, 236, 232, 255);
-        private static readonly Color Muted = new Color32(150, 150, 150, 255);
-        private static readonly Color Red = new Color32(120, 120, 124, 255);
-        private static readonly Color Teal = new Color32(176, 176, 180, 255);
-        private static readonly Color Accent = new Color32(226, 170, 64, 255);
-        private static readonly Color Danger = new Color32(206, 74, 78, 255);
+        private static readonly Color Background = new Color32(10, 14, 22, 255);
+        private static readonly Color Panel = new Color32(39, 40, 48, 255);
+        private static readonly Color PanelInset = new Color32(25, 25, 31, 255);
+        private static readonly Color PanelLight = new Color32(77, 78, 86, 255);
+        private static readonly Color Gold = new Color32(255, 224, 138, 255);
+        private static readonly Color DarkGold = new Color32(138, 106, 96, 255);
+        private static readonly Color Ink = new Color32(228, 230, 240, 255);
+        private static readonly Color Muted = new Color32(143, 146, 164, 255);
+        private static readonly Color Red = new Color32(168, 28, 48, 255);
+        private static readonly Color Teal = new Color32(31, 111, 120, 255);
+        private static readonly Color Accent = new Color32(240, 180, 60, 255);
+        private static readonly Color Danger = new Color32(232, 50, 60, 255);
 
         [MenuItem("Tools/HIJACKPOT/Build Battle Scene (SampleScene)")]
         public static void Build()
@@ -111,46 +105,29 @@ namespace RouletteLike.Roulette.Editor
             Stretch(casinoBackground.rectTransform);
             // 구도(Peglin 참고, 사용자 결정 2026-11-05): 위 전투 띠에서 두 사람이 같은 바닥에 서서 맞붙고, 아래 보드에서 룰렛을 돌린다.
             // 차례인 룰렛만 보드에 크게 두고, 상대 룰렛은 주인 뒤에 작게 둔다(WheelStage). 좌표는 화면 중심 기준.
-            UnityEngine.UI.Image tableFelt = AddImage("BoardFelt", backgroundLayer, Felt);
+            UnityEngine.UI.Image tableFelt = AddImage("BoardFelt", backgroundLayer, Color.white);
+            tableFelt.sprite = UiSprite("board_bg");
             tableFelt.rectTransform.anchorMin = Vector2.zero;
             tableFelt.rectTransform.anchorMax = new Vector2(1f, 0f);
             tableFelt.rectTransform.offsetMin = Vector2.zero;
             tableFelt.rectTransform.offsetMax = new Vector2(0f, 740f);
 
-            // ── 위 전투 띠(높이 340): 임시 도형 배경(벽·슬롯머신·카펫). 최종 그림은 ArtStyleBible을 정한 뒤 교체한다.
+            // ── 위 전투 띠(높이 340): 벽·슬롯머신·카펫을 그린 배경. Art/Source/generate_ui_kit.py로 만든다.
             RectTransform battleStage = AddStretchRect(
                 "BattleStage", canvasObject.transform,
                 new Vector2(0f, 1f), Vector2.one,
                 new Vector2(0f, -340f), Vector2.zero);
-            UnityEngine.UI.Image stagePlaceholder = AddImage("BackgroundPlaceholder", battleStage, StageWall);
-            Stretch(stagePlaceholder.rectTransform);
-            for (int i = 0; i < 8; i++)
-            {
-                UnityEngine.UI.Image wallPanel = AddImage($"WallPanel{i + 1}", battleStage, StagePanel);
-                wallPanel.rectTransform.anchoredPosition = new Vector2(-840f + i * 240f, 10f);
-                wallPanel.rectTransform.sizeDelta = new Vector2(224f, 202f);
-            }
-
-            foreach (float slotX in new[] { -840f, -200f, 40f, 840f })
-            {
-                UnityEngine.UI.Image slotBody = AddImage("SlotMachine", battleStage, StageSlot);
-                slotBody.rectTransform.anchoredPosition = new Vector2(slotX, -36f);
-                slotBody.rectTransform.sizeDelta = new Vector2(88f, 112f);
-                UnityEngine.UI.Image slotScreen = AddImage("Screen", slotBody.transform, DarkGold);
-                slotScreen.rectTransform.anchoredPosition = new Vector2(0f, 20f);
-                slotScreen.rectTransform.sizeDelta = new Vector2(64f, 38f);
-            }
-
-            UnityEngine.UI.Image stageCarpet = AddImage("Carpet", battleStage, StageCarpet);
-            stageCarpet.rectTransform.anchoredPosition = new Vector2(0f, -131f);
-            stageCarpet.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            stageCarpet.rectTransform.anchorMax = new Vector2(1f, 0.5f);
-            stageCarpet.rectTransform.sizeDelta = new Vector2(0f, 78f);
-            UnityEngine.UI.Image stageEdge = AddImage("StageEdge", battleStage, DarkGold);
-            stageEdge.rectTransform.anchoredPosition = new Vector2(0f, -170f);
-            stageEdge.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            stageEdge.rectTransform.anchorMax = new Vector2(1f, 0.5f);
-            stageEdge.rectTransform.sizeDelta = new Vector2(0f, 4f);
+            UnityEngine.UI.Image stageBackground = AddImage("BackgroundPlaceholder", battleStage, Color.white);
+            stageBackground.sprite = UiSprite("stage_bg");
+            Stretch(stageBackground.rectTransform);
+            // 벽등과 슬롯머신의 불빛: 투명 그림 두 장을 번갈아 켠다.
+            UnityEngine.UI.Image stageLights = AddImage("StageLights", battleStage, Color.white);
+            Stretch(stageLights.rectTransform);
+            stageLights.sprite = UiSprite("stage_lights_0");
+            StageLights lights = stageLights.gameObject.AddComponent<StageLights>();
+            SerializedObject lightsSo = new SerializedObject(lights);
+            SetObjectArray(lightsSo.FindProperty("frames"), new Object[] { UiSprite("stage_lights_0"), UiSprite("stage_lights_1") });
+            lightsSo.ApplyModifiedPropertiesWithoutUndo();
 
             RectTransform characterStage = AddStretchRect("CharacterStage", canvasObject.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -205,7 +182,7 @@ namespace RouletteLike.Roulette.Editor
             // 두 룰렛은 같은 크기로 만들고 WheelStage가 자리와 배율을 바꾼다. 안내 글은 숨기되 컨트롤러 참조를 유지한다.
             RectTransform playerPanel = AddRect("PlayerRoulettePanel", mainGameArea, Vector2.zero, new Vector2(640f, 100f));
             RectTransform playerRouletteContainer = AddRect("PlayerRouletteContainer", mainGameArea, new Vector2(0f, -175f), new Vector2(700f, 700f));
-            UnityEngine.UI.Image playerGlow = AddGlow("ActiveGlow", playerRouletteContainer, new Color32(226, 170, 64, 70), new Vector2(700f, 700f));
+            UnityEngine.UI.Image playerGlow = AddGlow("ActiveGlow", playerRouletteContainer, new Color32(240, 180, 60, 255), new Vector2(720f, 720f));
             // 바깥 링: 안쪽 룰렛 뒤에 겹친 큰 룰렛. 바깥 링이 있으면 안쪽 룰렛이 줄어들어 바깥 띠만 보인다(같은 포인터 아래).
             RectTransform playerOuterRingRoot = AddRect("OuterRingWheel", playerRouletteContainer, Vector2.zero, new Vector2(650f, 650f));
             RouletteController playerOuterRoulette = playerOuterRingRoot.gameObject.AddComponent<RouletteController>();
@@ -219,27 +196,25 @@ namespace RouletteLike.Roulette.Editor
 
             // SPIN 버튼을 룰렛 중앙에 둔다. 회전하는 Wheel이 아니라 고정된 루트의 자식이라 함께 돌지 않는다.
             // 버튼 둘레의 원형 게이지가 누르고 있는 동안의 회전 강도를 보여준다.
-            Sprite knobSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
             RectTransform spinCenter = AddRect("SpinCenter", rouletteRoot, Vector2.zero, new Vector2(200f, 200f));
-            UnityEngine.UI.Image powerTrack = AddImage("PowerRingTrack", spinCenter, new Color32(40, 34, 52, 255));
-            powerTrack.sprite = knobSprite;
+            UnityEngine.UI.Image powerTrack = AddImage("PowerRingTrack", spinCenter, PanelInset);
+            powerTrack.sprite = UiSprite("hub");
+            powerTrack.color = Color.white;
             powerTrack.rectTransform.sizeDelta = new Vector2(200f, 200f);
             UnityEngine.UI.Image powerFill = AddImage("PowerRingFill", spinCenter, Accent);
-            powerFill.sprite = knobSprite;
+            powerFill.sprite = UiSprite("ring");
             powerFill.rectTransform.sizeDelta = new Vector2(200f, 200f);
             powerFill.type = UnityEngine.UI.Image.Type.Filled;
             powerFill.fillMethod = UnityEngine.UI.Image.FillMethod.Radial360;
             powerFill.fillOrigin = (int)UnityEngine.UI.Image.Origin360.Top;
             powerFill.fillClockwise = true;
             powerFill.fillAmount = 0.08f;
-            UnityEngine.UI.Button throwButton = AddButton("SpinButton", spinCenter, Vector2.zero, new Vector2(166f, 166f), Accent, font, "길게 눌러\nSPIN", 24, out TMP_Text throwLabel);
+            UnityEngine.UI.Button throwButton = AddButton("SpinButton", spinCenter, Vector2.zero, new Vector2(168f, 168f), Accent, font, "길게 눌러\nSPIN", 24, out TMP_Text throwLabel);
             throwLabel.color = Background;
             UnityEngine.UI.Image throwImage = throwButton.GetComponent<UnityEngine.UI.Image>();
-            if (knobSprite != null)
-            {
-                throwImage.sprite = knobSprite;
-                throwImage.preserveAspect = true;
-            }
+            throwImage.sprite = UiSprite("spin_button");
+            throwImage.type = UnityEngine.UI.Image.Type.Simple;
+            throwImage.color = Color.white;
             spinCenter.SetAsLastSibling();
 
             AddRect("EffectRoot", playerRouletteContainer, Vector2.zero, new Vector2(700f, 700f));
@@ -291,6 +266,7 @@ namespace RouletteLike.Roulette.Editor
             for (int i = 0; i < relicIcons.Length; i++)
             {
                 relicIconImages[i] = AddImage($"RelicIcon{i + 1}", relicStripButton.transform, new Color32(80, 70, 100, 255));
+                MakeSliced(relicIconImages[i], "bevel", 4);
                 relicIconImages[i].rectTransform.anchoredPosition = new Vector2(-176f + i * 32f, -16f);
                 relicIconImages[i].rectTransform.sizeDelta = new Vector2(28f, 28f);
                 relicIconImages[i].raycastTarget = true;
@@ -301,7 +277,7 @@ namespace RouletteLike.Roulette.Editor
                 relicIcons[i] = relicIconImages[i].gameObject.AddComponent<RelicIconHover>();
             }
 
-            TMP_Text roundText = AddText("RoundTitle", centerPanel, "1F · ROUND 1", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(0f, -510f), new Vector2(380f, 26f));
+            TMP_Text roundText = AddText("RoundTitle", centerPanel, "1F · ROUND 1", font, 15, Muted, TextAlignmentOptions.Left, new Vector2(0f, -492f), new Vector2(350f, 22f));
             roundText.enableAutoSizing = true;
             roundText.fontSizeMin = 10f;
             roundText.fontSizeMax = 15f;
@@ -319,7 +295,7 @@ namespace RouletteLike.Roulette.Editor
             dealerHeaderText.gameObject.SetActive(false);
             RectTransform dealerRouletteContainer = AddRect("DealerRouletteContainer", mainGameArea, new Vector2(790f, 360f), new Vector2(700f, 700f));
             dealerRouletteContainer.localScale = Vector3.one * 0.34f;
-            UnityEngine.UI.Image dealerGlow = AddGlow("ActiveGlow", dealerRouletteContainer, new Color32(226, 170, 64, 70), new Vector2(700f, 700f));
+            UnityEngine.UI.Image dealerGlow = AddGlow("ActiveGlow", dealerRouletteContainer, new Color32(240, 180, 60, 255), new Vector2(720f, 720f));
             RectTransform dealerOuterRingRoot = AddRect("OuterRingWheel", dealerRouletteContainer, Vector2.zero, new Vector2(650f, 650f));
             RouletteController dealerOuterRoulette = dealerOuterRingRoot.gameObject.AddComponent<RouletteController>();
             RouletteSpinController dealerOuterSpin = dealerOuterRingRoot.gameObject.AddComponent<RouletteSpinController>();
@@ -332,12 +308,12 @@ namespace RouletteLike.Roulette.Editor
 
             // 딜러 룰렛 가운데: 내 SPIN 버튼과 같은 모양의 표시판. 누를 수는 없고 누구 룰렛인지 보여 준다.
             RectTransform dealerCenter = AddRect("DealerCenter", enemyRouletteRoot, Vector2.zero, new Vector2(200f, 200f));
-            UnityEngine.UI.Image dealerCenterTrack = AddImage("Track", dealerCenter, new Color32(40, 34, 52, 255));
-            dealerCenterTrack.sprite = knobSprite;
+            UnityEngine.UI.Image dealerCenterTrack = AddImage("Track", dealerCenter, Color.white);
+            dealerCenterTrack.sprite = UiSprite("hub");
             dealerCenterTrack.rectTransform.sizeDelta = new Vector2(200f, 200f);
-            UnityEngine.UI.Image dealerCenterFace = AddImage("Face", dealerCenter, new Color32(150, 50, 56, 255));
-            dealerCenterFace.sprite = knobSprite;
-            dealerCenterFace.rectTransform.sizeDelta = new Vector2(166f, 166f);
+            UnityEngine.UI.Image dealerCenterFace = AddImage("Face", dealerCenter, Color.white);
+            dealerCenterFace.sprite = UiSprite("dealer_button");
+            dealerCenterFace.rectTransform.sizeDelta = new Vector2(168f, 168f);
             TMP_Text dealerWheelLabel = AddText("Label", dealerCenter, "딜러", font, 28, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(150f, 80f));
             dealerWheelLabel.enableAutoSizing = true;
             dealerWheelLabel.fontSizeMin = 16f;
@@ -370,15 +346,15 @@ namespace RouletteLike.Roulette.Editor
             ConfigureFill(houseRuleFill, 0f);
             AddRect("EffectRoot", houseRuleCard, Vector2.zero, new Vector2(380f, 130f));
             UnityEngine.UI.Button houseRuleInfoButton = AddButton("InfoButton", houseRuleCard, new Vector2(156f, -83f), new Vector2(68f, 28f), PanelLight, font, "상세", 14, out _);
-            TMP_Text enemyNextIntentText = AddText("DealerIntent", mainGameArea, "판돈 5+에서 CASH OUT", font, 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(730f, -50f), new Vector2(380f, 44f));
+            TMP_Text enemyNextIntentText = AddText("DealerIntent", mainGameArea, "판돈 5+에서 CASH OUT", font, 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(730f, -50f), new Vector2(360f, 44f));
             enemyNextIntentText.enableAutoSizing = true;
             enemyNextIntentText.fontSizeMin = 11f;
             enemyNextIntentText.fontSizeMax = 15f;
 
             // 사건 띠를 누르면 전체 전투 기록이 펼쳐진다(투명 버튼, 속도 버튼보다 아래).
-            RectTransform eventStrip = AddRect("EventStrip", mainGameArea, new Vector2(730f, -190f), new Vector2(380f, 220f));
-            AddText("Icon", eventStrip, "LOG", font, 14, Muted, TextAlignmentOptions.Left, new Vector2(0f, 98f), new Vector2(380f, 24f));
-            TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(0f, -12f), new Vector2(380f, 196f));
+            RectTransform eventStrip = AddRect("EventStrip", mainGameArea, new Vector2(730f, -190f), new Vector2(360f, 220f));
+            AddText("Icon", eventStrip, "LOG", font, 14, Muted, TextAlignmentOptions.Left, new Vector2(0f, 98f), new Vector2(360f, 24f));
+            TMP_Text combatLogText = AddText("CombatLog", eventStrip, "", font, 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(0f, -12f), new Vector2(360f, 196f));
             UnityEngine.UI.Image logButtonImage = AddImage("LogButton", eventStrip, new Color(0f, 0f, 0f, 0f));
             logButtonImage.rectTransform.sizeDelta = new Vector2(380f, 220f);
             logButtonImage.raycastTarget = true;
@@ -572,26 +548,19 @@ namespace RouletteLike.Roulette.Editor
             float wheelSize = 650f;
             RectTransform wheel = AddRect("Wheel", root, Vector2.zero, new Vector2(wheelSize, wheelSize));
             RectTransform segments = AddRect("DynamicSegments", wheel, Vector2.zero, new Vector2(wheelSize, wheelSize));
-            RoulettePixelWheelRenderer renderer = segments.gameObject.AddComponent<RoulettePixelWheelRenderer>();
-            renderer.raycastTarget = false;
-            // 와이어프레임: 룰렛 뒤에 단순한 테두리 원판을 깔고(장식 틀 없음), 12시에 강조색 마름모 포인터 하나.
-            Sprite disc = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-            UnityEngine.UI.Image rim = AddSpriteImage("FixedFrame", root, disc, new Vector2(wheelSize + 28f, wheelSize + 28f));
-            rim.color = PanelLight;
-            rim.transform.SetAsFirstSibling();
-            UnityEngine.UI.Image centerCap = AddSpriteImage("CenterCap", wheel, disc, new Vector2(96f, 96f));
-            centerCap.color = PanelInset;
-            UnityEngine.UI.Image pointer = AddImage("Pointer", root, Accent);
-            pointer.rectTransform.sizeDelta = new Vector2(38f, 38f);
-            pointer.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            pointer.rectTransform.anchoredPosition = new Vector2(0f, wheelSize * 0.5f + 10f);
+            RoulettePixelWheelRenderer renderer = AddWheelSurface(wheel, segments.sizeDelta);
+            // 룰렛 뒤의 황동·나무 테두리와 12시의 지시침. 지시침은 회전하지 않는 도트 그림이다.
+            AddRim(root, wheelSize + 46f);
+            UnityEngine.UI.Image centerCap = AddSpriteImage("CenterCap", wheel, UiSprite("hub"), new Vector2(100f, 100f));
+            UnityEngine.UI.Image pointer = AddSpriteImage("Pointer", root, UiSprite("pointer"), new Vector2(64f, 80f));
+            pointer.rectTransform.anchoredPosition = new Vector2(0f, wheelSize * 0.5f + 14f);
 
             SerializedObject controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("wheel").objectReferenceValue = wheel;
             controllerSo.FindProperty("dynamicSegmentRoot").objectReferenceValue = segments;
             controllerSo.FindProperty("pixelWheelRenderer").objectReferenceValue = renderer;
             controllerSo.FindProperty("labelFont").objectReferenceValue = legacyFont;
-            controllerSo.FindProperty("labelFontSize").intValue = 42;
+            controllerSo.FindProperty("labelFontSize").intValue = 48;
             controllerSo.FindProperty("iconRadiusRatio").floatValue = 0.5f;
             controllerSo.FindProperty("labelRadiusRatio").floatValue = 0.7f;
             controllerSo.FindProperty("labelSize").vector2Value = new Vector2(150f, 56f);
@@ -627,11 +596,10 @@ namespace RouletteLike.Roulette.Editor
             // FxLayer 자식은 연출이 끝나면 지워지므로 그 밖에 둔다. 배너와 오버레이 아래.
             RectTransform root = AddRect("CoinFlip", parent, new Vector2(0f, 350f), new Vector2(96f, 96f));
             root.SetSiblingIndex(siblingIndex);
-            Sprite disc = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-            UnityEngine.UI.Image rim = AddSpriteImage("Coin", root, disc, new Vector2(96f, 96f));
-            rim.color = Gold;
+            UnityEngine.UI.Image rim = AddSpriteImage("Coin", root, UiSprite("dome"), new Vector2(96f, 96f));
+            rim.color = Accent;
             rim.raycastTarget = false;
-            UnityEngine.UI.Image face = AddSpriteImage("Face", rim.transform, disc, new Vector2(80f, 80f));
+            UnityEngine.UI.Image face = AddSpriteImage("Face", rim.transform, UiSprite("dome"), new Vector2(80f, 80f));
             face.raycastTarget = false;
             TMP_Text label = AddText("Label", rim.transform, "손님", font, 22, Background, TextAlignmentOptions.Center, Vector2.zero, new Vector2(72f, 40f));
             label.textWrappingMode = TextWrappingModes.NoWrap;
@@ -716,9 +684,9 @@ namespace RouletteLike.Roulette.Editor
             {
                 int column = i % 3;
                 int row = i / 3;
-                chips[i] = AddImage($"Chip{i + 1}", stack, column == 1 ? Gold : new Color32(196, 140, 40, 255));
-                chips[i].rectTransform.anchoredPosition = new Vector2((column - 1) * 58f, -34f + row * 20f);
-                chips[i].rectTransform.sizeDelta = new Vector2(50f, 16f);
+                chips[i] = AddSpriteImage($"Chip{i + 1}", stack, UiSprite("chip"), new Vector2(32f, 32f));
+                chips[i].color = column == 1 ? Brighten(Accent) : Brighten(Red);
+                chips[i].rectTransform.anchoredPosition = new Vector2((column - 1) * 40f, -30f + row * 8f);
             }
 
             return chips;
@@ -847,22 +815,20 @@ namespace RouletteLike.Roulette.Editor
         {
             RectTransform wheel = AddRect("Wheel", root, Vector2.zero, new Vector2(size, size));
             RectTransform segments = AddRect("DynamicSegments", wheel, Vector2.zero, new Vector2(size, size));
-            RoulettePixelWheelRenderer renderer = segments.gameObject.AddComponent<RoulettePixelWheelRenderer>();
-            renderer.raycastTarget = false;
+            RoulettePixelWheelRenderer renderer = AddWheelSurface(wheel, segments.sizeDelta);
             // 포인터는 링 바깥 가장자리에 걸쳐 두어 멈춘 칸의 기호를 가리지 않는다.
-            UnityEngine.UI.Image pointer = AddImage("OuterPointer", root, Accent);
-            pointer.rectTransform.sizeDelta = new Vector2(24f, 24f);
-            pointer.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            pointer.rectTransform.anchoredPosition = new Vector2(0f, size * 0.5f + 12f);
+            AddRim(root, size + 46f);
+            UnityEngine.UI.Image pointer = AddSpriteImage("OuterPointer", root, UiSprite("pointer"), new Vector2(64f, 80f));
+            pointer.rectTransform.anchoredPosition = new Vector2(0f, size * 0.5f + 14f);
 
             SerializedObject controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("wheel").objectReferenceValue = wheel;
             controllerSo.FindProperty("dynamicSegmentRoot").objectReferenceValue = segments;
             controllerSo.FindProperty("pixelWheelRenderer").objectReferenceValue = renderer;
             controllerSo.FindProperty("labelFont").objectReferenceValue = legacyFont;
-            controllerSo.FindProperty("labelFontSize").intValue = 22;
-            controllerSo.FindProperty("iconRadiusRatio").floatValue = 0.87f;
-            controllerSo.FindProperty("labelRadiusRatio").floatValue = 0.87f;
+            controllerSo.FindProperty("labelFontSize").intValue = 24;
+            controllerSo.FindProperty("iconRadiusRatio").floatValue = 0.915f;
+            controllerSo.FindProperty("labelRadiusRatio").floatValue = 0.915f;
             controllerSo.FindProperty("labelSize").vector2Value = new Vector2(72f, 30f);
             controllerSo.FindProperty("keepLabelsUpright").boolValue = true;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
@@ -1092,7 +1058,8 @@ namespace RouletteLike.Roulette.Editor
             float half = (width - 20f) * 0.5f - 90f; // 글자 끝을 바 끝에 맞춘다.
             nameText = AddText("NameText", root, combatantName, font, 22, Ink, mirrored ? TextAlignmentOptions.Right : TextAlignmentOptions.Left, new Vector2(mirrored ? half : -half, 22f), new Vector2(180f, 30f));
             chipsText = AddText("ChipsText", root, "칩 20", font, 22, Ink, mirrored ? TextAlignmentOptions.Left : TextAlignmentOptions.Right, new Vector2(mirrored ? -half : half, 22f), new Vector2(180f, 30f));
-            UnityEngine.UI.Image background = AddImage("BarBackground", root, new Color32(58, 59, 63, 255));
+            UnityEngine.UI.Image background = AddImage("BarBackground", root, Brighten(PanelInset));
+            MakeSliced(background, "inset", 4);
             background.rectTransform.anchoredPosition = new Vector2(0f, -10f);
             background.rectTransform.sizeDelta = new Vector2(width - 20f, 22f);
             UnityEngine.UI.Image fill = AddImage("BarFill", background.transform, fillColor);
@@ -1104,11 +1071,8 @@ namespace RouletteLike.Roulette.Editor
         /// <summary>말풍선 오른쪽의 마름모 꼬리(화자인 딜러 쪽).</summary>
         private static void AddBubbleTail(RectTransform bubble, Color color)
         {
-            UnityEngine.UI.Image tail = AddImage("Tail", bubble, color);
-            tail.rectTransform.anchoredPosition = new Vector2(bubble.sizeDelta.x * 0.5f, 0f);
-            tail.rectTransform.sizeDelta = new Vector2(22f, 22f);
-            tail.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            tail.transform.SetAsFirstSibling();
+            UnityEngine.UI.Image tail = AddSpriteImage("Tail", bubble, UiSprite("bubble_tail"), new Vector2(16f, 28f));
+            tail.rectTransform.anchoredPosition = new Vector2(bubble.sizeDelta.x * 0.5f + 6f, 0f);
         }
 
         private static TMP_Text AddBadge(string name, Transform parent, string label, Color accent, TMP_FontAsset font, Vector2 position, float width = 240f)
@@ -1125,25 +1089,93 @@ namespace RouletteLike.Roulette.Editor
         private static UnityEngine.UI.Image AddGlow(string name, Transform parent, Color color, Vector2 size)
         {
             UnityEngine.UI.Image glow = AddImage(name, parent, color);
-            glow.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+            glow.sprite = UiSprite("glow_ring");
             glow.rectTransform.sizeDelta = size;
             return glow;
+        }
+
+        /// <summary>룰렛 판을 그리는 면. 회전을 상쇄해 화면 격자에 그리므로, 함께 돌아야 하는 칸 글자(DynamicSegments)와 분리한다.</summary>
+        private static RoulettePixelWheelRenderer AddWheelSurface(RectTransform wheel, Vector2 size)
+        {
+            GameObject surface = new GameObject("PixelSurface", typeof(RectTransform), typeof(CanvasRenderer), typeof(RoulettePixelWheelRenderer));
+            surface.transform.SetParent(wheel, false);
+            surface.transform.SetAsFirstSibling();
+            surface.GetComponent<RectTransform>().sizeDelta = size;
+            RoulettePixelWheelRenderer renderer = surface.GetComponent<RoulettePixelWheelRenderer>();
+            renderer.raycastTarget = false;
+            return renderer;
+        }
+
+        /// <summary>표시 크기에 맞춰 도트로 그려지는 룰렛 테두리.</summary>
+        private static void AddRim(RectTransform root, float size)
+        {
+            GameObject rimObject = new GameObject("FixedFrame", typeof(RectTransform), typeof(CanvasRenderer), typeof(PixelWheelRim));
+            rimObject.transform.SetParent(root, false);
+            RectTransform rim = rimObject.GetComponent<RectTransform>();
+            rim.sizeDelta = new Vector2(size, size);
+            rim.SetAsFirstSibling();
+        }
+
+        /// <summary>회색조 입체 그림은 색을 곱해 쓰므로 살짝 어두워진다. 그만큼 밝혀 원래 색에 맞춘다.</summary>
+        private static Color Brighten(Color color)
+        {
+            return new Color(Mathf.Clamp01(color.r * 1.11f), Mathf.Clamp01(color.g * 1.11f), Mathf.Clamp01(color.b * 1.11f), color.a);
+        }
+
+        /// <summary>9조각 도트 그림을 입힌다. 1 도트 = 2 UI로 표시한다.</summary>
+        private static void MakeSliced(UnityEngine.UI.Image image, string spriteName, int border)
+        {
+            image.sprite = UiSprite(spriteName, border);
+            image.type = UnityEngine.UI.Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 0.5f;
+        }
+
+        /// <summary>Art/UI의 도트 그림을 스프라이트로 읽는다. 처음 쓸 때 임포트 설정(Point·무압축·밉맵 없음)을 맞춘다.</summary>
+        private static Sprite UiSprite(string spriteName, int border = 0)
+        {
+            string path = UiKitPath + spriteName + ".png";
+            TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            if (importer == null)
+            {
+                Debug.LogError($"Missing UI kit sprite: {path}");
+                return null;
+            }
+
+            Vector4 borders = new Vector4(border, border, border, border);
+            if (importer.textureType != TextureImporterType.Sprite || importer.filterMode != FilterMode.Point
+                || importer.textureCompression != TextureImporterCompression.Uncompressed || importer.mipmapEnabled
+                || importer.spriteBorder != borders || importer.npotScale != TextureImporterNPOTScale.None)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.filterMode = FilterMode.Point;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.mipmapEnabled = false;
+                importer.npotScale = TextureImporterNPOTScale.None;
+                importer.alphaIsTransparency = true;
+                importer.spriteBorder = borders;
+                importer.SaveAndReimport();
+            }
+
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
         private static RectTransform AddFramedPanel(string name, Transform parent, Vector2 position, Vector2 size, Color backgroundColor, Color frameColor, out UnityEngine.UI.Image background, out UnityEngine.UI.Image frame)
         {
             RectTransform root = AddRect(name, parent, position, size);
-            background = AddImage("Background", root, backgroundColor);
+            background = AddImage("Background", root, Brighten(backgroundColor));
             Stretch(background.rectTransform);
+            MakeSliced(background, "bevel", 4);
             frame = AddFrame("Frame", root, frameColor);
+            // 작은 표지에는 꺾인 모서리가 들어갈 자리가 없다.
+            if (size.y < 60f) frame.gameObject.SetActive(false);
             return root;
         }
 
         private static UnityEngine.UI.Image AddFrame(string name, Transform parent, Color color)
         {
             UnityEngine.UI.Image frame = AddImage(name, parent, color);
-            frame.sprite = GetFilledImageSprite();
-            frame.type = UnityEngine.UI.Image.Type.Sliced;
+            MakeSliced(frame, "deco_frame", 8);
             frame.fillCenter = false;
             Stretch(frame.rectTransform);
             return frame;
@@ -1151,7 +1183,8 @@ namespace RouletteLike.Roulette.Editor
 
         private static UnityEngine.UI.Button AddButton(string name, Transform parent, Vector2 position, Vector2 size, Color color, TMP_FontAsset font, string label, int fontSize, out TMP_Text labelText)
         {
-            UnityEngine.UI.Image image = AddImage(name, parent, color);
+            UnityEngine.UI.Image image = AddImage(name, parent, color.a > 0f ? Brighten(color) : color);
+            if (color.a > 0f) MakeSliced(image, "bevel", 4);
             image.rectTransform.anchoredPosition = position;
             image.rectTransform.sizeDelta = size;
             UnityEngine.UI.Button button = image.gameObject.AddComponent<UnityEngine.UI.Button>();
@@ -1163,7 +1196,10 @@ namespace RouletteLike.Roulette.Editor
 
         private static RectTransform AddPanel(string name, Transform parent, Vector2 position, Vector2 size, Color color)
         {
-            UnityEngine.UI.Image image = AddImage(name, parent, color);
+            // 화면 전체를 덮는 어두운 막은 단색으로 두고, 그 밖의 판은 도트 입체 판으로 그린다.
+            bool fullScreen = size.x >= 1900f;
+            UnityEngine.UI.Image image = AddImage(name, parent, fullScreen ? color : Brighten(color));
+            if (!fullScreen) MakeSliced(image, "bevel", 4);
             image.rectTransform.anchoredPosition = position;
             image.rectTransform.sizeDelta = size;
             return image.rectTransform;
@@ -1238,7 +1274,7 @@ namespace RouletteLike.Roulette.Editor
         private static void ConfigureFill(UnityEngine.UI.Image fill, float amount)
         {
             Stretch(fill.rectTransform);
-            fill.sprite = GetSolidSprite();
+            fill.sprite = UiSprite("bar_fill");
             fill.type = UnityEngine.UI.Image.Type.Filled;
             fill.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal;
             fill.fillOrigin = 0;

@@ -9,5 +9,6 @@
 | `Editor/DealerRuleTests.cs` | 여우(기본 보험·작은 CASH OUT·허풍), 고양이(배율 CASH OUT), 까마귀(선불 75%·선공 CASH OUT) |
 | `Editor/ShopTests.cs` | 10층 구성, 보스 뒤 런 계속·바깥 링 획득, 2회차 강화, 상점 기능(위치 바꾸기·강화·되돌리기·현금 부족), 슬롯머신 배당·환수율 |
 | `Editor/EconomyTests.cs` | 테이블 마감 사용료(10·15라운드, 사용료 파산), 층별 딜러 칩·베팅 강화 |
-| `Editor/RelicTests.cs` | 유물 12개 효과(키워드 6종 포함), NUDGE 횟수·사용 조건, 문 카드 유물 상금과 VIP 상금 |
+| `Editor/RelicTests.cs` | 옛 유물 12개 효과(키워드 6종 포함), NUDGE 횟수·사용 조건, 문 카드 유물 상금과 VIP 상금 |
+| `Editor/RelicAttachmentTests.cs` | 칸에 붙이는 유물 4개의 발동·이득 기록, 런의 획득·배치 규칙 |
 | `Editor/OuterRingTests.cs` | 바깥 링(레이즈·배율·보험·보호막), 잭팟 라인과 보스 하우스 룰, 보호막 만료, 보스 격파 시 바깥 링 획득 |

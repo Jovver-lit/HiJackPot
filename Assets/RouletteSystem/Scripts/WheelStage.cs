@@ -19,8 +19,8 @@ namespace RouletteLike.Roulette
         [SerializeField] private Vector2 playerSidePosition = new Vector2(-790f, 360f);
         [SerializeField] private Vector2 dealerSidePosition = new Vector2(790f, 360f);
         [SerializeField, Min(0.01f)] private float sideScale = 0.34f;
-        [SerializeField] private float spreadOffset = 270f;
-        [SerializeField, Min(0.01f)] private float spreadScale = 0.77f;
+        [SerializeField] private float spreadOffset = 255f;
+        [SerializeField, Min(0.01f)] private float spreadScale = 0.72f;
 
         private Coroutine _move;
 

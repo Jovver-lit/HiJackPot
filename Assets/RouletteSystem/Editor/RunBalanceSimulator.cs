@@ -64,7 +64,7 @@ namespace RouletteLike.Roulette.EditorTools
 
         private sealed class DealerStats
         {
-            public int Battles, Wins, Hijacks, Rounds, HouseCuts, BigEvaporations, Nudges, LongBattles;
+            public int Battles, Wins, Hijacks, Rounds, HouseCuts, BigEvaporations, Nudges, LongBattles, FirstRoundWins;
             public long EntryChips;
             public long EntryCash;
         }
@@ -88,6 +88,7 @@ namespace RouletteLike.Roulette.EditorTools
                 while (run.Outcome == RunOutcome.InProgress)
                 {
                     if (run.PendingJackpot != null) run.PlacePendingJackpot(WeakestSlot(run.Wheel));
+                    if (run.PendingAttachment.HasValue) run.PlacePendingAttachment(BestAttachmentSlot(run.Wheel));
                     if (run.CurrentFloorKind == FloorKind.Shop)
                     {
                         shopVisits++;
@@ -120,7 +121,12 @@ namespace RouletteLike.Roulette.EditorTools
                     stats.Rounds += battle.Round;
                     if (battle.Round >= 15) stats.LongBattles++;
                     roundBuckets[Math.Min(5, battle.Round / 3)]++;
-                    if (battle.Outcome != BattleOutcome.DealerWins) stats.Wins++;
+                    if (battle.Outcome != BattleOutcome.DealerWins)
+                    {
+                        stats.Wins++;
+                        if (battle.Round <= 1) stats.FirstRoundWins++;
+                    }
+
                     int floor = run.FloorIndex;
                     run.CompleteBattle();
                     if (run.Outcome == RunOutcome.Bankrupt) diedAt[floor]++;
@@ -129,7 +135,7 @@ namespace RouletteLike.Roulette.EditorTools
                 if (abandoned) continue;
                 bool escapedRun = run.Outcome == RunOutcome.Escaped;
                 if (escapedRun) escaped++;
-                foreach (RelicId relic in run.Relics)
+                foreach (RelicId relic in run.AttachedRelics)
                 {
                     if (!relicEscapes.TryGetValue(relic, out int[] counts)) relicEscapes[relic] = counts = new int[2];
                     counts[0]++;
@@ -144,7 +150,7 @@ namespace RouletteLike.Roulette.EditorTools
             {
                 DealerStats s = pair.Value;
                 double n = Math.Max(1, s.Battles);
-                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 현금 {s.EntryCash / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · HIJACK {s.Hijacks / n:0.00} · 몰수 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
+                text.AppendLine($"   {pair.Key}: 승 {100.0 * s.Wins / n:0}% · 입장 칩 {s.EntryChips / n:0.0} · 현금 {s.EntryCash / n:0.0} · 라운드 {s.Rounds / n:0.0} (15+ {s.LongBattles}) · 첫 라운드 처치 {100.0 * s.FirstRoundWins / n:0}% · HIJACK {s.Hijacks / n:0.00} · 몰수 {s.HouseCuts / n:0.0} · 판돈6+ 증발 {s.BigEvaporations / n:0.00} · NUDGE {s.Nudges / n:0.00} (n={s.Battles})");
             }
 
             List<string> relicLines = new List<string>();
@@ -258,6 +264,21 @@ namespace RouletteLike.Roulette.EditorTools
 
                 if (best < 0 || run.UpgradeSlot(best) != ShopError.None) break;
             }
+        }
+
+        /// <summary>유물을 붙일 칸: 유물이 없는 칸 우선, 그중 레이즈 칸 우선(몰수·봉인 제외).</summary>
+        private static int BestAttachmentSlot(IReadOnlyList<Slot> wheel)
+        {
+            int best = -1, bestScore = -1;
+            for (int i = 0; i < wheel.Count; i++)
+            {
+                Slot slot = wheel[i];
+                if (slot.Kind == SlotKind.HouseCut || slot.Kind == SlotKind.Sealed) continue;
+                int score = (slot.Attachment.HasValue ? 0 : 2) + (slot.Kind == SlotKind.Raise ? 1 : 0);
+                if (score > bestScore) { best = i; bestScore = score; }
+            }
+
+            return best;
         }
 
         /// <summary>빼앗을 칸: JACKPOT 우선, 없으면 값이 큰 칸(봉인·몰수 제외).</summary>

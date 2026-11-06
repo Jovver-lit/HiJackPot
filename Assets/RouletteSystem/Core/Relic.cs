@@ -16,7 +16,11 @@ namespace RouletteLike.Battle
         LuckyCoin,
         FoldedCorner,
         VipCard,
-        SeizureSeal
+        SeizureSeal,
+        SkimmingHook,
+        ForgedReceipt,
+        RefundTicket,
+        MagnetStrip
     }
 
     /// <summary>
@@ -35,8 +39,15 @@ namespace RouletteLike.Battle
         /// <summary>아이콘 글자(그레이박스, 1~3자). 아트가 나오면 아이콘 이미지로 바뀐다.</summary>
         public string Icon { get; }
 
-        public Relic(RelicId id, string name, string keyword, string description, string icon)
+        /// <summary>칸에 붙이는 유물이 주는 이득의 단위(칩·피해·판돈). 없으면 칸에 붙지 않는 옛 유물이다.</summary>
+        public string GainUnit { get; }
+
+        /// <summary>내 룰렛의 칸에 붙여 그 칸에 착지할 때 발동하는 유물인지(ADR 0017).</summary>
+        public bool IsAttachment => GainUnit != null;
+
+        public Relic(RelicId id, string name, string keyword, string description, string icon, string gainUnit = null)
         {
+            GainUnit = gainUnit;
             Id = id;
             Name = name;
             Keyword = keyword;
@@ -47,7 +58,10 @@ namespace RouletteLike.Battle
         public override string ToString() => $"{Keyword} {Name}: {Description}";
     }
 
-    /// <summary>MVP 유물 12개(데이터). 문 카드 상금으로 등장한다(ADR 0006).</summary>
+    /// <summary>
+    /// 유물 데이터. 지금 런에 등장하는 것은 칸에 붙이는 유물 4개다(ADR 0017).
+    /// 앞의 12개는 칸에 붙지 않는 옛 유물로, 시험이 끝날 때까지 규칙 코드만 남고 등장하지 않는다(Legacy).
+    /// </summary>
     public static class RelicCatalog
     {
         /// <summary>도파민 주사기: 몰수 1번당 CASH OUT 피해 +1.</summary>
@@ -57,6 +71,10 @@ namespace RouletteLike.Battle
         public const int MarkedCardChips = 3;
         /// <summary>VIP 회원증: 딴 칩 중 칩으로 남는 비율에 더하는 값.</summary>
         public const float VipKeepShareBonus = 0.2f;
+
+        public const int SkimmingHookChips = 1;
+        public const int ForgedReceiptDamage = 2;
+        public const int MagnetStripPot = 3;
 
         private static readonly Relic[] All =
         {
@@ -72,6 +90,10 @@ namespace RouletteLike.Battle
             new Relic(RelicId.FoldedCorner, "모서리 접힌 카드", "[착지]", "배율 칸에 착지하면 곱하기 전에 판돈 +1", "모서"),
             new Relic(RelicId.VipCard, "VIP 회원증", "[정산]", "딴 칩 중 칩으로 남는 몫 30% → 50% (나머지는 현금)", "VIP"),
             new Relic(RelicId.SeizureSeal, "회수 방지 봉인", "[HIJACK]", "역탈취를 당하지 않는다", "봉인"),
+            new Relic(RelicId.SkimmingHook, "소매치기 갈고리", "[착지]", $"이 칸에 착지하면 칩 +{SkimmingHookChips}", "갈고", "칩"),
+            new Relic(RelicId.ForgedReceipt, "위조 영수증", "[CASH OUT]", $"이 칸에 착지하면 이번 턴 CASH OUT 피해 +{ForgedReceiptDamage}", "영수", "피해"),
+            new Relic(RelicId.RefundTicket, "환불 쪽지", "[몰수]", "이 칸에 착지하면 이번 턴 몰수에 걸려도 베팅을 돌려받는다", "환불", "칩"),
+            new Relic(RelicId.MagnetStrip, "자석 띠", "[인접]", $"이 칸에 착지했을 때 옆 칸이 같은 종류면 판돈 +{MagnetStripPot}", "자석", "판돈"),
         };
 
         public static IReadOnlyList<Relic> Relics => All;

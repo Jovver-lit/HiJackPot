@@ -82,7 +82,17 @@ Texture Type `Sprite (2D and UI)`, Pixels Per Unit = **캔버스 크기**(128), 
 |---|---|---|
 | 딜러 | `Assets/RouletteSystem/Art/Characters/Rabbit/bunny-dealer-128px.png` (원본 `.aseprite`의 `GoldStandard-128px` 레이어) | 전후 비교: [img/2026-11-01-rabbit-before-after.png](img/2026-11-01-rabbit-before-after.png), 손님과 나란히: [img/2026-11-01-player-vs-rabbit.png](img/2026-11-01-player-vs-rabbit.png) |
 | 손님(플레이어) | `Assets/RouletteSystem/Art/Characters/Businessman/businessman-128px-sheet.png` (원본 `businessman-128px.aseprite`) | 레퍼런스·토끼와 비교: [img/2026-11-02-businessman-vs-rabbit.png](img/2026-11-02-businessman-vs-rabbit.png). 18색. 레퍼런스와 평균 색 차이 10.9(눈 제외 9.8) |
-| 룰렛·UI | 미확정 | ui-direction.md 3단계에서 정함 |
+| 룰렛·UI | **후보(사용자 확정 전)**: [img/2026-11-05-ui-art-quality.png](img/2026-11-05-ui-art-quality.png), `Art/UI/`, `PixelWheelRim`, `RoulettePixelWheelRenderer` | 아래 "룰렛·UI 후보 규칙" 참고 |
+
+### 룰렛·UI 후보 규칙 (2026-11-05)
+
+- 1 도트 = 2 UI(1920×1080 기준), 캐릭터와 같은 밀도. 회전·비정수 확대를 하지 않는다. 룰렛은 회전각을 반영해 화면 격자에 다시 그리고, 표시 크기가 바뀌면 해상도를 맞춘다.
+- 광원은 왼쪽 위로 고정한다. 단 룰렛 칸 안은 한 색으로 칠하고 어두운 칸막이 한 줄로만 나눈다. 음영 띠를 넣으면 칸이 여러 갈래로 보이고 착지 칸을 읽기 어렵다(사용자 결정 2026-11-06).
+- 캐릭터 크기는 256 UI를 유지한다(사용자 결정 2026-11-05). 도트를 더 굵게 하는 시안(`img/2026-11-05-art-mock-*.png`)은 쓰지 않는다.
+- 재질: 황동(띠 모양 반사), 결이 있는 나무, 버건디 벽지·커튼·카펫, 가죽 난간, 초록 펠트, 에나멜 돔. 면은 조명 값을 색 계단으로 끊어 칠하고, 판과 일반 버튼은 회색조 9조각 그림에 색을 곱해 쓴다.
+- 공용 팔레트 밖에 쓴 색이 많다: 보험 칸 청록 `1f6f78`과 `generate_ui_kit.py` 맨 위의 재질별 색 계단(`WALL_R` `GOLD_R` `CURT_R` `CARPET_R` `WOOD_R` `FELT_R` `LEATHER_R` `ENAMEL_*`). 확정할 때 3장 표로 옮긴다.
+- 그림은 `Art/Source/generate_ui_kit.py`로 만들며 AI 이미지를 쓰지 않는다.
+- 아직 어긋나는 곳: 작게 표시된 룰렛의 SPIN 원판·지시침은 축소되어 도트가 고르지 않다. 안내 글자(TMP)는 도트 격자에 맞추지 않았다. 1920×1080의 정수배가 아닌 해상도에서는 칸 크기가 조금 고르지 않다.
 
 ### 토끼를 만든 방법 (다음 딜러도 같은 순서)
 

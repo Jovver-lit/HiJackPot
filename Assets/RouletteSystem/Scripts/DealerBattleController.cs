@@ -248,6 +248,8 @@ namespace RouletteLike.Roulette
         private Run _run;
         private int _runCount;
         private bool _placingJackpot;
+        private bool _placingRelic;
+        private bool _placingRelicFromShop;
         private int _lastPlayerOuter = -1;
         private int _pendingPlayerOuter = -1;
         private int _pendingDealerOuter = -1;
@@ -410,16 +412,16 @@ namespace RouletteLike.Roulette
             {
                 if (_run != null && _run.Outcome == RunOutcome.Escaped) DebugAutoplayRuns += new Vector2Int(1, 0);
                 else if (_battle != null && _battle.Outcome == BattleOutcome.DealerWins) DebugAutoplayRuns += new Vector2Int(0, 1);
-                Debug.Log($"[Autoplay] {_run?.FloorIndex + 1}층 {_battle?.Profile.Name} {_battle?.Outcome} R{_battle?.Round} · 런 {_run?.Outcome} · 칩 {_battle?.Player.Chips}/{_run?.Chips} · 유물 {_run?.Relics.Count}");
+                Debug.Log($"[Autoplay] {_run?.FloorIndex + 1}층 {_battle?.Profile.Name} {_battle?.Outcome} R{_battle?.Round} · 런 {_run?.Outcome} · 칩 {_battle?.Player.Chips}/{_run?.Chips} · 유물 {_run?.AttachedRelics.Count}");
                 OnEndContinue();
                 return;
             }
 
-            if (_placingJackpot)
+            if (_placingJackpot || _placingRelic)
             {
                 for (int i = 0; i < _run.Wheel.Count; i++)
                 {
-                    if (_run.Wheel[i].Kind != SlotKind.HouseCut) { OnDestinationChosen(i); return; }
+                    if (_run.Wheel[i].Kind != SlotKind.HouseCut && _run.Wheel[i].Kind != SlotKind.Sealed) { OnDestinationChosen(i); return; }
                 }
 
                 return;
@@ -538,6 +540,8 @@ namespace RouletteLike.Roulette
                 BattlePresets.CreateStageBoss,
                 outerRing: null);
             _placingJackpot = false;
+            _placingRelic = false;
+            _placingRelicFromShop = false;
             endPanel?.SetActive(false);
             ShowDoorsOrEnter();
         }
@@ -654,6 +658,12 @@ namespace RouletteLike.Roulette
                 return;
             }
 
+            if (_run.PendingAttachment.HasValue)
+            {
+                OpenRelicPlacement();
+                return;
+            }
+
             ShowDoorsOrEnter();
         }
 
@@ -673,6 +683,7 @@ namespace RouletteLike.Roulette
             _placingJackpot = true;
             _state = ViewState.ChoosingHijack;
             hijackPanel?.SetActive(true);
+            SetPlacementPanelTexts("HOUSE RULE CLEAR · HIJACK", "내 룰렛 · 덮어쓸 위치 (몰수 불가)", "빼앗은 딜러 칸은 봉인되고, 가져온 칸은 내 룰렛에 영구히 남습니다. [JP] = JACKPOT 칸");
             hijackInstructionText.text = $"완전 강탈 보상: {_run.PendingJackpot.Label}(JACKPOT)을 둘 내 칸을 고르세요 (몰수 불가)";
             if (hijackSourceTitleText != null) hijackSourceTitleText.text = "";
             foreach (UnityEngine.UI.Button button in hijackSourceButtons) button.gameObject.SetActive(false);
@@ -686,13 +697,81 @@ namespace RouletteLike.Roulette
             }
         }
 
+        /// <summary>HIJACK 패널을 JACKPOT·유물 배치에 재사용할 때 고정 문구를 바꾼다. 이름은 BattleSceneBuilder가 만든 오브젝트 이름이다.</summary>
+        private void SetPlacementPanelTexts(string title, string slotsTitle, string note)
+        {
+            if (hijackPanel == null) return;
+            SetChildText("Title", title);
+            SetChildText("PlayerSlotsTitle", slotsTitle);
+            SetChildText("Note", note);
+        }
+
+        private void SetChildText(string childName, string text)
+        {
+            Transform child = hijackPanel.transform.Find(childName);
+            TMP_Text label = child != null ? child.GetComponent<TMP_Text>() : null;
+            if (label != null) label.text = text;
+        }
+
+        /// <summary>얻은 유물을 붙일 내 칸을 고른다(ADR 0017). HIJACK 패널의 내 칸 버튼을 재사용한다.</summary>
+        private void OpenRelicPlacement()
+        {
+            _placingRelic = true;
+            _state = ViewState.ChoosingHijack;
+            hijackPanel?.SetActive(true);
+            Relic relic = RelicCatalog.Get(_run.PendingAttachment.Value);
+            SetPlacementPanelTexts("RELIC · 부정행위 도구", "내 룰렛 · 유물을 붙일 칸", "그 칸에 착지할 때마다 발동합니다. 칸에 이미 유물이 있으면 바뀝니다.");
+            hijackInstructionText.text = $"유물 획득  「{relic.Name}」  {relic.Description}\n붙일 내 칸을 고르세요 (몰수·봉인 불가, 칸을 덮어쓰면 유물도 사라집니다)";
+            if (hijackSourceTitleText != null) hijackSourceTitleText.text = "";
+            foreach (UnityEngine.UI.Button button in hijackSourceButtons) button.gameObject.SetActive(false);
+            for (int i = 0; i < hijackDestinationButtons.Length; i++)
+            {
+                bool exists = i < _run.Wheel.Count;
+                hijackDestinationButtons[i].gameObject.SetActive(exists);
+                if (!exists) continue;
+                Slot slot = _run.Wheel[i];
+                hijackDestinationButtons[i].interactable = slot.Kind != SlotKind.HouseCut && slot.Kind != SlotKind.Sealed;
+                string attached = slot.Attachment.HasValue ? $"\n{RelicCatalog.Get(slot.Attachment.Value).Icon} 교체" : "";
+                hijackDestinationLabels[i].text = $"{i + 1}\n{slot.Label}{attached}";
+            }
+        }
+
         private void OnDestinationChosen(int destinationIndex)
         {
+            if (_placingRelic)
+            {
+                if (_run.PlacePendingAttachment(destinationIndex))
+                {
+                    _placingRelic = false;
+                    hijackPanel?.SetActive(false);
+                    if (_placingRelicFromShop)
+                    {
+                        _placingRelicFromShop = false;
+                        _state = ViewState.Ended;
+                        shopPanel?.SetActive(true);
+                        ShopMessage("유물을 칸에 붙였습니다");
+                        RefreshShop();
+                    }
+                    else
+                    {
+                        ShowDoorsOrEnter();
+                    }
+                }
+
+                return;
+            }
+
             if (_placingJackpot)
             {
                 if (_run.PlacePendingJackpot(destinationIndex))
                 {
                     _placingJackpot = false;
+                    if (_run.PendingAttachment.HasValue)
+                    {
+                        OpenRelicPlacement();
+                        return;
+                    }
+
                     hijackPanel?.SetActive(false);
                     ShowDoorsOrEnter();
                 }
@@ -780,6 +859,11 @@ namespace RouletteLike.Roulette
         /// <summary>선공을 보여 준다: 동전을 던지는 동안 "코인플립"을 띄우고, 면이 정해지면 결과와 [라운드 시작] 효과를 띄운다.</summary>
         private IEnumerator PlayCoinFlip()
         {
+            if (_battle.StakesRoseThisRound)
+            {
+                yield return PlayBanner($"판돈 단위 ×{_battle.TableStakes}", $"이번 라운드부터 CASH OUT 피해 ×{_battle.TableStakes}", new Color32(240, 180, 60, 255));
+            }
+
             bool playerFirst = _battle.Active == Side.Player;
             string first = playerFirst ? "손님" : DealerShortName;
             string outcome = _battle.InitiativeGuaranteedThisRound ? $"{first} 선공 확정" : $"코인플립: {first} 선공";
@@ -845,6 +929,7 @@ namespace RouletteLike.Roulette
 
         private void BeginPlayerTurn()
         {
+            ShowTurnHeader("손님 차례 · 베팅을 고르세요");
             _state = ViewState.PlayerTurn;
             _playerSpinsThisTurn = 0;
             _chosenAnte = Mathf.Clamp(_chosenAnte, 1, Mathf.Max(1, CurrentMaxAnte()));
@@ -868,7 +953,8 @@ namespace RouletteLike.Roulette
         /// <summary>튜토리얼(예고하는 딜러)에서만 베팅이 R4 전까지 1로 묶인다.</summary>
         private bool AnteLocked => _battle.Profile.Telegraphs && _battle.Round < AnteUnlockRound;
 
-        private string DealerShortName => _battle.Profile.Name.Replace(" 딜러", "");
+        /// <summary>전투 안에서 상대를 부르는 말. 이름표·문 카드만 딜러 이름을 쓰고, 판돈·결과·룰렛은 "딜러"로 통일한다.</summary>
+        private const string DealerShortName = "딜러";
 
         private int CurrentMaxAnte() => AnteLocked ? 1 : _battle.MaxAnte(Side.Player);
 
@@ -879,8 +965,41 @@ namespace RouletteLike.Roulette
                 return;
             }
 
+            int before = _chosenAnte;
             _chosenAnte = Mathf.Clamp(_chosenAnte + delta, 1, Mathf.Max(1, CurrentMaxAnte()));
             RefreshBetControls();
+            RefreshPotDisplay();
+            RefreshOddsBoard();
+            if (_chosenAnte != before) StartCoroutine(PopPot());
+        }
+
+        /// <summary>판돈 숫자와 칩 더미. 베팅을 고르는 동안에는 걸 금액을 판돈으로 미리 보여 준다.</summary>
+        private void RefreshPotDisplay()
+        {
+            Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
+            bool choosingBet = _state == ViewState.PlayerTurn && _battle.Active == Side.Player && _battle.Phase == BattlePhase.AwaitingAnte;
+            int pot = choosingBet ? _chosenAnte : potSeat.Pot;
+            potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {pot}" : $"판돈 {pot}";
+            int chipsShown = Mathf.Min(potChipImages.Length, pot);
+            for (int i = 0; i < potChipImages.Length; i++)
+            {
+                potChipImages[i].gameObject.SetActive(i < chipsShown);
+            }
+        }
+
+        /// <summary>베팅을 바꾸면 판돈 숫자가 잠깐 튄다.</summary>
+        private IEnumerator PopPot()
+        {
+            RectTransform rect = potText.rectTransform;
+            const float duration = 0.14f;
+            for (float t = 0f; t < duration; t += Time.unscaledDeltaTime)
+            {
+                float s = 1f + 0.25f * Mathf.Sin(t / duration * Mathf.PI);
+                rect.localScale = new Vector3(s, s, 1f);
+                yield return null;
+            }
+
+            rect.localScale = Vector3.one;
         }
 
         public void PreviewSpinPower(float power)
@@ -1023,7 +1142,9 @@ namespace RouletteLike.Roulette
             LandingResult landing = _battle.Land(index, _lastPlayerOuter);
             FlushCoreLog();
             presentationUi?.SetPhase(BattlePresentationUI.Phase.Resolve);
-            resultText.text = DescribeLanding(landing, SlotTitle(_battle.Player.Wheel[index]));
+            resultText.text = landing.AttachmentNote.Length > 0
+                ? $"<color=#E0A834>유물 발동  {landing.AttachmentNote}</color>"
+                : DescribeLanding(landing, SlotTitle(_battle.Player.Wheel[index]));
             calculationText.text = landing.Formula;
             ShowLandingFeedback(Side.Player, landing);
             AddPotTrail(landing);
@@ -1066,9 +1187,10 @@ namespace RouletteLike.Roulette
             AddPotTrailCashOut(result);
             FlushCoreLog();
             resultText.text = $"CASH OUT  피해 {result.Damage}";
+            string stakes = _battle.TableStakes > 1 ? $" × 단위 {_battle.TableStakes}" : "";
             calculationText.text = result.RelicBonus > 0
-                ? $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} + 유물 {result.RelicBonus} = {result.Damage}"
-                : $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance} = {result.Damage}";
+                ? $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance}{stakes} + 유물 {result.RelicBonus} = {result.Damage}"
+                : $"판돈 {result.Pot} − {DealerShortName} 보험 {result.OpponentInsurance}{stakes} = {result.Damage}";
             Say(result.Damage >= 8 ? Lines.BigCashOut : Lines.SmallCashOut);
             StartCoroutine(CashOutThenEndTurn(result));
         }
@@ -1145,6 +1267,7 @@ namespace RouletteLike.Roulette
             wheelStage?.ShowActive(false, _tempo);
             if (dealerWheelLabel != null) dealerWheelLabel.text = "딜러\n차례";
             spinInput?.ShowUnavailableState("딜러 차례");
+            ShowTurnHeader("딜러 차례");
             instructionText.text = $"{DealerShortName} 차례 · 판돈 {_battle.Profile.CashOutAt} 이상이면 CASH OUT합니다.";
 
             _battle.PlaceAnte(_battle.Profile.DealerAnte);
@@ -1164,7 +1287,7 @@ namespace RouletteLike.Roulette
                     AddPotTrailCashOut(cashOut);
                     FlushCoreLog();
                     resultText.text = cashOut.FullCoverage ? "전액 보장!" : $"{DealerShortName} CASH OUT  피해 {cashOut.Damage}";
-                    calculationText.text = $"판돈 {cashOut.Pot} − 내 보험 {cashOut.OpponentInsurance} = {cashOut.Damage}";
+                    calculationText.text = $"판돈 {cashOut.Pot} − 내 보험 {cashOut.OpponentInsurance}{(_battle.TableStakes > 1 ? $" × 단위 {_battle.TableStakes}" : "")} = {cashOut.Damage}";
                     Say(cashOut.FullCoverage ? "보험이 전액 보장했군요. 규정상 칸 하나를 양도하겠습니다." : Lines.DealerCashOut);
                     presentationUi?.SetHouseRuleHighlighted(cashOut.FullCoverage);
                     yield return PlayCashOutFlight(Side.Dealer, cashOut);
@@ -1301,7 +1424,7 @@ namespace RouletteLike.Roulette
 
         private void OnPlayerWheelClicked(int index)
         {
-            if (_placingJackpot)
+            if (_placingJackpot || _placingRelic)
             {
                 OnDestinationChosen(index);
                 return;
@@ -1455,7 +1578,15 @@ namespace RouletteLike.Roulette
                     _shopMode = ShopMode.None;
                     RelicId? relic = _run.ShopRelic;
                     ShopError relicError = _run.BuyShopRelic();
-                    ShopMessage(relicError == ShopError.None && relic.HasValue ? $"유물 「{RelicCatalog.Get(relic.Value).Name}」을 샀습니다" : ShopErrorText(relicError));
+                    if (relicError == ShopError.None && relic.HasValue)
+                    {
+                        _placingRelicFromShop = true;
+                        shopPanel?.SetActive(false);
+                        OpenRelicPlacement();
+                        return;
+                    }
+
+                    ShopMessage(ShopErrorText(relicError));
                     break;
                 case 4:
                     _shopMode = ShopMode.None;
@@ -1745,8 +1876,7 @@ namespace RouletteLike.Roulette
             {
                 starts[i] = thrower.position + new Vector3((i % 3 - 1) * 14f, (i % 4) * 8f, 0f);
                 chips[i].position = starts[i];
-                chips[i].sizeDelta = new Vector2(30f, 30f);
-                chips[i].localRotation = Quaternion.Euler(0f, 0f, 45f);
+                chips[i].sizeDelta = new Vector2(32f, 32f);
             }
 
             Vector3 end = target.position;
@@ -1860,7 +1990,7 @@ namespace RouletteLike.Roulette
             {
                 Relic relic = RelicCatalog.Get(_run.CurrentPrize.Value);
                 prize = Run.RelicChallengeMet(_battle)
-                    ? $"\n유물 획득: 「{relic.Name}」 {relic.Description}"
+                    ? $"\n유물 획득: 「{relic.Name}」 다음 화면에서 붙일 칸을 고릅니다"
                     : $"\n유물 「{relic.Name}」은 하우스 룰을 달성하지 못해 받지 못했습니다";
             }
             switch (_battle.Outcome)
@@ -1894,6 +2024,8 @@ namespace RouletteLike.Roulette
                 endBodyText.text += "\n룰렛 형식 획득: 바깥 링 — 지금부터 이 런의 내 룰렛에 붙습니다.";
             }
 
+            endBodyText.text += DescribeAttachmentGains();
+
             RefreshAllUi();
         }
 
@@ -1919,17 +2051,11 @@ namespace RouletteLike.Roulette
                 : $"◆ 보험 {_battle.Player.Insurance}";
             if (dealerInsuranceText != null) dealerInsuranceText.text = $"◆ 보험 {_battle.Dealer.Insurance}";
             RefreshRelicStrip();
-            Seat potSeat = _battle.Active == Side.Dealer && _battle.Phase == BattlePhase.Spinning ? _battle.Dealer : _battle.Player;
-            potText.text = potSeat == _battle.Dealer ? $"{DealerShortName} 판돈 {potSeat.Pot}" : $"판돈 {potSeat.Pot}";
-            int chipsShown = Mathf.Min(potChipImages.Length, (potSeat.Pot + 1) / 2);
-            for (int i = 0; i < potChipImages.Length; i++)
-            {
-                potChipImages[i].gameObject.SetActive(i < chipsShown);
-            }
+            RefreshPotDisplay();
             string closing = _battle.TableFee > 0
                 ? $" · 마감 −{_battle.TableFee}"
                 : _battle.Round >= PotBattle.TableFeeStartRound - 2 ? $" · {PotBattle.TableFeeStartRound}R 마감" : "";
-            roundText.text = $"{_run.FloorIndex + 1}F · ROUND {_battle.Round}{closing}";
+            roundText.text = $"{_run.FloorIndex + 1}F · ROUND {_battle.Round} · 판돈 단위 ×{_battle.TableStakes}{closing}";
             RefreshBetControls();
             RefreshHouseRuleUi();
             RefreshChainPreview();
@@ -1976,7 +2102,7 @@ namespace RouletteLike.Roulette
             {
                 (int low, int high) = NextSpinPotRange(_battle.Player.Wheel, _battle.Player.Pot);
                 riskSummaryText.text =
-                    $"다음 SPIN 판돈 {low}~{high}  ·  몰수 {houseCutChance:0.#}%";
+                    $"다음 SPIN 판돈 {low}~{high}  ·  몰수 {houseCutChance:0.#}%" + (_battle.MultipliersThisTurn > 0 ? $" (배율 {_battle.MultipliersThisTurn}번)" : "");
                 riskSummaryText.color = new Color32(242, 194, 110, 255);
             }
             else
@@ -2132,6 +2258,12 @@ namespace RouletteLike.Roulette
         /// </summary>
         private static string WheelLabel(Slot slot)
         {
+            string attached = slot.Attachment.HasValue ? $"\n[{RelicCatalog.Get(slot.Attachment.Value).Icon}]" : "";
+            return BaseWheelLabel(slot) + attached;
+        }
+
+        private static string BaseWheelLabel(Slot slot)
+        {
             if (SlotDescriptions.IsSpecial(slot)) return slot.Label;
             switch (slot.Kind)
             {
@@ -2190,7 +2322,8 @@ namespace RouletteLike.Roulette
             if (title != null) title.text = who + (landing.JackpotLine ? "잭팟 라인!  " : "") + SlotTitle(slot);
             if (effect != null)
             {
-                effect.text = SummarizeLandingEffect(landing, slot, seat);
+                effect.text = SummarizeLandingEffect(landing, slot, seat)
+                    + (landing.AttachmentNote.Length > 0 ? $"\n{landing.AttachmentNote}" : "");
                 effect.color = bad ? new Color32(255, 120, 120, 255) : new Color32(224, 168, 52, 255);
             }
 
@@ -2347,7 +2480,31 @@ namespace RouletteLike.Roulette
         /// <summary>문 선택 카드: 성향·보험·하우스 룰·JACKPOT 칸을 한눈에.</summary>
         // ───────────── 유물 ─────────────
 
-        private IReadOnlyList<RelicId> OwnedRelics => _run != null ? _run.Relics : System.Array.Empty<RelicId>();
+        /// <summary>유물 띠에 보여 줄 유물: 칸에 붙은 유물과 (시작 유물로 준) 옛 유물.</summary>
+        private IReadOnlyList<RelicId> OwnedRelics
+        {
+            get
+            {
+                if (_run == null) return System.Array.Empty<RelicId>();
+                List<RelicId> owned = new List<RelicId>(_run.AttachedRelics);
+                owned.AddRange(_run.Relics);
+                return owned;
+            }
+        }
+
+        /// <summary>종료 화면: 칸에 붙은 유물이 이번 전투에서 실제로 준 이득.</summary>
+        private string DescribeAttachmentGains()
+        {
+            if (_battle == null || _battle.AttachmentGains.Count == 0) return "";
+            List<string> parts = new List<string>();
+            foreach (KeyValuePair<RelicId, int> gain in _battle.AttachmentGains)
+            {
+                Relic relic = RelicCatalog.Get(gain.Key);
+                parts.Add($"「{relic.Name}」 {relic.GainUnit} +{gain.Value}");
+            }
+
+            return "\n이번 전투 유물 이득: " + string.Join(" · ", parts);
+        }
 
         /// <summary>유물 띠: 왼쪽에 현금·NUDGE 숫자, 오른쪽에 유물 아이콘(키워드 색). 이름·설명은 아이콘에 올리거나 눌러서 본다.</summary>
         private void RefreshRelicStrip()
@@ -2399,6 +2556,21 @@ namespace RouletteLike.Roulette
         private string _potTrailOwner = "";
 
         /// <summary>베팅을 걸 때 판돈 흐름을 새로 시작한다(딜러 차례면 딜러 이름을 붙인다).</summary>
+        /// <summary>
+        /// 차례가 바뀌면 결과 줄을 새 차례로 바꾸고, 직전 결과는 그 아래 줄에 흐리게 남긴다.
+        /// 지난 차례의 "CASH OUT 피해" 문구가 새 판돈 옆에 남아 헷갈리던 문제를 막는다.
+        /// </summary>
+        private void ShowTurnHeader(string header)
+        {
+            string previous = resultText.text;
+            resultText.text = header;
+            _potTrail.Clear();
+            _potTrailOwner = "";
+            if (potTrailText == null) return;
+            bool hasPrevious = !string.IsNullOrEmpty(previous) && previous != header && !previous.StartsWith("코인플립");
+            potTrailText.text = hasPrevious ? $"<color=#8F92A4>직전 · {previous}</color>" : "";
+        }
+
         private void StartPotTrail(int ante, string owner = "")
         {
             _potTrail.Clear();
@@ -2477,7 +2649,7 @@ namespace RouletteLike.Roulette
             };
             if (OwnedRelics.Count == 0)
             {
-                lines.Add("아직 유물이 없습니다. 층마다 문 카드에 걸린 유물은 그 딜러를 이기면 가져옵니다.");
+                lines.Add("아직 유물이 없습니다. 문 카드에 걸린 유물은 그 딜러의 하우스 룰을 달성하고 이기면 얻어 내 칸에 붙입니다.");
             }
 
             foreach (RelicId id in OwnedRelics)
@@ -2519,7 +2691,7 @@ namespace RouletteLike.Roulette
         {
             if (!prize.HasValue) return "";
             Relic relic = RelicCatalog.Get(prize.Value);
-            return $"\n하우스 룰 달성 + 승리 시 유물: 「{relic.Name}」 {relic.Description}";
+            return $"\n하우스 룰 달성 + 승리 시 칸에 붙이는 유물: 「{relic.Name}」 {relic.Description}";
         }
 
         private static string DescribeDealer(DealerProfile dealer)
@@ -2627,18 +2799,18 @@ namespace RouletteLike.Roulette
         {
             (RouletteSegmentType type, Color color) = slot.Kind switch
             {
-                SlotKind.Raise => (RouletteSegmentType.Damage, (Color)new Color32(196, 67, 72, 255)),
-                SlotKind.Multiplier => (RouletteSegmentType.Multiplier, (Color)new Color32(57, 139, 191, 255)),
-                SlotKind.Insurance => (RouletteSegmentType.Custom, (Color)new Color32(56, 153, 160, 255)),
-                SlotKind.Dividend => (RouletteSegmentType.Heal, (Color)new Color32(67, 166, 109, 255)),
-                SlotKind.HouseCut => (RouletteSegmentType.Poison, (Color)new Color32(40, 30, 48, 255)),
+                SlotKind.Raise => (RouletteSegmentType.Damage, (Color)new Color32(168, 28, 48, 255)),
+                SlotKind.Multiplier => (RouletteSegmentType.Multiplier, (Color)new Color32(42, 68, 129, 255)),
+                SlotKind.Insurance => (RouletteSegmentType.Custom, (Color)new Color32(31, 111, 120, 255)),
+                SlotKind.Dividend => (RouletteSegmentType.Heal, (Color)new Color32(42, 102, 80, 255)),
+                SlotKind.HouseCut => (RouletteSegmentType.Poison, (Color)new Color32(25, 25, 31, 255)),
                 _ => (RouletteSegmentType.Custom, (Color)new Color32(54, 48, 65, 255))
             };
 
             if (slot.IsJackpot)
             {
                 type = RouletteSegmentType.Jackpot;
-                color = new Color32(222, 164, 48, 255);
+                color = new Color32(196, 140, 40, 255);
             }
 
             string label = WheelLabel(slot);
@@ -2654,8 +2826,8 @@ namespace RouletteLike.Roulette
             }
 
             return new RouletteSegmentData(
-                slot.Id, type, slot.Value, slot.Kind == SlotKind.HouseCut ? houseCutWeight : 1f, color, null, label,
-                slot.IsJackpot || slot.IsStolen || slot.Kind == SlotKind.HouseCut);
+                slot.Id, type, slot.Value, slot.Kind == SlotKind.HouseCut ? houseCutWeight : PotBattle.SlotWeight(slot), color, null, label,
+                slot.IsJackpot || slot.IsStolen || slot.Kind == SlotKind.HouseCut || slot.Attachment.HasValue);
         }
 
         /// <summary>역전 보정 무게. 코어가 계산하고 회전은 그 무게를 착지 구역 안에서만 반영한다(몰수 상승은 칸 폭으로 그린다).</summary>
@@ -2696,7 +2868,7 @@ namespace RouletteLike.Roulette
         {
             _fullLog.Add(message);
             _combatLog.Enqueue(message);
-            while (_combatLog.Count > 4) _combatLog.Dequeue();
+            while (_combatLog.Count > 2) _combatLog.Dequeue();
             string[] recent = _combatLog.ToArray();
             System.Array.Reverse(recent);
             combatLogText.text = string.Join("\n", recent);

@@ -352,7 +352,7 @@ namespace RouletteLike.Battle.Tests
             battle.Land(0);
             battle.Land(0); // 다음은 3번째 SPIN = 15%
             float weight = battle.HouseCutWeight(Side.Player);
-            Assert.AreEqual(0.15f, weight / (weight + 7f), 1e-4f);
+            Assert.AreEqual(0.15f, weight / (weight + 6f + PotBattle.MultiplierSlotWeight), 1e-4f);
 
             int cuts = 0;
             const int trials = 20000;
@@ -502,7 +502,7 @@ namespace RouletteLike.Battle.Tests
 
             battle.StartRound();
 
-            CollectionAssert.Contains(battle.RoundStartEffects, "토끼 딜러의 서비스: 칩 +1");
+            CollectionAssert.Contains(battle.RoundStartEffects, "딜러의 서비스: 칩 +1");
         }
 
         private static void AdvanceToDealerInRound(PotBattle battle)
